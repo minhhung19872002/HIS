@@ -65,12 +65,15 @@ export const getById = async (id: string) => {
 
 // CreateMentalHealthCaseDto names: diagnosisName / medicationRegimen / treatingDoctor — the page's
 // diagnosis, medications and psychiatrist were silently dropped on save.
-const toCaseWire = (data: Partial<MentalHealthCase>) => {
-  const { diagnosis, medications, psychiatristName, ...rest } = data;
-  return { ...rest, diagnosisName: diagnosis, medicationRegimen: medications, treatingDoctor: psychiatristName };
+const toCaseWire = (data: Partial<MentalHealthCase> & { patientId?: string }) => {
+  const { diagnosis, medications, psychiatristName, nextFollowUpDate, ...rest } = data;
+  return {
+    ...rest, diagnosisName: diagnosis, medicationRegimen: medications, treatingDoctor: psychiatristName,
+    nextVisitDate: nextFollowUpDate || undefined, patientId: rest.patientId || undefined,
+  };
 };
 
-export const createCase = async (data: Partial<MentalHealthCase>) => {
+export const createCase = async (data: Partial<MentalHealthCase> & { patientId?: string }) => {
   const response = await apiClient.post<MentalHealthCase>('/mental-health/cases', toCaseWire(data));
   return response.data;
 };
@@ -103,6 +106,7 @@ export const getStats = async (): Promise<MentalHealthStats> => {
     const response = await apiClient.get<{
       activeCount?: number;
       overdueFollowUps?: number;
+      assessmentsThisMonth?: number;
       severityBreakdown?: Array<{ severity?: string; count?: number }>;
     }>('/mental-health/stats');
     const severityBreakdown = response.data?.severityBreakdown || [];
@@ -114,7 +118,7 @@ export const getStats = async (): Promise<MentalHealthStats> => {
       activeCases: response.data?.activeCount || 0,
       severeCases,
       overdueFollowUps: response.data?.overdueFollowUps || 0,
-      assessmentsThisMonth: 0,
+      assessmentsThisMonth: response.data?.assessmentsThisMonth || 0,
     };
   } catch {
     console.warn('Failed to fetch mental health statistics');

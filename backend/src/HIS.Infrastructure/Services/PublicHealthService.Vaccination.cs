@@ -49,6 +49,7 @@ public partial class PublicHealthService
 
         return await query
             .OrderByDescending(v => v.VaccinationDate)
+            .ThenBy(v => v.Id) // QA-R11: deterministic paging
             .Skip(skip)
             .Take(pageSize)
             .Select(v => MapVaccinationDto(v))
@@ -117,6 +118,9 @@ public partial class PublicHealthService
         var v = await _context.VaccinationRecords.Include(x => x.Patient).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
             ?? throw new InvalidOperationException("Vaccination record not found");
         if (dto.Status.HasValue) v.Status = dto.Status.Value;
+        // QA-R11: an AEFI (adverse event after immunization) needs a dose that was actually given (Status 1).
+        if ((dto.AefiSeverity > 0 || !string.IsNullOrWhiteSpace(dto.AefiReport)) && v.Status != 1)
+            throw new InvalidOperationException("Chỉ ghi nhận phản ứng sau tiêm cho mũi đã tiêm.");
         if (dto.AefiReport != null) v.AefiReport = dto.AefiReport;
         if (dto.AefiSeverity.HasValue) v.AefiSeverity = dto.AefiSeverity.Value;
         if (!string.IsNullOrEmpty(dto.NextDoseDate) && DateTime.TryParse(dto.NextDoseDate, out var nd))
@@ -179,14 +183,34 @@ public partial class PublicHealthService
 
     public async Task<VaccinationCampaignDto> CreateVaccinationCampaignAsync(CreateVaccinationCampaignDto dto, string? userId)
     {
+        // QA-R11: an empty body created a nameless campaign with made-up dates (today → +3 months), target 0 and a
+        // duplicate/empty code (record linking by CampaignCode then hit the wrong campaign).
+        var code = dto.CampaignCode?.Trim();
+        if (string.IsNullOrEmpty(code))
+            throw new ArgumentException("Chưa nhập mã chiến dịch.", nameof(dto.CampaignCode));
+        if (string.IsNullOrWhiteSpace(dto.CampaignName))
+            throw new ArgumentException("Chưa nhập tên chiến dịch.", nameof(dto.CampaignName));
+        if (string.IsNullOrWhiteSpace(dto.VaccineName))
+            throw new ArgumentException("Chưa nhập vắc-xin.", nameof(dto.VaccineName));
+        if (string.IsNullOrEmpty(dto.StartDate) || !DateTime.TryParse(dto.StartDate, out var sd))
+            throw new ArgumentException("Chưa nhập ngày bắt đầu hợp lệ.", nameof(dto.StartDate));
+        if (string.IsNullOrEmpty(dto.EndDate) || !DateTime.TryParse(dto.EndDate, out var ed))
+            throw new ArgumentException("Chưa nhập ngày kết thúc hợp lệ.", nameof(dto.EndDate));
+        if (ed.Date < sd.Date)
+            throw new ArgumentException("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.", nameof(dto.EndDate));
+        if (dto.TargetCount <= 0)
+            throw new ArgumentException("Số đối tượng mục tiêu phải lớn hơn 0.", nameof(dto.TargetCount));
+        if (await _context.VaccinationCampaigns.AnyAsync(c => c.CampaignCode == code && !c.IsDeleted))
+            throw new InvalidOperationException($"Mã chiến dịch {code} đã tồn tại.");
+
         var entity = new VaccinationCampaign
         {
             Id = Guid.NewGuid(),
-            CampaignCode = dto.CampaignCode,
-            CampaignName = dto.CampaignName,
-            VaccineName = dto.VaccineName,
-            StartDate = !string.IsNullOrEmpty(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var sd) ? sd : DateTime.UtcNow,
-            EndDate = !string.IsNullOrEmpty(dto.EndDate) && DateTime.TryParse(dto.EndDate, out var ed) ? ed : DateTime.UtcNow.AddMonths(3),
+            CampaignCode = code,
+            CampaignName = dto.CampaignName.Trim(),
+            VaccineName = dto.VaccineName.Trim(),
+            StartDate = sd,
+            EndDate = ed,
             TargetGroup = dto.TargetGroup,
             TargetCount = dto.TargetCount,
             CompletedCount = 0,

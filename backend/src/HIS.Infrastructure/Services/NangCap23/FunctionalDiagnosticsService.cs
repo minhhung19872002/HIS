@@ -49,7 +49,7 @@ public class FunctionalDiagnosticsService : IFunctionalDiagnosticsService
         if (from.HasValue) q = q.Where(x => x.CreatedAt >= from.Value);
         if (to.HasValue) q = q.Where(x => x.CreatedAt <= to.Value);
 
-        var rows = await q.OrderByDescending(x => x.CreatedAt).Skip(pageIndex * pageSize).Take(pageSize).ToListAsync();
+        var rows = await q.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Skip(pageIndex * pageSize).Take(pageSize).ToListAsync();
         var pids = rows.Select(r => r.PatientId).Distinct().ToList();
         var pmap = await _db.Patients.AsNoTracking().Where(p => pids.Contains(p.Id)).Select(p => new { p.Id, p.FullName, p.PatientCode }).ToListAsync();
 

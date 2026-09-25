@@ -116,6 +116,32 @@ namespace HIS.API.Controllers
             }));
         }
 
+        // QA-R11: an audit could be scheduled but never approved or given a result (service methods had no route and
+        // were stubs), so every audit stayed "Đã lên lịch". Planned → Approved → Completed.
+        [HttpPost("audits/{id:guid}/approve")]
+        public async Task<ActionResult<bool>> ApproveAuditPlan(Guid id)
+            => await _service.ApproveAuditPlanAsync(id)
+                ? Ok(true)
+                : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kế hoạch audit" });
+
+        [HttpGet("audits/{id:guid}/result")]
+        public async Task<ActionResult<AuditResultDto>> GetAuditResult(Guid id)
+        {
+            var r = await _service.GetAuditResultAsync(id);
+            return r == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kế hoạch audit" }) : Ok(r);
+        }
+
+        [HttpPost("audits/{id:guid}/result")]
+        public async Task<ActionResult<AuditResultDto>> SubmitAuditResult(Guid id, [FromBody] SubmitAuditResultRequest req)
+            => Ok(await _service.SubmitAuditResultAsync(new AuditResultDto
+            {
+                Id = id, AuditDate = req.AuditDate ?? default,
+                MajorNonConformities = req.MajorNonConformities, MinorNonConformities = req.MinorNonConformities,
+                Observations = req.Observations, Opportunities = req.Opportunities,
+                ExecutiveSummary = req.ExecutiveSummary, Strengths = req.Strengths,
+                AreasForImprovement = req.AreasForImprovement, OverallRating = req.OverallRating,
+            }));
+
         [HttpGet("satisfaction")]
         public async Task<ActionResult<SatisfactionReportDto>> GetSatisfactionReport(
             [FromQuery] DateTime fromDate,

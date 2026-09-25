@@ -41,6 +41,7 @@ export interface VaccinationSchedule {
 
 export interface Campaign {
   id: string;
+  code?: string;
   name: string;
   vaccineCode: string;
   vaccineName: string;
@@ -66,7 +67,7 @@ export interface AefiReport {
   vaccineName: string;
   vaccinationDate: string;
   reactionDate: string;
-  severity: number; // 1=mild, 2=moderate, 3=severe, 4=serious
+  severity: number; // BE VaccinationRecord.AefiSeverity: 0=none, 1=mild, 2=moderate, 3=severe
   symptoms: string;
   outcome: string;
   reportedBy: string;
@@ -138,10 +139,12 @@ const mapAefiReport = (dto: ImmunizationRecordDto): AefiReport | null => {
     vaccineName: dto.vaccineName,
     vaccinationDate: dto.vaccinationDate,
     reactionDate: dto.vaccinationDate,
-    severity: dto.aefiSeverity ?? 1,
+    severity: dto.aefiSeverity ?? 0,
     symptoms: dto.aefiReport,
-    outcome: dto.status === 1 ? 'Da xu tri' : 'Dang theo doi',
-    reportedBy: dto.administeredBy || 'N/A',
+    // QA-R11: "Da xu tri" was derived from the VACCINATION status (every administered dose → "treated"); the BE keeps
+    // no AEFI follow-up/outcome, so show what was actually recorded (notes) instead of a fabricated outcome.
+    outcome: dto.notes || '',
+    reportedBy: dto.administeredBy || '',
     status: dto.status === 1 ? 2 : 0,
   };
 };
@@ -233,30 +236,61 @@ export const getVaccinationSchedule = async (patientId: string): Promise<Vaccina
   }
 };
 
+// QA-R11: campaigns were a literal [] and "create" threw, although BE PublicHealthController already serves
+// GET/POST /public-health/vaccinations/campaigns (VaccinationCampaigns table).
+type VaccinationCampaignDto = {
+  id: string; campaignCode: string; campaignName: string; vaccineName: string;
+  startDate: string; endDate: string; targetGroup?: string | null; targetCount: number;
+  completedCount: number; status: number; description?: string | null; areas?: string | null;
+};
+
+const mapCampaign = (c: VaccinationCampaignDto): Campaign => ({
+  id: c.id, code: c.campaignCode, name: c.campaignName, vaccineCode: '', vaccineName: c.vaccineName,
+  startDate: c.startDate, endDate: c.endDate, targetPopulation: c.targetCount || 0,
+  completedCount: c.completedCount || 0, status: c.status, area: c.areas || c.targetGroup || '',
+  description: c.description || undefined,
+});
+
 export const searchCampaigns = async (params?: {
   keyword?: string;
   status?: number;
-}) => {
-  try {
-    void params;
-    return [];
-  } catch {
-    console.warn('Failed to fetch campaigns');
-    return [];
-  }
+}): Promise<Campaign[]> => {
+  const response = await apiClient.get<VaccinationCampaignDto[]>('/public-health/vaccinations/campaigns');
+  const list = (Array.isArray(response.data) ? response.data : []).map(mapCampaign);
+  const kw = params?.keyword?.trim().toLowerCase();
+  return list.filter((c) => (params?.status == null || c.status === params.status)
+    && (!kw || c.name.toLowerCase().includes(kw) || (c.code || '').toLowerCase().includes(kw)));
 };
 
 export const createCampaign = async (data: Partial<Campaign>) => {
-  void data;
-  throw new Error('Campaign API is not supported by the current backend');
+  const response = await apiClient.post<VaccinationCampaignDto>('/public-health/vaccinations/campaigns', {
+    campaignCode: data.code,
+    campaignName: data.name,
+    vaccineName: data.vaccineName,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    targetCount: data.targetPopulation ?? 0,
+    areas: data.area,
+    description: data.description,
+  });
+  return mapCampaign(response.data);
+};
+
+/** Ghi nhận phản ứng sau tiêm (AEFI) — BE PUT /immunization/{id}/reaction (severity 0–3). */
+export const recordReaction = async (id: string, dto: { aefiReport: string; aefiSeverity: number; notes?: string }) => {
+  const response = await apiClient.put<ImmunizationRecordDto>(`/immunization/${id}/reaction`, dto);
+  return mapVaccination(response.data);
 };
 
 export const getCampaignStats = async (): Promise<CampaignStats> => {
   try {
-    const response = await apiClient.get<ImmunizationStatisticsDto>('/immunization/statistics');
+    const [response, campaigns] = await Promise.all([
+      apiClient.get<ImmunizationStatisticsDto>('/immunization/statistics'),
+      searchCampaigns().catch(() => [] as Campaign[]),
+    ]);
     return {
-      totalCampaigns: 0,
-      activeCampaigns: 0,
+      totalCampaigns: campaigns.length,
+      activeCampaigns: campaigns.filter((c) => c.status === 1).length,
       totalVaccinated: response.data?.completedCount || 0,
       coveragePercent: response.data?.totalRecords
         ? Math.round(((response.data.completedCount || 0) / response.data.totalRecords) * 1000) / 10
@@ -296,6 +330,7 @@ export default {
   getVaccinationSchedule,
   searchCampaigns,
   createCampaign,
+  recordReaction,
   getCampaignStats,
   getAefiReports,
 };

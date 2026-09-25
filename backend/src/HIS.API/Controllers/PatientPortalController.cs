@@ -154,8 +154,12 @@ namespace HIS.API.Controllers
 
         [HttpGet("feedbacks")]
         [Authorize]
-        public ActionResult GetFeedbacks()
-            => Ok(new List<object>());
+        public async Task<ActionResult> GetFeedbacks([FromQuery] Guid patientId)
+        {
+            // QA-R11: was a stub (always []) while SubmitFeedback stores real rows.
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            return Ok(await _service.GetFeedbacksAsync(pid));
+        }
 
         [HttpGet("notifications")]
         [Authorize]
@@ -166,7 +170,11 @@ namespace HIS.API.Controllers
             [FromQuery] int pageSize = 20)
         {
             var (aid, err) = ResolveAccountId(accountId); if (err != null) return err;
-            return Ok(await _service.GetNotificationsAsync(aid, unreadOnly));
+            // QA-R11: page/pageSize were declared but ignored (every page = the same 50 rows).
+            var list = await _service.GetNotificationsAsync(aid, unreadOnly);
+            page = Math.Max(1, page);
+            pageSize = pageSize > 0 ? Math.Min(pageSize, 50) : 20;
+            return Ok(list.Skip((page - 1) * pageSize).Take(pageSize).ToList());
         }
 
         [HttpGet("doctors")]
@@ -208,6 +216,25 @@ namespace HIS.API.Controllers
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
             return Ok(await _service.BookAppointmentAsync(pid, dto));
         }
+
+        /// <summary>
+        /// QA-R11: the FE (cancelAppointment) called this route but it did not exist — a booking made on the portal
+        /// could not be cancelled from the portal. Cancels the HIS appointment with the counter's rules
+        /// (already visited → refused, reserved queue ticket released). A PortalPatient only cancels its own.
+        /// </summary>
+        [HttpPost("appointments/{id}/cancel")]
+        [Authorize]
+        public async Task<ActionResult> CancelAppointment(Guid id, [FromBody] PortalCancelAppointmentRequest? body)
+        {
+            var appt = await _service.GetAppointmentAsync(id);
+            if (appt == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lịch hẹn." });
+            if (IsPortalPatient && appt.PatientId != ClaimPatientId)
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lịch hẹn." });
+            var ok = await _service.CancelAppointmentAsync(id, body?.Reason ?? "Hủy từ cổng bệnh nhân");
+            return Ok(ok);
+        }
+
+        public class PortalCancelAppointmentRequest { public string? Reason { get; set; } }
 
         [HttpGet("health-record")]
         [HttpGet("health-records")]
@@ -709,6 +736,12 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<PatientQuestionDto>> AnswerPatientQuestion(
             Guid id, [FromBody] AnswerPatientQuestionDto dto)
         {
+            // QA-R11: a PortalPatient token could answer ANY question (its own or another patient's) with a forged
+            // "answeredByName". Answers are staff-only, and the answerer identity comes from the token.
+            if (IsPortalPatient || User.IsInRole(RoleNames.PatientAppService)) return Forbid();
+            dto.AnsweredBy = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? dto.AnsweredBy;
+            dto.AnsweredByName = User.FindFirst(HIS.Core.Constants.JwtClaims.FullName)?.Value
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? dto.AnsweredByName;
             // QA-R7: unknown id answered 204 (null body) instead of 404.
             var result = await _service.AnswerPatientQuestionAsync(id, dto);
             return result == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy câu hỏi" }) : Ok(result);

@@ -42,6 +42,7 @@ export interface HouseholdMember {
 
 export interface NcdScreening {
   id: string;
+  patientId?: string;
   screeningCode: string;
   patientName: string;
   patientCode?: string;
@@ -159,7 +160,9 @@ const toHouseholdWire = (d: Partial<Household>) => {
     headOfHousehold: headName,
     wardName: ward,
     // no province column in HouseholdCreateDto — keep it in the address text instead of dropping it
-    address: [rest.address, province].filter(Boolean).join(', ') || undefined,
+    // (only once: on edit the address read back already ends with it)
+    address: [rest.address, province && !(rest.address || '').includes(province) ? province : '']
+      .filter(Boolean).join(', ') || undefined,
     districtName: district,
     phoneNumber: phone,
     riskLevel: riskLevel != null ? (RISK_TO_INT[riskLevel] ?? 0) : undefined,
@@ -225,6 +228,68 @@ export const getHouseholdMembers = async (householdId: string) => {
   }
 };
 
+// BE NcdScreeningListDto → shape the NCD tab renders. The tab used to cast the raw BE rows, so every
+// classification/label was undefined (e.g. "THA phát hiện" counted every row, BMI/CVD chips blank).
+type NcdWire = {
+  id: string; patientId?: string; patientName?: string; patientCode?: string; screeningDate?: string;
+  systolicBP?: number | null; diastolicBP?: number | null; fastingGlucose?: number | null; hbA1c?: number | null;
+  bmi?: number | null; cvdRiskScore?: number | null; riskLevel?: number; diagnosis?: string | null;
+  referredToFacility?: boolean; screenedBy?: string | null; followUpDate?: string | null;
+  smokingStatus?: number; alcoholUse?: number; gender?: number | null; dateOfBirth?: string | null;
+};
+const RISK_LEVELS = ['Low', 'Medium', 'High', 'VeryHigh'];
+const ALCOHOL = ['None', 'Occasional', 'Regular', 'Heavy'];
+const bpClass = (s?: number | null, d?: number | null) => {
+  const sy = s ?? 0; const di = d ?? 0;
+  if (sy >= 180 || di >= 120) return 'Crisis';
+  if (sy >= 140 || di >= 90) return 'Stage2';
+  if (sy >= 130 || di >= 80) return 'Stage1';
+  if (sy >= 120) return 'Elevated';
+  return 'Normal';
+};
+const gluClass = (g?: number | null, a1c?: number | null) => {
+  if (g == null && a1c == null) return undefined;
+  if ((g ?? 0) >= 7 || (a1c ?? 0) >= 6.5) return 'Diabetes';
+  if ((g ?? 0) >= 5.6 || (a1c ?? 0) >= 5.7) return 'Prediabetes';
+  return 'Normal';
+};
+const bmiClass = (b: number) => (b <= 0 ? '—' : b < 18.5 ? 'Underweight' : b < 23 ? 'Normal' : b < 25 ? 'Overweight' : 'Obese');
+const mapNcd = (w: NcdWire): NcdScreening => {
+  const bmi = Number(w.bmi ?? 0);
+  return {
+    id: w.id,
+    screeningCode: '',
+    patientId: w.patientId,
+    patientName: w.patientName || '',
+    patientCode: w.patientCode || undefined,
+    dateOfBirth: w.dateOfBirth || '',
+    gender: w.gender === 1 ? 1 : 0,
+    screeningDate: w.screeningDate || '',
+    screenerName: w.screenedBy || '',
+    systolicBP: w.systolicBP ?? 0,
+    diastolicBP: w.diastolicBP ?? 0,
+    bpClassification: bpClass(w.systolicBP, w.diastolicBP),
+    fastingGlucose: w.fastingGlucose ?? undefined,
+    hba1c: w.hbA1c ?? undefined,
+    glucoseClassification: gluClass(w.fastingGlucose, w.hbA1c),
+    height: 0,
+    weight: 0,
+    bmi,
+    bmiClassification: bmiClass(bmi),
+    isSmoker: (w.smokingStatus ?? 0) === 2,
+    alcoholUse: ALCOHOL[w.alcoholUse ?? 0] ?? 'None',
+    physicalActivity: '',
+    familyHistoryCVD: false,
+    cvdRiskScore: Number(w.cvdRiskScore ?? 0),
+    cvdRiskLevel: RISK_LEVELS[w.riskLevel ?? 0] ?? 'Low',
+    followUpRequired: !!w.followUpDate,
+    followUpDate: w.followUpDate || undefined,
+    followUpNotes: w.diagnosis || undefined,
+    referralRequired: !!w.referredToFacility,
+    status: w.referredToFacility ? 2 : w.followUpDate ? 1 : 0,
+  } as NcdScreening;
+};
+
 export const searchNcdScreenings = async (params?: {
   keyword?: string;
   cvdRiskLevel?: string;
@@ -234,17 +299,37 @@ export const searchNcdScreenings = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<NcdScreening[]>('/community-health/ncd-screenings', { params });
-    return response.data || [];
+    const response = await apiClient.get<NcdWire[]>('/community-health/ncd-screenings', { params });
+    return (response.data || []).map(mapNcd);
   } catch {
     console.warn('Failed to fetch NCD screenings');
     return [];
   }
 };
 
-export const createNcdScreening = async (data: Partial<NcdScreening>) => {
-  const response = await apiClient.post<NcdScreening>('/community-health/ncd-screenings', data);
-  return response.data;
+// BE NcdScreeningCreateDto: patientId (HIS patient, required) + int codes. The tab posted free-text
+// name/gender and alcoholUse "None" → 400 on every "Sàng lọc mới".
+export const createNcdScreening = async (data: Partial<NcdScreening> & {
+  height?: number; weight?: number; referralRequired?: boolean;
+}) => {
+  const h = Number(data.height || 0) / 100;
+  const bmi = h > 0 && data.weight ? Math.round((Number(data.weight) / (h * h)) * 10) / 10 : undefined;
+  const response = await apiClient.post<NcdWire>('/community-health/ncd-screenings', {
+    patientId: data.patientId,
+    screeningDate: data.screeningDate,
+    screeningType: 'Combined',
+    systolicBP: data.systolicBP,
+    diastolicBP: data.diastolicBP,
+    fastingGlucose: data.fastingGlucose,
+    bmi,
+    smokingStatus: data.isSmoker ? 2 : 0,
+    alcoholUse: Math.max(0, ALCOHOL.indexOf(String(data.alcoholUse || 'None'))),
+    diagnosis: data.followUpNotes,
+    referredToFacility: !!data.referralRequired,
+    followUpDate: data.followUpRequired ? data.followUpDate : undefined,
+    screenedBy: data.screenerName,
+  });
+  return mapNcd(response.data);
 };
 
 export const updateNcdScreening = async (id: string, data: Partial<NcdScreening>) => {

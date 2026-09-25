@@ -414,7 +414,9 @@ function BillsSection() {
 function NotificationsSection() {
   const loader = useCallback(async () => {
     const res = await getNotifications(false, 1, 50);
-    return res.data.items;
+    // QA-R11: BE returns a plain list (not {items}) — reading `.items` left the section always empty.
+    const body = res.data as unknown;
+    return Array.isArray(body) ? body : ((body as { items?: NotificationDto[] })?.items ?? []);
   }, []);
   const { rows, loading, reload } = useListData(loader);
   const [markingAll, setMarkingAll] = useState(false);

@@ -74,6 +74,9 @@ public class CreateHerbalPrescriptionDto
     public int? Duration { get; set; }
     public int? Quantity { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Set by the controller from the signed-in user (never trusted from the body).</summary>
+    [global::System.Text.Json.Serialization.JsonIgnore]
+    public Guid? PrescriberId { get; set; }
 }
 
 public class TraditionalMedicineStatsDto

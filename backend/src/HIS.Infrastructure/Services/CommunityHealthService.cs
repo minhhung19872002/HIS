@@ -53,6 +53,7 @@ public class CommunityHealthService : ICommunityHealthService
 
             return await query
                 .OrderBy(h => h.HouseholdCode)
+                .ThenBy(h => h.Id)
                 .Take(200)
                 .Select(h => new HouseholdListDto
                 {
@@ -69,6 +70,13 @@ public class CommunityHealthService : ICommunityHealthService
                     LastVisitDate = h.LastVisitDate.HasValue ? h.LastVisitDate.Value.ToString("yyyy-MM-dd") : null,
                     NextVisitDate = h.NextVisitDate.HasValue ? h.NextVisitDate.Value.ToString("yyyy-MM-dd") : null,
                     IsOverdue = h.NextVisitDate.HasValue && h.NextVisitDate.Value < now,
+                    AssignedTeamId = h.AssignedTeamId,
+                    Notes = h.Notes,
+                    HasElderlyMember = h.HasElderlyMember,
+                    HasChildUnder5 = h.HasChildUnder5,
+                    HasPregnant = h.HasPregnant,
+                    HasChronicDisease = h.HasChronicDisease,
+                    Status = h.Status,
                 })
                 .ToListAsync();
         }
@@ -101,15 +109,46 @@ public class CommunityHealthService : ICommunityHealthService
             LastVisitDate = h.LastVisitDate?.ToString("yyyy-MM-dd"),
             NextVisitDate = h.NextVisitDate?.ToString("yyyy-MM-dd"),
             IsOverdue = h.NextVisitDate.HasValue && h.NextVisitDate.Value < DateTime.UtcNow,
+            AssignedTeamId = h.AssignedTeamId,
+            Notes = h.Notes,
+            HasElderlyMember = h.HasElderlyMember,
+            HasChildUnder5 = h.HasChildUnder5,
+            HasPregnant = h.HasPregnant,
+            HasChronicDisease = h.HasChronicDisease,
+            Status = h.Status,
         };
+    }
+
+    // QA-R11: a household had to reference a live team, and an empty body created code-less, head-less rows.
+    private async Task ValidateTeamAsync(Guid? teamId)
+    {
+        if (teamId.HasValue && !await _context.CommunityHealthTeams.AnyAsync(t => t.Id == teamId.Value && !t.IsDeleted))
+            throw new ArgumentException("Đội y tế không tồn tại.", "AssignedTeamId");
     }
 
     public async Task<HouseholdListDto> CreateHouseholdAsync(HouseholdCreateDto dto, string? userId)
     {
+        if (string.IsNullOrWhiteSpace(dto.HeadOfHousehold))
+            throw new ArgumentException("Chưa nhập chủ hộ.", nameof(dto.HeadOfHousehold));
+        if (dto.RiskLevel is < 0 or > 3)
+            throw new ArgumentException("Mức rủi ro không hợp lệ.", nameof(dto.RiskLevel));
+        await ValidateTeamAsync(dto.AssignedTeamId);
+        var code = dto.HouseholdCode?.Trim();
+        if (string.IsNullOrEmpty(code))
+        {
+            // The v2 form has no code field → every household used to be saved with HouseholdCode = "".
+            var year = HIS.Core.Common.VnTime.TodayVn.Year;
+            var n = await _context.HouseholdHealthRecords.CountAsync(h => h.HouseholdCode.StartsWith($"HH-{year}-")) + 1;
+            code = $"HH-{year}-{n:D5}";
+            while (await _context.HouseholdHealthRecords.AnyAsync(h => h.HouseholdCode == code))
+                code = $"HH-{year}-{++n:D5}";
+        }
+        else if (await _context.HouseholdHealthRecords.AnyAsync(h => h.HouseholdCode == code && !h.IsDeleted))
+            throw new InvalidOperationException($"Mã hộ {code} đã tồn tại.");
         var entity = new HouseholdHealthRecord
         {
             Id = Guid.NewGuid(),
-            HouseholdCode = dto.HouseholdCode,
+            HouseholdCode = code,
             Address = dto.Address,
             WardName = dto.WardName,
             DistrictName = dto.DistrictName,
@@ -120,6 +159,10 @@ public class CommunityHealthService : ICommunityHealthService
             AssignedTeamId = dto.AssignedTeamId,
             NextVisitDate = DateTime.TryParse(dto.NextVisitDate, out var nvd) ? nvd : null,
             Notes = dto.Notes,
+            HasElderlyMember = dto.HasElderlyMember,
+            HasChildUnder5 = dto.HasChildUnder5,
+            HasPregnant = dto.HasPregnant,
+            HasChronicDisease = dto.HasChronicDisease,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId,
         };
@@ -140,6 +183,13 @@ public class CommunityHealthService : ICommunityHealthService
             RiskLevel = entity.RiskLevel,
             NextVisitDate = entity.NextVisitDate?.ToString("yyyy-MM-dd"),
             IsOverdue = false,
+            AssignedTeamId = entity.AssignedTeamId,
+            Notes = entity.Notes,
+            HasElderlyMember = entity.HasElderlyMember,
+            HasChildUnder5 = entity.HasChildUnder5,
+            HasPregnant = entity.HasPregnant,
+            HasChronicDisease = entity.HasChronicDisease,
+            Status = entity.Status,
         };
     }
 
@@ -148,7 +198,12 @@ public class CommunityHealthService : ICommunityHealthService
         var entity = await _context.HouseholdHealthRecords
             .Include(h => h.AssignedTeam)
             .FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted)
-            ?? throw new InvalidOperationException("Household not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy hộ gia đình.");
+        if (dto.RiskLevel is < 0 or > 3)
+            throw new ArgumentException("Mức rủi ro không hợp lệ.", nameof(dto.RiskLevel));
+        if (dto.Status is < 0 or > 2)
+            throw new ArgumentException("Trạng thái hộ không hợp lệ.", nameof(dto.Status));
+        await ValidateTeamAsync(dto.AssignedTeamId);
 
         if (dto.Address != null) entity.Address = dto.Address;
         if (dto.WardName != null) entity.WardName = dto.WardName;
@@ -163,9 +218,16 @@ public class CommunityHealthService : ICommunityHealthService
         if (!string.IsNullOrEmpty(dto.NextVisitDate) && DateTime.TryParse(dto.NextVisitDate, out var nvd))
             entity.NextVisitDate = nvd;
         if (dto.Notes != null) entity.Notes = dto.Notes;
+        if (dto.HasElderlyMember.HasValue) entity.HasElderlyMember = dto.HasElderlyMember.Value;
+        if (dto.HasChildUnder5.HasValue) entity.HasChildUnder5 = dto.HasChildUnder5.Value;
+        if (dto.HasPregnant.HasValue) entity.HasPregnant = dto.HasPregnant.Value;
+        if (dto.HasChronicDisease.HasValue) entity.HasChronicDisease = dto.HasChronicDisease.Value;
+        if (dto.Status.HasValue) entity.Status = dto.Status.Value;
 
         entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        if (dto.AssignedTeamId.HasValue)
+            await _context.Entry(entity).Reference(h => h.AssignedTeam).LoadAsync();
 
         return new HouseholdListDto
         {
@@ -182,6 +244,13 @@ public class CommunityHealthService : ICommunityHealthService
             LastVisitDate = entity.LastVisitDate?.ToString("yyyy-MM-dd"),
             NextVisitDate = entity.NextVisitDate?.ToString("yyyy-MM-dd"),
             IsOverdue = entity.NextVisitDate.HasValue && entity.NextVisitDate.Value < DateTime.UtcNow,
+            AssignedTeamId = entity.AssignedTeamId,
+            Notes = entity.Notes,
+            HasElderlyMember = entity.HasElderlyMember,
+            HasChildUnder5 = entity.HasChildUnder5,
+            HasPregnant = entity.HasPregnant,
+            HasChronicDisease = entity.HasChronicDisease,
+            Status = entity.Status,
         };
     }
 
@@ -267,6 +336,7 @@ public class CommunityHealthService : ICommunityHealthService
 
             return await query
                 .OrderByDescending(s => s.ScreeningDate)
+                .ThenBy(s => s.Id)
                 .Take(200)
                 .Select(s => new NcdScreeningListDto
                 {
@@ -286,6 +356,11 @@ public class CommunityHealthService : ICommunityHealthService
                     Diagnosis = s.Diagnosis,
                     ReferredToFacility = s.ReferredToFacility,
                     ScreenedBy = s.ScreenedBy,
+                    FollowUpDate = s.FollowUpDate.HasValue ? s.FollowUpDate.Value.ToString("yyyy-MM-dd") : null,
+                    SmokingStatus = s.SmokingStatus,
+                    AlcoholUse = s.AlcoholUse,
+                    Gender = s.Patient != null ? s.Patient.Gender : null,
+                    DateOfBirth = s.Patient != null && s.Patient.DateOfBirth.HasValue ? s.Patient.DateOfBirth.Value.ToString("yyyy-MM-dd") : null,
                 })
                 .ToListAsync();
         }
@@ -502,22 +577,38 @@ public class CommunityHealthService : ICommunityHealthService
                     query = query.Where(t => t.AssignedWard == filter.AssignedWard);
             }
 
-            return await query
+            // QA-R11: ActiveHouseholds was a stored counter only refreshed by a team edit (always 0 on the list),
+            // and the page's "Bao phủ" column had no source at all → both computed live here.
+            var since = DateTime.UtcNow.AddDays(-90);
+            var teams = await query
                 .OrderBy(t => t.TeamCode)
+                .ThenBy(t => t.Id)
                 .Take(200)
-                .Select(t => new TeamListDto
+                .Select(t => new
                 {
-                    Id = t.Id,
-                    TeamCode = t.TeamCode,
-                    TeamName = t.TeamName,
-                    LeaderName = t.LeaderName,
-                    AssignedWard = t.AssignedWard,
-                    MemberCount = t.MemberCount,
-                    ActiveHouseholds = t.ActiveHouseholds,
-                    Status = t.Status,
-                    EstablishedDate = t.EstablishedDate.HasValue ? t.EstablishedDate.Value.ToString("yyyy-MM-dd") : null,
+                    Dto = new TeamListDto
+                    {
+                        Id = t.Id,
+                        TeamCode = t.TeamCode,
+                        TeamName = t.TeamName,
+                        LeaderName = t.LeaderName,
+                        AssignedWard = t.AssignedWard,
+                        MemberCount = t.MemberCount,
+                        ActiveHouseholds = t.ActiveHouseholds,
+                        Status = t.Status,
+                        EstablishedDate = t.EstablishedDate.HasValue ? t.EstablishedDate.Value.ToString("yyyy-MM-dd") : null,
+                    },
+                    Households = _context.HouseholdHealthRecords.Count(h => h.AssignedTeamId == t.Id && !h.IsDeleted),
+                    Visited = _context.HouseholdHealthRecords.Count(h => h.AssignedTeamId == t.Id && !h.IsDeleted
+                        && h.LastVisitDate.HasValue && h.LastVisitDate.Value >= since),
                 })
                 .ToListAsync();
+            foreach (var t in teams)
+            {
+                t.Dto.ActiveHouseholds = t.Households;
+                t.Dto.VisitCoverage = t.Households > 0 ? (int)Math.Round(100.0 * t.Visited / t.Households) : 0;
+            }
+            return teams.Select(t => t.Dto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -583,8 +674,10 @@ public class CommunityHealthService : ICommunityHealthService
 
     public async Task<TeamListDto> UpdateTeamAsync(Guid id, TeamUpdateDto dto)
     {
-        var entity = await _context.CommunityHealthTeams.FindAsync(id)
-            ?? throw new InvalidOperationException("Team not found");
+        var entity = await _context.CommunityHealthTeams.FindAsync(id);
+        if (entity == null || entity.IsDeleted) throw new KeyNotFoundException("Không tìm thấy đội y tế.");
+        if (dto.Status is < 0 or > 1)
+            throw new ArgumentException("Trạng thái đội không hợp lệ.", nameof(dto.Status));
 
         if (dto.TeamName != null) entity.TeamName = dto.TeamName;
         if (dto.LeaderName != null) entity.LeaderName = dto.LeaderName;

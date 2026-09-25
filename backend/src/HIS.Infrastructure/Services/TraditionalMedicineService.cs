@@ -115,15 +115,29 @@ public class TraditionalMedicineService : ITraditionalMedicineService
 
     public async Task<TraditionalMedicineTreatmentDto> CreateTreatmentAsync(CreateTraditionalMedicineTreatmentDto dto)
     {
+        // QA-R11: a name-only treatment was saved with PatientId = Guid.Empty — its herbal prescriptions then skipped
+        // billing silently (BillHerbalPrescriptionAsync returns when there is no patient) while the page said
+        // "vào viện phí". The treatment must belong to a real patient; the name comes from the patient record.
+        if (!dto.PatientId.HasValue || dto.PatientId == Guid.Empty)
+            throw new ArgumentException("Chưa chọn bệnh nhân (tra theo mã BN / họ tên).", nameof(dto.PatientId));
+        var patient = await _context.Patients.AsNoTracking().Where(p => p.Id == dto.PatientId.Value && !p.IsDeleted)
+            .Select(p => new { p.Id, p.FullName }).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+
         var year = DateTime.UtcNow.Year;
-        var count = await _context.TraditionalMedicineTreatments.CountAsync(t => t.CreatedAt.Year == year) + 1;
+        // Count-based numbering reused a code once a treatment was soft-deleted (the filter hides it from the count).
+        var prefix = $"YHCT-{year}-";
+        var lastCode = await _context.TraditionalMedicineTreatments.IgnoreQueryFilters()
+            .Where(t => t.TreatmentCode.StartsWith(prefix))
+            .OrderByDescending(t => t.TreatmentCode).Select(t => t.TreatmentCode).FirstOrDefaultAsync();
+        var count = lastCode != null && int.TryParse(lastCode.Substring(prefix.Length), out var n) ? n + 1 : 1;
 
         var entity = new TraditionalMedicineTreatment
         {
             Id = Guid.NewGuid(),
-            TreatmentCode = $"YHCT-{year}-{count:D4}",
-            PatientId = dto.PatientId ?? Guid.Empty,
-            PatientName = dto.PatientName ?? "",
+            TreatmentCode = $"{prefix}{count:D4}",
+            PatientId = patient.Id,
+            PatientName = patient.FullName ?? dto.PatientName ?? "",
             TreatmentType = dto.TreatmentType ?? "combined",
             DiagnosisTCM = dto.DiagnosisTCM,
             DiagnosisWestern = dto.DiagnosisWestern,
@@ -153,9 +167,13 @@ public class TraditionalMedicineService : ITraditionalMedicineService
     public async Task<TraditionalMedicineTreatmentDto> UpdateTreatmentAsync(Guid id, CreateTraditionalMedicineTreatmentDto dto)
     {
         var entity = await _context.TraditionalMedicineTreatments.FindAsync(id)
-            ?? throw new InvalidOperationException("Treatment not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt điều trị YHCT.");
+        // QA-R11: a completed/cancelled treatment could still be edited (diagnosis, practitioner, plan …).
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Đợt điều trị đã kết thúc/hủy — không sửa được.");
 
         if (dto.TreatmentType != null) entity.TreatmentType = dto.TreatmentType;
+        if (!string.IsNullOrWhiteSpace(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var sd)) entity.StartDate = sd;
         if (dto.DiagnosisTCM != null) entity.DiagnosisTCM = dto.DiagnosisTCM;
         if (dto.DiagnosisWestern != null) entity.DiagnosisWestern = dto.DiagnosisWestern;
         if (dto.SessionNumber.HasValue) entity.SessionNumber = dto.SessionNumber.Value;
@@ -191,13 +209,17 @@ public class TraditionalMedicineService : ITraditionalMedicineService
             throw new ArgumentException("Số thang và thời gian dùng phải lớn hơn 0.");
 
         var year = DateTime.UtcNow.Year;
-        var count = await _context.HerbalPrescriptions.CountAsync(h => h.CreatedAt.Year == year) + 1;
+        var rxPrefix = $"BT-{year}-";
+        var lastRx = await _context.HerbalPrescriptions.IgnoreQueryFilters()
+            .Where(h => h.PrescriptionCode.StartsWith(rxPrefix))
+            .OrderByDescending(h => h.PrescriptionCode).Select(h => h.PrescriptionCode).FirstOrDefaultAsync();
+        var count = lastRx != null && int.TryParse(lastRx.Substring(rxPrefix.Length), out var rn) ? rn + 1 : 1;
 
         var entity = new HerbalPrescription
         {
             Id = Guid.NewGuid(),
             TreatmentId = dto.TreatmentId ?? Guid.Empty,
-            PrescriptionCode = $"BT-{year}-{count:D4}",
+            PrescriptionCode = $"{rxPrefix}{count:D4}",
             HerbalFormula = dto.HerbalFormula,
             Ingredients = dto.Ingredients,
             Dosage = dto.Dosage,
@@ -210,9 +232,9 @@ public class TraditionalMedicineService : ITraditionalMedicineService
 
         _context.HerbalPrescriptions.Add(entity);
 
-        // F6 (audit FLOW-FINAL 2026-06-06): đơn thuốc bắc structured → sinh Prescription tính phí + trừ kho dược liệu.
+        // F6 (audit FLOW-FINAL 2026-06-06): đơn thuốc bắc structured → sinh Prescription tính phí (kho trừ khi quầy phát).
         // Trước đây chỉ lưu công thức free-text, không vào viện phí, không trừ kho.
-        await BillHerbalPrescriptionAsync(entity);
+        await BillHerbalPrescriptionAsync(entity, dto.PrescriberId);
 
         await _context.SaveChangesAsync();
 
@@ -240,9 +262,9 @@ public class TraditionalMedicineService : ITraditionalMedicineService
     }
 
     /// <summary>F6: parse ingredients structured (JSON `[{medicineId,quantity,unit,name}]`) → tạo Prescription
-    /// (type 4 YHCT, Status=0 → quầy phát thấy) tính phí per-vị × số thang + trừ kho FEFO. Best-effort, idempotent
+    /// (type 4 YHCT, Status=0 → quầy phát thấy) tính phí per-vị × số thang (kho trừ lúc quầy phát). Idempotent
     /// theo PrescriptionCode=YHCT-{herbalRxId}. Free-text (không JSON) → bỏ qua billing (giữ tương thích đơn cũ).</summary>
-    private async Task BillHerbalPrescriptionAsync(HerbalPrescription herbal)
+    private async Task BillHerbalPrescriptionAsync(HerbalPrescription herbal, Guid? prescriberId)
     {
         List<HerbIngredient> items;
         try
@@ -259,22 +281,27 @@ public class TraditionalMedicineService : ITraditionalMedicineService
         if (await _context.Prescriptions.AnyAsync(p => p.PrescriptionCode == rxCode)) return; // đã tính phí
 
         var treatment = await _context.TraditionalMedicineTreatments.FindAsync(herbal.TreatmentId);
-        if (treatment == null || treatment.PatientId == Guid.Empty) return;
+        // QA-R11: every gap below used to "return" silently — the herbal Rx was saved and the page reported
+        // "Đã tạo đơn thuốc bắc + vào viện phí" although nothing was billed; department and prescribing doctor were
+        // "the first department / first user in the table". Each gap is now a real error (as in telemedicine F8).
+        if (treatment == null || treatment.PatientId == Guid.Empty)
+            throw new InvalidOperationException("Đợt điều trị YHCT chưa gắn bệnh nhân — không tính phí đơn thuốc bắc được.");
 
         var mr = await _context.MedicalRecords
             .Where(m => m.PatientId == treatment.PatientId && !m.IsDeleted)
             .OrderByDescending(m => m.AdmissionDate)
             .Select(m => new { m.Id, m.DepartmentId })
             .FirstOrDefaultAsync();
-        if (mr == null || mr.Id == Guid.Empty) return; // không có HSBA → không bill
+        if (mr == null || mr.Id == Guid.Empty)
+            throw new InvalidOperationException("Người bệnh chưa có hồ sơ bệnh án — không tính phí đơn thuốc bắc được.");
 
         Guid? deptId = mr.DepartmentId;
         if (deptId == null || deptId == Guid.Empty)
-            deptId = (await _context.Departments.FirstOrDefaultAsync(d => !d.IsDeleted))?.Id;
-        if (deptId == null || deptId == Guid.Empty) return;
+            throw new InvalidOperationException("Hồ sơ bệnh án chưa có khoa điều trị — không xác định được khoa chỉ định đơn.");
 
-        var doctorId = await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
-        if (doctorId == Guid.Empty) return;
+        if (!prescriberId.HasValue || prescriberId == Guid.Empty || !await _context.Users.AnyAsync(u => u.Id == prescriberId.Value && !u.IsDeleted))
+            throw new InvalidOperationException("Không xác định được bác sĩ kê đơn.");
+        var doctorId = prescriberId.Value;
         var by = doctorId.ToString();
 
         var soThang = herbal.Quantity > 0 ? herbal.Quantity : 1; // số thang
@@ -295,8 +322,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
             CreatedBy = by,
             Details = new List<PrescriptionDetail>(),
         };
-        // #195: tra danh mục thuốc 1 lần cho cả đơn thay vì 1 query/vị thuốc. Việc trừ tồn
-        // (DeductHerbStockFefoAsync) vẫn chạy tuần tự từng vị như cũ.
+        // #195: tra danh mục thuốc 1 lần cho cả đơn thay vì 1 query/vị thuốc.
         var herbIds = items.Select(i => i.MedicineId).Distinct().ToList();
         var herbsById = await _context.Medicines
             .Where(m => herbIds.Contains(m.Id))
@@ -309,7 +335,9 @@ public class TraditionalMedicineService : ITraditionalMedicineService
             var totalQty = it.Quantity * soThang; // lượng dùng cả đợt = mỗi thang × số thang
             var amount = med.UnitPrice * totalQty;
             total += amount;
-            await DeductHerbStockFefoAsync(it.MedicineId, totalQty);
+            // QA-R11: stock was also deducted HERE (FEFO) although this Prescription (Status 0) is then dispensed at the
+            // counter, whose DispenseOutpatientPrescriptionAsync deducts the same quantity again → every herbal Rx took
+            // its herbs out of stock twice. Stock now leaves only when the counter dispenses.
             rx.Details.Add(new PrescriptionDetail
             {
                 Id = Guid.NewGuid(), PrescriptionId = rx.Id,
@@ -322,25 +350,6 @@ public class TraditionalMedicineService : ITraditionalMedicineService
         }
         rx.TotalAmount = total; rx.PatientAmount = total;
         _context.Prescriptions.Add(rx);
-    }
-
-    /// <summary>F6: trừ kho FEFO best-effort cho 1 vị thuốc (gộp mọi kho theo lô sớm hết hạn trước).</summary>
-    private async Task<bool> DeductHerbStockFefoAsync(Guid medicineId, decimal qty)
-    {
-        if (qty <= 0) return false;
-        var batches = await _context.InventoryItems
-            .Where(i => i.MedicineId == medicineId && (i.Quantity - i.ReservedQuantity) > 0
-                && i.ExpiryDate >= DateTime.Today && !i.IsLocked && !i.IsDeleted)
-            .OrderBy(i => i.ExpiryDate).ToListAsync();
-        var remaining = qty;
-        foreach (var b in batches)
-        {
-            if (remaining <= 0) break;
-            var take = Math.Min(b.Quantity - b.ReservedQuantity, remaining);
-            if (take <= 0) continue;
-            b.Quantity -= take; remaining -= take;
-        }
-        return remaining <= 0;
     }
 
     /// <summary>F6: danh mục vị thuốc bắc (Medicine type=2) cho herb-picker FE — kèm tồn khả dụng + đơn giá.</summary>
@@ -411,10 +420,30 @@ public class TraditionalMedicineService : ITraditionalMedicineService
         catch (Exception ex) { _logger.LogWarning(ex, "TraditionalMedicineService thao tác thất bại, trả giá trị mặc định"); return new TraditionalMedicineStatsDto(); }
     }
 
+    public async Task<TraditionalMedicineTreatmentDto> CancelTreatmentAsync(Guid id, string? reason)
+    {
+        var entity = await _context.TraditionalMedicineTreatments.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt điều trị YHCT.");
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Chỉ hủy được đợt điều trị đang hoạt động.");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Phải nhập lý do hủy đợt điều trị", nameof(reason));
+        entity.Status = 2; // cancelled
+        entity.EndDate = HIS.Core.Common.VnTime.NowVn;
+        entity.Notes = string.IsNullOrEmpty(entity.Notes) ? $"[Hủy] {reason.Trim()}" : $"{entity.Notes}\n[Hủy] {reason.Trim()}";
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return new TraditionalMedicineTreatmentDto
+        {
+            Id = entity.Id, TreatmentCode = entity.TreatmentCode, PatientName = entity.PatientName,
+            PatientId = entity.PatientId, TreatmentType = entity.TreatmentType, Status = entity.Status,
+        };
+    }
+
     public async Task<TraditionalMedicineTreatmentDto> CompleteTreatmentAsync(Guid id)
     {
         var entity = await _context.TraditionalMedicineTreatments.FindAsync(id)
-            ?? throw new InvalidOperationException("Treatment not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt điều trị YHCT.");
         if (entity.Status != 0)
             throw new InvalidOperationException("Chỉ kết thúc được đợt điều trị đang hoạt động.");
 

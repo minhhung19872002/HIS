@@ -57,6 +57,7 @@ public class OccupationalHealthService : IOccupationalHealthService
             .OrderByDescending(o => o.ExamDate)
             .ThenBy(o => o.CompanyName)
             .ThenBy(o => o.EmployeeName)
+            .ThenBy(o => o.Id) // QA-R11: deterministic paging
             .Skip(filter.PageIndex * filter.PageSize)
             .Take(filter.PageSize)
             .Select(o => MapToListDto(o))

@@ -32,8 +32,35 @@ public class ZaloNotificationService : IZaloNotificationService
 
     private static string StatusName(int s) => s switch
     {
-        0 => "Đang chờ", 1 => "Đã gửi", 2 => "Đã nhận", 3 => "Lỗi", _ => "Khác"
+        0 => "Đang chờ", 1 => "Đã gửi", 2 => "Đã nhận", 3 => "Lỗi", 4 => "Giả lập — không gửi thật", _ => "Khác"
     };
+
+    /// <summary>QA-R11: status of a message produced by the mock channel (never reached Zalo).</summary>
+    private const int StatusMock = 4;
+    private const string MockNote = "[MOCK] Chế độ giả lập — tin KHÔNG được gửi tới Zalo, không tính phí";
+
+    /// <summary>
+    /// QA-R11 (mock honesty): the client is chosen once at startup from appsettings <c>Zalo:MockMode</c>, while the
+    /// config screen toggles <c>NangCap23.Zalo.MockMode/IsEnabled</c> in the DB — so the toggles changed nothing and a
+    /// mock send was stored as "Đã nhận" (Delivered) with a 350đ cost. Mock = either switch says mock; the mock path
+    /// never calls the real client and is recorded as <see cref="StatusMock"/> with cost 0.
+    /// </summary>
+    private async Task<(bool Mock, bool Enabled)> GetModeAsync()
+    {
+        var dbMock = await _configStore.GetBoolAsync("NangCap23.Zalo.MockMode", _config.GetValue<bool>("Zalo:MockMode", false));
+        var enabled = await _configStore.GetBoolAsync("NangCap23.Zalo.IsEnabled", _config.GetValue<bool>("Zalo:IsEnabled", false));
+        return (dbMock || _client is HIS.Infrastructure.Services.External.InMemoryZaloOaClient, enabled);
+    }
+
+    private async Task<GatewaySubmissionResult> DispatchAsync(string phone, string templateId, string payloadJson)
+    {
+        var (mock, enabled) = await GetModeAsync();
+        if (mock)
+            return new GatewaySubmissionResult { Acknowledged = false, ErrorCode = "MOCK", ErrorMessage = MockNote, TransactionId = $"MOCK-ZL-{Guid.NewGuid():N}"[..18] };
+        if (!enabled)
+            throw new InvalidOperationException("Kênh Zalo OA đang tắt — bật \"IsEnabled\" trong cấu hình Zalo trước khi gửi.");
+        return await _client.SendTemplateMessageAsync(phone, templateId, payloadJson);
+    }
 
     public async Task<List<ZaloNotificationLogDto>> SearchLogsAsync(string? keyword, int? status, DateTime? from, DateTime? to, int pageIndex = 0, int pageSize = 50)
     {
@@ -122,10 +149,19 @@ public class ZaloNotificationService : IZaloNotificationService
             CreatedBy = userId
         };
 
-        // Real Zalo OA call
-        var result = await _client.SendTemplateMessageAsync(
-            dto.TargetPhone, dto.TemplateId, entity.PayloadJson);
-        if (result.Acknowledged)
+        // Real Zalo OA call — or the labelled mock (QA-R11)
+        var result = await DispatchAsync(dto.TargetPhone, dto.TemplateId, entity.PayloadJson);
+        if (result.ErrorCode == "MOCK")
+        {
+            entity.Status = StatusMock;
+            entity.MessageId = result.TransactionId;
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.SentAt = DateTime.UtcNow;
+            entity.CostVnd = 0;
+            _logger.LogInformation("ZNS MOCK (not sent): phone={Phone} template={Tpl}", dto.TargetPhone, dto.TemplateId);
+        }
+        else if (result.Acknowledged)
         {
             entity.Status = 2; // Delivered
             entity.MessageId = result.TransactionId;
@@ -160,6 +196,8 @@ public class ZaloNotificationService : IZaloNotificationService
             MessageId = entity.MessageId,
             Status = entity.Status,
             StatusName = StatusName(entity.Status),
+            ErrorCode = entity.ErrorCode,
+            ErrorMessage = entity.ErrorMessage,
             SentAt = entity.SentAt,
             DeliveredAt = entity.DeliveredAt,
             CostVnd = entity.CostVnd,
@@ -218,7 +256,13 @@ public class ZaloNotificationService : IZaloNotificationService
         return true;
     }
 
-    public Task<bool> TestConnectionAsync() => _client.PingAsync();
+    public async Task<bool> TestConnectionAsync()
+    {
+        // QA-R11: the in-memory mock always answered "Kết nối OK". A mock channel is not a connection.
+        var (mock, _) = await GetModeAsync();
+        if (mock) return false;
+        return await _client.PingAsync();
+    }
 
     public async Task<ZaloNotificationLogDto?> RetryAsync(Guid id, string? userId)
     {
@@ -230,10 +274,12 @@ public class ZaloNotificationService : IZaloNotificationService
         if (entity.RetryCount >= maxRetries)
             throw new InvalidOperationException($"Đã retry {entity.RetryCount} lần — vượt quá giới hạn {maxRetries}.");
 
+        var result = await DispatchAsync(entity.TargetPhone, entity.TemplateId, entity.PayloadJson);
+        if (result.ErrorCode == "MOCK")
+            throw new InvalidOperationException("Kênh Zalo đang ở chế độ giả lập — tắt MockMode rồi gửi lại.");
         entity.RetryCount++;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
-        var result = await _client.SendTemplateMessageAsync(entity.TargetPhone, entity.TemplateId, entity.PayloadJson);
         if (result.Acknowledged)
         {
             entity.Status = 2;
@@ -245,6 +291,7 @@ public class ZaloNotificationService : IZaloNotificationService
         }
         else
         {
+            entity.Status = 3; // a mock-labelled row resent for real and failing is now a real failure
             entity.ErrorCode = result.ErrorCode;
             entity.ErrorMessage = result.ErrorMessage;
         }

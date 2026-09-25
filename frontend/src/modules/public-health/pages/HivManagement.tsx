@@ -5,7 +5,7 @@ import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchPatients, getLabHistory, getPmtctRecords, getStats,
-  enrollPatient, addLabResult, addPmtctRecord,
+  enrollPatient, addLabResult, addPmtctRecord, updatePatient, updatePmtctRecord,
 } from '../api/hivManagement';
 import type { HivPatient, HivLabResult, PmtctRecord, HivStats } from '../api/hivManagement';
 import {
@@ -141,6 +141,9 @@ const HivManagementV2: React.FC = () => {
   const [labOpen, setLabOpen] = useState(false);
   const [labInitial, setLabInitial] = useState<Record<string, unknown> | null>(null);
   const [pmtctOpen, setPmtctOpen] = useState(false);
+  // Cập nhật hồ sơ HIV (trạng thái ART / phác đồ / WHO / hẹn khám) + sửa PMTCT — trước đây chỉ đặt được lúc đăng ký
+  const [editPt, setEditPt] = useState<HivPatient | null>(null);
+  const [editPmtct, setEditPmtct] = useState<PmtctRecord | null>(null);
   const [hisPatientOpts, setHisPatientOpts] = useState<Array<{ id: string; patientCode: string; fullName: string }>>([]);
   const searchHisPatients = useCallback((kw: string) => {
     if (!kw || kw.trim().length < 2) return;
@@ -296,6 +299,10 @@ const HivManagementV2: React.FC = () => {
         return c ? <StatusBadge tone={c.tone} dot>{c.l}</StatusBadge> : '—';
       },
     },
+    {
+      key: 'act', label: '', width: 50,
+      render: (r) => <ActBtn ic="edit" title="Cập nhật PMTCT" onClick={() => setEditPmtct(r)} />,
+    },
   ];
 
   // ── cấu hình form (CrudModal) ──
@@ -363,6 +370,25 @@ const HivManagementV2: React.FC = () => {
     },
   ];
 
+  const updateFields: CrudFieldCfg[] = [
+    {
+      key: 'artStatus', label: 'Trạng thái ART', type: 'select', required: true,
+      options: ART_TABS.map((t) => ({ value: t.v, label: t.l })),
+    },
+    {
+      key: 'whoStage', label: 'Giai đoạn WHO', type: 'select', required: true,
+      options: [1, 2, 3, 4].map((s) => ({ value: s, label: `Stage ${s}` })),
+    },
+    { key: 'artStartDate', label: 'Ngày bắt đầu ART', type: 'date' },
+    {
+      key: 'currentRegimen', label: 'Phác đồ', type: 'select',
+      options: ART_REGIMENS.map((r) => ({ value: r, label: r })),
+    },
+    { key: 'nextAppointmentDate', label: 'Hẹn khám tiếp', type: 'date' },
+  ];
+  // PMTCT sửa: bỏ chọn bà mẹ (không đổi được) + tuổi thai (BE không cập nhật)
+  const pmtctEditFields = pmtctFields.filter((f) => f.key !== 'patientId' && f.key !== 'gestationalAge');
+
   const cascadeMax = Math.max(stats?.cascadeDiagnosed ?? 0, 1);
 
   return (
@@ -425,6 +451,7 @@ const HivManagementV2: React.FC = () => {
               <div className="ab-actions">
                 <ActBtn ic="eye" title="Xem chi tiết" onClick={() => openDetail(r)} />
                 <ActBtn ic="flask" title="Thêm kết quả XN" onClick={() => openLabModal(r.id)} />
+                <ActBtn ic="edit" title="Cập nhật điều trị" onClick={() => setEditPt(r)} />
               </div>
             )}
             empty="Không có bệnh nhân HIV"
@@ -556,6 +583,9 @@ const HivManagementV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+            <Btn variant="ghost" onClick={() => sel && setEditPt(sel)}>
+              <Ico name="edit" size={12} /> Cập nhật điều trị
+            </Btn>
             <Btn variant="primary" onClick={() => sel && openLabModal(sel.id)}>
               <Ico name="plus" size={12} /> Thêm XN
             </Btn>
@@ -691,6 +721,48 @@ const HivManagementV2: React.FC = () => {
           if (sel && sel.id === v.patientId) {
             try { setLabHistory(await getLabHistory(sel.id)); } catch { /* giữ lịch sử cũ */ }
           }
+          load(); // CD4/VL gần nhất + cảnh báo trên danh sách đổi theo kết quả mới
+        }}
+      />
+
+      {/* ── Modal: Cập nhật điều trị BN HIV ── */}
+      <CrudModal
+        open={!!editPt}
+        onClose={() => setEditPt(null)}
+        title="Cập nhật điều trị HIV"
+        sub={editPt ? `${editPt.hivCode || editPt.patientCode} · ${editPt.fullName}` : undefined}
+        fields={updateFields}
+        initial={editPt ? {
+          id: editPt.id, artStatus: editPt.artStatus, whoStage: editPt.whoStage,
+          artStartDate: editPt.artStartDate, currentRegimen: editPt.currentRegimen,
+          nextAppointmentDate: editPt.nextAppointmentDate,
+        } : null}
+        onSubmit={async (v) => {
+          if (!editPt) return;
+          const upd = await updatePatient(editPt.id, v as Partial<HivPatient>);
+          tk('Đã cập nhật hồ sơ HIV');
+          if (sel && sel.id === editPt.id) setSel({ ...sel, ...upd });
+          setEditPt(null);
+          load();
+        }}
+      />
+
+      {/* ── Modal: Cập nhật PMTCT (sinh, dự phòng, KQ XN trẻ) ── */}
+      <CrudModal
+        open={!!editPmtct}
+        onClose={() => setEditPmtct(null)}
+        title="Cập nhật PMTCT"
+        sub={editPmtct?.patientName}
+        fields={pmtctEditFields}
+        initial={editPmtct ? { ...editPmtct } as unknown as Record<string, unknown> : null}
+        size="lg"
+        onSubmit={async (v) => {
+          if (!editPmtct) return;
+          await updatePmtctRecord(editPmtct.id, v as Partial<PmtctRecord>);
+          tk('Đã cập nhật PMTCT');
+          setEditPmtct(null);
+          if (pmtctPatientId) loadPmtct(pmtctPatientId);
+          load();
         }}
       />
 

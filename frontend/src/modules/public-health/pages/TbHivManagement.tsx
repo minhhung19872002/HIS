@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
 import {
   getTbHivRecords, getTbHivRecordById, getTbHivStatistics, getFollowUps,
-  createTbHivRecord, updateTbHivRecord, createFollowUp,
+  createTbHivRecord, updateTbHivRecord, createFollowUp, updateTbHivStatus,
 } from '../api/tbHivManagement';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import type {
@@ -104,6 +104,15 @@ const RECORD_HIV_FIELDS: CrudFieldCfg[] = [
 ];
 const RECORD_NOTES_FIELD: CrudFieldCfg = { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Ghi chú thêm…' };
 
+// Kết thúc điều trị (PUT /tb-hiv/records/{id}/close) — mã số khớp ST_STR của adapter
+const OUTCOME_FIELDS: CrudFieldCfg[] = [
+  { key: 'status', label: 'Kết quả điều trị', type: 'select', required: true, options: [
+    { value: 1, label: 'Hoàn thành' }, { value: 2, label: 'Thất bại' }, { value: 3, label: 'Bỏ trị' },
+    { value: 4, label: 'Tử vong' }, { value: 5, label: 'Chuyển đi' },
+  ] },
+  { key: 'outcomeNotes', label: 'Ghi chú kết quả', type: 'textarea', placeholder: 'Lý do / nơi chuyển đến…' },
+];
+
 const numOrUndef = (v: unknown): number | undefined =>
   v === undefined || v === null || v === '' ? undefined : Number(v);
 const strOrUndef = (v: unknown): string | undefined => (v ? String(v) : undefined);
@@ -135,6 +144,7 @@ const TbHivManagementV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<TbHivRecordDto | null>(null);
   const [fuOpen, setFuOpen] = useState(false);
+  const [closeRec, setCloseRec] = useState<TbHivRecordDto | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -191,14 +201,16 @@ const TbHivManagementV2: React.FC = () => {
   }, []);
 
   const recFields = useMemo<CrudFieldCfg[]>(() => [
-    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true, disabledOnEdit: true,
+    ...(editRecord ? [] : [{ key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true, disabledOnEdit: true,
       options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
-      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
-    ...RECORD_BASE_FIELDS,
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' } as CrudFieldCfg]),
+    // BE UpdateTbHivRecordDto không nhận recordType/treatmentCategory (CrudModal không khoá được select)
+    // → ẩn khi sửa; trước đây đổi được, báo "Đã cập nhật" nhưng không lưu.
+    ...RECORD_BASE_FIELDS.filter((f) => !editRecord || (f.key !== 'recordType' && f.key !== 'treatmentCategory')),
     ...(formRecordType === 0 || formRecordType === 2 ? RECORD_TB_FIELDS : []),
     ...(formRecordType === 1 || formRecordType === 2 ? RECORD_HIV_FIELDS : []),
     RECORD_NOTES_FIELD,
-  ], [formRecordType, patientOpts, searchPatients]);
+  ], [formRecordType, patientOpts, searchPatients, editRecord]);
 
   // BE không có endpoint in phiếu → dựng phiếu điều trị client-side từ detail + follow-ups
   const handlePrint = async (r: TbHivRecordDto) => {
@@ -325,6 +337,15 @@ const TbHivManagementV2: React.FC = () => {
     try { setFollowUps(await getFollowUps(sel.id)); } catch { /* đã cảnh báo trong api */ }
   };
 
+  const submitClose = async (v: Record<string, unknown>) => {
+    if (!closeRec) return;
+    await updateTbHivStatus(closeRec.id, Number(v.status), strOrUndef(v.outcomeNotes));
+    tk('Đã kết thúc điều trị');
+    setCloseRec(null);
+    setSel(null);
+    load();
+  };
+
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
   // keyword/loại/phân loại/ngày đã lọc server-side trong load(); chỉ còn tab trạng thái client-side
@@ -376,6 +397,10 @@ const TbHivManagementV2: React.FC = () => {
           hidden: statusKey(r.status) !== 'onTreatment', onClick: () => openEdit(r)
         },
         { key: 'print', icon: 'printer', label: 'In phiếu điều trị', onClick: () => handlePrint(r) },
+        {
+          key: 'close', icon: 'check', label: 'Kết thúc điều trị',
+          hidden: statusKey(r.status) !== 'onTreatment', onClick: () => setCloseRec(r)
+        },
       ]} />
     </div>
   );
@@ -463,6 +488,9 @@ const TbHivManagementV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
             <Btn variant="ghost" icon="printer" onClick={() => sel && handlePrint(sel)}>In phiếu</Btn>
+            {sel && statusKey(sel.status) === 'onTreatment' && (
+              <Btn variant="ghost" icon="check" onClick={() => setCloseRec(sel)}>Kết thúc điều trị</Btn>
+            )}
             {sel && statusKey(sel.status) === 'onTreatment' && (
               <Btn variant="primary" icon="plus" onClick={() => setFuOpen(true)}>Thêm lần điều trị</Btn>
             )}
@@ -595,6 +623,16 @@ const TbHivManagementV2: React.FC = () => {
         sub={sel ? `${sel.registrationCode} · ${sel.patientName}` : undefined}
         fields={fuFields}
         onSubmit={submitFollowUp}
+      />
+
+      {/* ── Modal kết thúc điều trị (hoàn thành / thất bại / bỏ trị / tử vong / chuyển đi) ── */}
+      <CrudModal
+        open={!!closeRec}
+        onClose={() => setCloseRec(null)}
+        title="Kết thúc điều trị"
+        sub={closeRec ? `${closeRec.registrationCode} · ${closeRec.patientName}` : undefined}
+        fields={OUTCOME_FIELDS}
+        onSubmit={submitClose}
       />
     </div>
   );

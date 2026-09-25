@@ -60,6 +60,9 @@ const phaseKey = (p?: string) => (p || '').toLowerCase();
 
 const PER = 18;
 
+// BE CreateMethadoneDosingDto.Status: 0=Given, 1=Missed, 2=Refused, 3=Holiday
+const DOSE_STATUS: Record<number, string> = { 0: 'Đã cấp', 1: 'Bỏ liều', 2: 'Từ chối', 3: 'Nghỉ lễ' };
+
 const MethadoneTreatmentV2: React.FC = () => {
   const [items, setItems] = useState<MethadonePatient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,35 +154,62 @@ const MethadoneTreatmentV2: React.FC = () => {
   const [doseTarget, setDoseTarget] = useState<MethadonePatient | null>(null);
   const [doseAmt, setDoseAmt] = useState('');
   const [doseType, setDoseType] = useState('witnessed');
+  // Kết quả lần cấp (BE Status 0=Đã cấp · 1=Bỏ liều · 2=Từ chối · 3=Nghỉ lễ) + ngày — trước đây chỉ ghi được
+  // "Đã cấp" hôm nay → cột/KPI "Bỏ liều" không bao giờ tăng từ UI, liều mang về cho ngày mai không ghi được.
+  const [doseStatus, setDoseStatus] = useState(0);
+  const [doseDate, setDoseDate] = useState('');
   const [doseSubmitting, setDoseSubmitting] = useState(false);
 
   const openDose = (r: MethadonePatient) => {
     setDoseTarget(r);
     setDoseAmt(String(r.currentDose));
     setDoseType(r.doseType || 'witnessed');
+    setDoseStatus(0);
+    setDoseDate(dayjs().format('YYYY-MM-DD'));
   };
 
   const submitDose = async () => {
     if (!doseTarget) return;
-    const amt = parseFloat(doseAmt);
-    if (!amt || amt <= 0) { message.error('Vui lòng nhập liều hợp lệ'); return; }
-    if (doseTarget.currentDose > 0 && amt > doseTarget.currentDose) {
+    const given = doseStatus === 0;
+    const amt = given ? parseFloat(doseAmt) : 0;
+    if (given && (!amt || amt <= 0)) { message.error('Vui lòng nhập liều hợp lệ'); return; }
+    if (given && doseTarget.currentDose > 0 && amt > doseTarget.currentDose) {
       message.error(`Liều cấp vượt liều chỉ định (${doseTarget.currentDose} mg) — cập nhật liều điều trị trước`);
       return;
     }
     setDoseSubmitting(true);
     try {
-      // doseDate omitted → API client sends VN wall-clock (BE blocks a 2nd dose on the same VN day).
+      // Hôm nay → để api gửi giờ VN hiện tại (BE chặn cấp liều lần 2 cùng ngày VN); ngày khác → gửi ngày đã chọn.
+      const isToday = !doseDate || doseDate === dayjs().format('YYYY-MM-DD');
       await recordDose({
         patientId: doseTarget.id,
         doseAmount: amt,
         doseType,
+        status: doseStatus,
+        doseDate: isToday ? undefined : doseDate,
       });
-      tk(`Đã cấp liều ${amt} mg cho ${doseTarget.patientName}`);
+      tk(given ? `Đã cấp liều ${amt} mg cho ${doseTarget.patientName}`
+        : `Đã ghi nhận "${DOSE_STATUS[doseStatus]}" cho ${doseTarget.patientName}`);
       setDoseTarget(null);
       load();
     } catch (e) { message.error(friendlyErrorMessage(e, 'Cấp liều thất bại')); }
     finally { setDoseSubmitting(false); }
+  };
+
+  // ── Chọn BN khi mở Cấp liều / XN từ thanh công cụ ─────────────────────────
+  const [pickFor, setPickFor] = useState<'dose' | 'urine' | null>(null);
+  const [pickId, setPickId] = useState('');
+  const pickOptions = useMemo(
+    () => items.filter((p) => pickFor === 'urine' || p.status === 0)
+      .map((p) => ({ v: p.id, l: `${p.patientCode} — ${p.patientName}` })),
+    [items, pickFor],
+  );
+  const confirmPick = () => {
+    const p = items.find((x) => x.id === pickId);
+    if (!p) { message.warning('Chọn bệnh nhân'); return; }
+    const mode = pickFor;
+    setPickFor(null);
+    if (mode === 'dose') openDose(p); else openUrine(p);
   };
 
   // ── XN nước tiểu ──────────────────────────────────────────────────────────
@@ -238,8 +268,6 @@ const MethadoneTreatmentV2: React.FC = () => {
     finally { setHistLoading(false); }
   };
 
-  // BE CreateMethadoneDosingDto.Status: 0=Given, 1=Missed, 2=Refused, 3=Holiday
-  const DOSE_STATUS: Record<number, string> = { 0: 'Đã cấp', 1: 'Bỏ liều', 2: 'Từ chối', 3: 'Nghỉ lễ' };
 
   const actions = (r: MethadonePatient) => (
     <div className="ab-actions">
@@ -274,17 +302,12 @@ const MethadoneTreatmentV2: React.FC = () => {
         </Btn>
         <span className="spacer" />
         <RefreshButton onRefresh={async () => { await load(); }} />
-        <Btn variant="ghost" onClick={() => {
-          const active = items.find((p) => p.status === 0);
-          if (active) openUrine(active);
-          else message.warning('Chọn bệnh nhân từ danh sách để ghi XN');
-        }}>
+        {/* Trước đây 2 nút này tự lấy BN "đang điều trị" ĐẦU TIÊN trong danh sách → cấp liều/ghi XN nhầm người.
+            Nay mở hộp chọn bệnh nhân. */}
+        <Btn variant="ghost" onClick={() => { setPickFor('urine'); setPickId(''); }}>
           <Ico name="activity" size={12} /> XN nước tiểu
         </Btn>
-        <Btn variant="primary" onClick={() => {
-          const active = items.find((p) => p.status === 0);
-          if (active) openDose(active); else message.warning('Chọn bệnh nhân từ danh sách');
-        }}>
+        <Btn variant="primary" onClick={() => { setPickFor('dose'); setPickId(''); }}>
           <Ico name="check" size={12} /> Cấp liều
         </Btn>
         <Btn variant="primary" onClick={() => setEnrollOpen(true)}>
@@ -397,20 +420,41 @@ const MethadoneTreatmentV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setDoseTarget(null)}>Huỷ</Btn>
           <Btn variant="primary" onClick={submitDose} disabled={doseSubmitting}>
-            <Ico name="check" size={12} /> {doseSubmitting ? 'Đang lưu…' : 'Xác nhận cấp liều'}
+            <Ico name="check" size={12} /> {doseSubmitting ? 'Đang lưu…' : doseStatus === 0 ? 'Xác nhận cấp liều' : 'Ghi nhận'}
           </Btn>
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Liều (mg) <span style={{ color: 'var(--s-crit)' }}>*</span></span>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Kết quả</span>
+            <select
+              value={doseStatus}
+              onChange={(e) => setDoseStatus(Number(e.target.value))}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
+            >
+              {Object.entries(DOSE_STATUS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Ngày</span>
             <input
-              type="number" min={1} step={0.5}
-              value={doseAmt}
-              onChange={(e) => setDoseAmt(e.target.value)}
+              type="date"
+              value={doseDate}
+              onChange={(e) => setDoseDate(e.target.value)}
               style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
             />
           </div>
+          {doseStatus === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Liều (mg) <span style={{ color: 'var(--s-crit)' }}>*</span></span>
+              <input
+                type="number" min={1} step={0.5}
+                value={doseAmt}
+                onChange={(e) => setDoseAmt(e.target.value)}
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
+              />
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Hình thức</span>
             <select
@@ -423,6 +467,21 @@ const MethadoneTreatmentV2: React.FC = () => {
             </select>
           </div>
         </div>
+      </ModalShell>
+
+      {/* ── Chọn bệnh nhân (từ thanh công cụ) ── */}
+      <ModalShell
+        open={!!pickFor}
+        onClose={() => setPickFor(null)}
+        title={pickFor === 'dose' ? 'Cấp liều — chọn bệnh nhân' : 'XN nước tiểu — chọn bệnh nhân'}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setPickFor(null)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={confirmPick}>Tiếp tục</Btn>
+        </>}
+      >
+        <Filter value={pickId} onChange={setPickId} options={pickOptions}
+          placeholder={pickFor === 'dose' ? '▾ Bệnh nhân đang điều trị' : '▾ Bệnh nhân'} />
       </ModalShell>
 
       {/* ── Modal XN nước tiểu ── */}

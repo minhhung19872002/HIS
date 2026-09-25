@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchVaccinations, recordVaccination, searchCampaigns, getCampaignStats, getAefiReports,
+  createCampaign, recordReaction,
 } from '../api/immunization';
 import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
@@ -9,7 +10,7 @@ import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { apiClient } from '../../../services/apiClient';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, Btn, DrawerShell, DrSec, DrField, CrudModal,
+  StatusBadge, Btn, ActBtn, DrawerShell, DrSec, DrField, CrudModal,
   SimpleV2Page, useTabCounts, tk, tw, te,
   type TopTab, type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
@@ -60,8 +61,26 @@ const VAX_FIELDS_REST: CrudFieldCfg[] = [
 ];
 interface PatientOption { id: string; patientCode: string; fullName: string }
 
-const SEV_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Trung bình', 3: 'Nặng', 4: 'Nghiêm trọng' };
-const SEV_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 1: 'ok', 2: 'info', 3: 'warn', 4: 'crit' };
+// QA-R11: BE AefiSeverity is 0=Không, 1=Nhẹ, 2=Vừa, 3=Nặng (RecordReactionAsync rejects anything else) — the old 1..4
+// scale showed a severe reaction (3) as a mere warning and a "Nghiêm trọng" bucket that could never fill.
+const SEV_LABEL: Record<number, string> = { 0: 'Không', 1: 'Nhẹ', 2: 'Vừa', 3: 'Nặng' };
+const SEV_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 0: 'info', 1: 'ok', 2: 'warn', 3: 'crit' };
+const AEFI_FIELDS: CrudFieldCfg[] = [
+  { key: 'aefiSeverity', label: 'Mức độ phản ứng', type: 'select', required: true,
+    options: [1, 2, 3].map((s) => ({ value: s, label: SEV_LABEL[s] })) },
+  { key: 'aefiReport', label: 'Triệu chứng / diễn biến', type: 'textarea', required: true },
+  { key: 'notes', label: 'Xử trí / theo dõi', type: 'textarea' },
+];
+const CAMP_FIELDS: CrudFieldCfg[] = [
+  { key: 'code', label: 'Mã chiến dịch', required: true },
+  { key: 'name', label: 'Tên chiến dịch', required: true },
+  { key: 'vaccineName', label: 'Vắc-xin', required: true },
+  { key: 'startDate', label: 'Từ ngày', type: 'date', required: true },
+  { key: 'endDate', label: 'Đến ngày', type: 'date', required: true },
+  { key: 'targetPopulation', label: 'Số đối tượng mục tiêu', type: 'number', required: true },
+  { key: 'area', label: 'Khu vực' },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+];
 const CAMP_ST_LBL: Record<number, string> = { 0: 'Kế hoạch', 1: 'Đang TH', 2: 'Hoàn thành', 3: 'Hủy' };
 const CAMP_ST_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 0: 'info', 1: 'warn', 2: 'ok', 3: 'crit' };
 
@@ -95,6 +114,9 @@ const ImmunizationV2: React.FC = () => {
   const [campStats, setCampStats]       = useState<CampaignStats | null>(null);
   const [campLoaded, setCampLoaded]     = useState(false);
   const [campLoad, setCampLoad]         = useState(false);
+  const [campCreate, setCampCreate]     = useState(false);
+  // AEFI entry for one administered dose (BE PUT /immunization/{id}/reaction had no UI at all).
+  const [aefiFor, setAefiFor]           = useState<{ row: Vaccination; reload: () => void } | null>(null);
 
   const loadVax = useCallback(async () => {
     setVaxLoad(true);
@@ -135,7 +157,12 @@ const ImmunizationV2: React.FC = () => {
   const vaxFields = useMemo<CrudFieldCfg[]>(() => [
     { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
       options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
-      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
+        // QA-R11: the autocomplete also accepts free text → BE 400 INVALID_REFERENCE. Only a picked patient id passes.
+        rules: [{ required: true, message: 'Chọn bệnh nhân từ danh sách' }, {
+          validator: (_: unknown, v: unknown) => (!v || patientOpts.some((p) => p.id === v)
+            ? Promise.resolve() : Promise.reject(new Error('Chọn bệnh nhân từ danh sách'))),
+        }], },
     ...VAX_FIELDS_REST,
   ], [patientOpts, searchPatients]);
 
@@ -156,6 +183,30 @@ const ImmunizationV2: React.FC = () => {
     setReloadVer((n) => n + 1);
   };
 
+  const handleCampSubmit = async (v: Record<string, unknown>) => {
+    if (v.startDate && v.endDate && String(v.endDate) < String(v.startDate)) { tw('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu'); throw new Error('invalid range'); }
+    if (!(Number(v.targetPopulation) > 0)) { tw('Số đối tượng mục tiêu phải lớn hơn 0'); throw new Error('invalid target'); }
+    await createCampaign({
+      code: String(v.code ?? '').trim(), name: String(v.name ?? '').trim(), vaccineName: String(v.vaccineName ?? '').trim(),
+      startDate: String(v.startDate ?? ''), endDate: String(v.endDate ?? ''),
+      targetPopulation: Number(v.targetPopulation) || 0,
+      area: String(v.area ?? '') || undefined, description: String(v.description ?? '') || undefined,
+    });
+    tk('Đã tạo chiến dịch tiêm chủng');
+    loadCamp();
+  };
+
+  const handleAefiSubmit = async (v: Record<string, unknown>) => {
+    if (!aefiFor) return;
+    await recordReaction(aefiFor.row.id, {
+      aefiSeverity: Number(v.aefiSeverity), aefiReport: String(v.aefiReport ?? '').trim(),
+      notes: String(v.notes ?? '').trim() || undefined,
+    });
+    tk('Đã ghi nhận phản ứng sau tiêm');
+    aefiFor.reload();
+    setAefiLoaded(false);
+  };
+
   // ── Vaccination list (SimpleV2Page) columns ──
   const vaxCols: ColumnDef<Vaccination>[] = [
     { key: 'patient', label: 'Bệnh nhân', render: (r) => (
@@ -167,7 +218,7 @@ const ImmunizationV2: React.FC = () => {
     { key: 'vaccine', label: 'Vắc-xin', render: (r) => (
       <div className="cell-2l"><b>{r.vaccineName}</b><i className="mono">{r.vaccineCode}</i></div>
     )},
-    { key: 'dose',  label: 'Mũi', mono: true, width: 80,  render: (r) => `${r.doseNumber}/${r.totalDoses}` },
+    { key: 'dose',  label: 'Mũi', mono: true, width: 80,  render: (r) => `${r.doseNumber}` },
     { key: 'lot',   label: 'Số lô', mono: true, width: 130, render: (r) => r.lotNumber || '—' },
     { key: 'route', label: 'Đường', width: 90,             render: (r) => `${r.route} · ${r.site}` },
     { key: 'when',  label: 'Ngày tiêm', mono: true, width: 100, render: (r) => fmtDMY(r.vaccinationDate) },
@@ -203,7 +254,7 @@ const ImmunizationV2: React.FC = () => {
         {r.symptoms}
       </span>
     )},
-    { key: 'outcome', label: 'Kết quả', render: (r) => r.outcome },
+    { key: 'outcome', label: 'Xử trí / theo dõi', render: (r) => r.outcome || '—' },
   ];
 
   // ── Campaign columns ──
@@ -277,7 +328,15 @@ const ImmunizationV2: React.FC = () => {
               pageSize={20}
               emptyMessage={vaxLoad ? 'Đang tải…' : 'Chưa có hồ sơ tiêm chủng'}
               drawerTitle={(r) => `${r.patientName} · ${r.vaccineName}`}
-              drawerSub={(r) => `Mũi ${r.doseNumber}/${r.totalDoses} · ${fmtDMY(r.vaccinationDate)}`}
+              drawerSub={(r) => `Mũi ${r.doseNumber} · ${fmtDMY(r.vaccinationDate)}`}
+              rowActions={(r, reload) => (
+                <div className="ab-actions">
+                  {r.status === 1 && (
+                    <ActBtn ic="alert" title={r.adverseEvent ? 'Cập nhật phản ứng sau tiêm (AEFI)' : 'Ghi nhận phản ứng sau tiêm (AEFI)'}
+                      tone={r.adverseEvent ? 'crit' : undefined} onClick={() => setAefiFor({ row: r, reload })} />
+                  )}
+                </div>
+              )}
               drawer={(r) => (
                 <>
                   <DrSec title="Bệnh nhân">
@@ -289,7 +348,7 @@ const ImmunizationV2: React.FC = () => {
                     <DrField lbl="Tên">{r.vaccineName}</DrField>
                     <DrField lbl="Mã"><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.vaccineCode}</span></DrField>
                     <DrField lbl="Số lô">{r.lotNumber}</DrField>
-                    <DrField lbl="Mũi"><b>{r.doseNumber}/{r.totalDoses}</b></DrField>
+                    <DrField lbl="Mũi"><b>{r.doseNumber}</b></DrField>
                     <DrField lbl="Đường tiêm">{r.route}</DrField>
                     <DrField lbl="Vị trí">{r.site}</DrField>
                   </DrSec>
@@ -318,6 +377,15 @@ const ImmunizationV2: React.FC = () => {
               size="lg"
               onSubmit={handleVaxSubmit}
             />
+            <CrudModal
+              open={!!aefiFor}
+              onClose={() => setAefiFor(null)}
+              title="Phản ứng sau tiêm (AEFI)"
+              sub={aefiFor ? `${aefiFor.row.patientName} · ${aefiFor.row.vaccineName} · mũi ${aefiFor.row.doseNumber}` : ''}
+              fields={AEFI_FIELDS}
+              initial={aefiFor?.row.adverseEvent ? { aefiReport: aefiFor.row.adverseEvent } : {}}
+              onSubmit={handleAefiSubmit}
+            />
           </>
         )}
 
@@ -327,7 +395,18 @@ const ImmunizationV2: React.FC = () => {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
               <SearchBox value={campSearch} onChange={setCampSearch} placeholder="Tìm tên chiến dịch…" />
               <Btn icon="refresh" onClick={loadCamp} loading={campLoad} />
+              <span style={{ flex: 1 }} />
+              <Btn variant="primary" icon="plus" onClick={() => setCampCreate(true)}>Tạo chiến dịch</Btn>
             </div>
+            <CrudModal
+              open={campCreate}
+              onClose={() => setCampCreate(false)}
+              title="Tạo chiến dịch tiêm chủng"
+              fields={CAMP_FIELDS}
+              initial={{}}
+              size="lg"
+              onSubmit={handleCampSubmit}
+            />
             <DataTable<Campaign>
               columns={campCols}
               data={campFiltered}
@@ -384,8 +463,8 @@ const ImmunizationV2: React.FC = () => {
                       </StatusBadge>
                     </DrField>
                     <DrField lbl="Triệu chứng">{aefiSel.symptoms}</DrField>
-                    <DrField lbl="Kết quả">{aefiSel.outcome}</DrField>
-                    <DrField lbl="Người báo cáo">{aefiSel.reportedBy}</DrField>
+                    <DrField lbl="Xử trí / theo dõi"><span style={{ whiteSpace: 'pre-wrap' }}>{aefiSel.outcome || '—'}</span></DrField>
+                    <DrField lbl="Người tiêm">{aefiSel.reportedBy || '—'}</DrField>
                   </DrSec>
                 </>
               )}
@@ -428,7 +507,7 @@ const ImmunizationV2: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
                 <StatNum n={aefiRows.length} lbl="Tổng báo cáo" />
-                {[1, 2, 3, 4].map((sev) => (
+                {[1, 2, 3].map((sev) => (
                   <StatNum
                     key={sev}
                     n={aefiRows.filter((r) => r.severity === sev).length}

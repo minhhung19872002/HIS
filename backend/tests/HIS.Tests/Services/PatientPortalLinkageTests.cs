@@ -24,7 +24,7 @@ public sealed class PatientPortalLinkageTests
     private readonly Guid _serviceId = Guid.NewGuid();
 
     private static PatientPortalServiceImpl Build(HISDbContext ctx, IRISCompleteService? ris = null) =>
-        new(ctx, ris ?? new Mock<IRISCompleteService>().Object);
+        new(ctx, ris ?? new Mock<IRISCompleteService>().Object, new Mock<IAppointmentBookingService>().Object);
 
     private void SeedBase(HISDbContext ctx)
     {

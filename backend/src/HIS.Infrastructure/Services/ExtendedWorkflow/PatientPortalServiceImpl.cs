@@ -19,10 +19,15 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
     // nhân mượn lại thay vì tự dựng một đường ống PACS thứ hai — hai đường ống thì sớm muộn cũng lệch.
     private readonly IRISCompleteService _ris;
 
-    public PatientPortalServiceImpl(HISDbContext context, IRISCompleteService ris)
+    // QA-R11: portal bookings go through the real HIS booking pipeline (slot capacity, duplicate-day check,
+    // queue number, reception worklist) instead of the parallel PortalAppointments table nobody processes.
+    private readonly IAppointmentBookingService _booking;
+
+    public PatientPortalServiceImpl(HISDbContext context, IRISCompleteService ris, IAppointmentBookingService booking)
     {
         _context = context;
         _ris = ris;
+        _booking = booking;
     }
 
     public async Task<PortalAccountDto> GetAccountAsync(Guid accountId)
@@ -75,6 +80,18 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
         // R2: hash BCrypt (trước đây lưu plaintext — bảng 0 rows nên không cần backfill).
         // Username = email (fallback phone) để login bằng identifier.
         var username = !string.IsNullOrWhiteSpace(dto.Email) ? dto.Email.Trim() : dto.Phone?.Trim() ?? "";
+        // QA-R11: the same e-mail/phone could be registered again (and with a 1-char password). Login picks
+        // FirstOrDefault by username/email/phone, so a squatting duplicate could lock the real owner out.
+        if (string.IsNullOrWhiteSpace(username))
+            throw new ArgumentException("Cần email hoặc số điện thoại để đăng ký", nameof(dto.Email));
+        if (string.IsNullOrEmpty(dto.Password) || dto.Password.Length < 8)
+            throw new ArgumentException("Mật khẩu tối thiểu 8 ký tự", nameof(dto.Password));
+        var email = dto.Email?.Trim() ?? "";
+        var phone = dto.Phone?.Trim() ?? "";
+        if (await _context.PortalAccounts.AnyAsync(a => !a.IsDeleted && (a.Username == username
+                || (email != "" && (a.Email == email || a.Username == email))
+                || (phone != "" && (a.Phone == phone || a.Username == phone)))))
+            throw new InvalidOperationException("Email hoặc số điện thoại đã được dùng cho một tài khoản khác");
         var entity = new PortalAccount
         {
             Id = Guid.NewGuid(),
@@ -160,27 +177,63 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<List<PortalAppointmentDto>> GetAppointmentsAsync(Guid patientId, bool includeHistory = false)
     {
+        // QA-R11: the portal listed only the legacy PortalAppointments table — bookings made at the counter or in
+        // the patient app (HIS Appointments), and their cancellations, never showed up. HIS appointments first,
+        // legacy portal rows (seed/demo history) appended.
+        var hisQuery = _context.Appointments.AsNoTracking()
+            .Include(a => a.Patient).Include(a => a.Department).Include(a => a.Doctor).Include(a => a.Room)
+            .Where(a => !a.IsDeleted);
+        // Demo fallback kept: empty patientId (staff token without a patient) lists the hospital's rows.
+        if (patientId != Guid.Empty) hisQuery = hisQuery.Where(a => a.PatientId == patientId);
+        if (!includeHistory) hisQuery = hisQuery.Where(a => a.AppointmentDate >= DateTime.Today);
+        var his = await hisQuery.OrderBy(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).Take(30).ToListAsync();
+        var result = his.Select(MapHisAppointment).ToList();
         try
         {
             var query = _context.PortalAppointments.Include(x => x.Department).AsQueryable();
-            // Demo fallback: empty patientId returns first 20 rows so admin
-            // (no portal account) can still see the portal page populated.
             if (patientId != Guid.Empty) query = query.Where(x => x.PatientId == patientId);
             if (!includeHistory) query = query.Where(x => x.AppointmentDate >= DateTime.Today);
             var list = await query.OrderBy(x => x.AppointmentDate).Take(30).ToListAsync();
-            return list.Select(e => new PortalAppointmentDto { Id = e.Id, PatientId = e.PatientId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status }).ToList();
+            result.AddRange(list.Select(e => new PortalAppointmentDto { Id = e.Id, AppointmentCode = e.BookingCode, PatientId = e.PatientId, DepartmentId = e.DepartmentId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status, ReasonForVisit = e.ChiefComplaint, CreatedAt = e.CreatedAt }));
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
         {
-            return new List<PortalAppointmentDto>();
+            // legacy table absent — HIS appointments are enough
         }
+        return result;
     }
 
     public async Task<PortalAppointmentDto> GetAppointmentAsync(Guid id)
     {
+        var a = await _context.Appointments.AsNoTracking()
+            .Include(x => x.Patient).Include(x => x.Department).Include(x => x.Doctor).Include(x => x.Room)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (a != null) return MapHisAppointment(a);
         var e = await _context.PortalAppointments.Include(x => x.Department).FirstOrDefaultAsync(x => x.Id == id);
-        return e == null ? null! : new PortalAppointmentDto { Id = e.Id, PatientId = e.PatientId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status, ReasonForVisit = e.ChiefComplaint };
+        return e == null ? null! : new PortalAppointmentDto { Id = e.Id, AppointmentCode = e.BookingCode, PatientId = e.PatientId, DepartmentId = e.DepartmentId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status, ReasonForVisit = e.ChiefComplaint, CreatedAt = e.CreatedAt };
     }
+
+    // HIS Appointment.Status: 0 chờ xác nhận · 1 đã xác nhận · 2 đã đến khám · 3 không đến · 4 đã hủy.
+    private static PortalAppointmentDto MapHisAppointment(Appointment a) => new()
+    {
+        Id = a.Id,
+        AppointmentCode = a.AppointmentCode ?? "",
+        PatientId = a.PatientId,
+        PatientName = a.Patient?.FullName ?? "",
+        AppointmentDate = a.AppointmentDate,
+        AppointmentTime = a.AppointmentTime ?? TimeSpan.Zero,
+        Session = (a.AppointmentTime ?? TimeSpan.Zero).Hours < 12 ? "Morning" : "Afternoon",
+        DepartmentId = a.DepartmentId ?? Guid.Empty,
+        DepartmentName = a.Department?.DepartmentName ?? "",
+        DoctorId = a.DoctorId,
+        DoctorName = a.Doctor?.FullName ?? "",
+        RoomNumber = a.Room?.RoomName ?? "",
+        VisitType = a.AppointmentType == 1 ? "FollowUp" : a.AppointmentType == 3 ? "HealthCheck" : "New",
+        ReasonForVisit = a.Reason ?? "",
+        Status = a.Status switch { 0 => "Pending", 1 => "Confirmed", 2 => "CheckedIn", 3 => "NoShow", 4 => "Cancelled", _ => "Pending" },
+        QueueNumber = a.QueueNumber,
+        CreatedAt = a.CreatedAt,
+    };
 
     public Task<List<AvailableSlotDto>> GetAvailableSlotsAsync(Guid departmentId, Guid? doctorId, DateTime fromDate, DateTime toDate)
     {
@@ -198,16 +251,50 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<PortalAppointmentDto> BookAppointmentAsync(Guid patientId, CreatePortalAppointmentDto dto)
     {
-        var entity = new PortalAppointment { Id = Guid.NewGuid(), PatientId = patientId, DepartmentId = dto.DepartmentId, DoctorId = dto.DoctorId, AppointmentDate = dto.AppointmentDate, SlotTime = dto.AppointmentTime, ChiefComplaint = dto.ReasonForVisit, Status = "Pending", CreatedAt = DateTime.Now };
-        _context.PortalAppointments.Add(entity);
-        await _context.SaveChangesAsync();
-        return await GetAppointmentAsync(entity.Id);
+        // QA-R11: this inserted into PortalAppointments with BookingFee = NULL (column is NOT NULL → every portal
+        // booking failed with 400 "Thiếu trường bắt buộc: BookingFee"), accepted PatientId = Guid.Empty for a staff
+        // token, past dates and any department — and the row never reached reception. Book a real HIS appointment.
+        if (patientId == Guid.Empty)
+            throw new ArgumentException("Chưa chọn người bệnh để đặt lịch", nameof(patientId));
+        var patient = await _context.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == patientId && !p.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ người bệnh");
+        if (dto.DepartmentId == Guid.Empty || !await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId && d.IsActive))
+            throw new ArgumentException("Khoa khám không hợp lệ", nameof(dto.DepartmentId));
+        var result = await _booking.BookAppointmentAsync(new OnlineBookingDto
+        {
+            PatientId = patient.Id,
+            PatientName = patient.FullName,
+            // Owner is fixed by PatientId; the phone only feeds the per-phone daily limit (placeholder when absent).
+            PhoneNumber = string.IsNullOrWhiteSpace(patient.PhoneNumber) ? patient.PatientCode : patient.PhoneNumber!,
+            AppointmentDate = dto.AppointmentDate.Date,
+            AppointmentTime = dto.AppointmentTime == TimeSpan.Zero ? null : dto.AppointmentTime,
+            DepartmentId = dto.DepartmentId,
+            DoctorId = dto.DoctorId,
+            AppointmentType = dto.VisitType switch { "FollowUp" => 1, "HealthCheck" => 3, _ => 2 },
+            Reason = dto.ReasonForVisit,
+            Notes = string.IsNullOrWhiteSpace(dto.Symptoms) ? null : dto.Symptoms,
+            IsAuthenticatedCaller = true,
+        });
+        if (!result.Success)
+            throw new InvalidOperationException(result.Message ?? "Không đặt được lịch hẹn");
+        var id = await _context.Appointments.Where(a => a.AppointmentCode == result.AppointmentCode)
+            .Select(a => a.Id).FirstAsync();
+        return await GetAppointmentAsync(id);
     }
 
     public async Task<bool> CancelAppointmentAsync(Guid id, string reason)
     {
+        var his = await _context.Appointments.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+        if (his != null)
+        {
+            // Same rules as the counter / app cancel (Status >= 2 refused, queue ticket released).
+            await _booking.CancelAppointmentAsync(his.AppointmentCode, new CancelBookingDto { PatientId = his.PatientId, Reason = reason });
+            return true;
+        }
         var e = await _context.PortalAppointments.FindAsync(id);
         if (e == null) return false;
+        if (e.Status is "Cancelled" or "Completed" or "CheckedIn")
+            throw new InvalidOperationException("Lịch hẹn đã hủy hoặc đã khám — không hủy được");
         e.Status = "Cancelled"; e.CancellationReason = reason; e.CancelledAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;

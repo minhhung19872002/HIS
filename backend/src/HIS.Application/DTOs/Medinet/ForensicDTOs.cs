@@ -63,6 +63,7 @@ public class ForensicExaminationDto
     public int? DisabilityScore { get; set; }
     public string? ExaminerName { get; set; }
     public string? Notes { get; set; }
+    public string? ExamDate { get; set; } // QA-R11: drawer shows the exam date (= CreatedAt)
 }
 
 public class CreateForensicExaminationDto
@@ -82,6 +83,9 @@ public class ForensicStatsDto
     public int PendingCount { get; set; }
     public int CompletedCount { get; set; }
     public int ApprovedCount { get; set; }
+    // QA-R11: KPI keys of the v2 page ("Hoàn tháng", "TB tổn thương" had no source)
+    public int ApprovedThisMonth { get; set; }
+    public double AvgDisabilityPercent { get; set; }
     public List<ForensicCaseTypeBreakdownDto> CaseTypeBreakdown { get; set; } = new();
 }
 

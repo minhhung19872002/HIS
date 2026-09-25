@@ -45,6 +45,7 @@ public partial class PublicHealthService
 
         return await query
             .OrderByDescending(m => m.EnrollmentDate)
+            .ThenBy(m => m.Id) // QA-R11: deterministic paging
             .Skip(skip)
             .Take(pageSize)
             .Select(m => new MethadonePatientDto
@@ -206,6 +207,15 @@ public partial class PublicHealthService
         var dosingDate = !string.IsNullOrEmpty(dto.DosingDate) && DateTime.TryParse(dto.DosingDate, out var dd) ? dd : HIS.Core.Common.VnTime.NowVn;
         await MethadoneTreatmentService.ValidateDosingAsync(_context, patient, dosingDate, dto.DoseMg, missed: dto.Status != 0,
             advanceAllowed: dto.TakeHome || dto.Status == 3);
+        // QA-R11: "Bỏ liều" on a day the dose was already dispensed contradicted the record and inflated MissedDoseCount.
+        if (dto.Status == 1)
+        {
+            var day = dosingDate.Date;
+            var next = day.AddDays(1);
+            if (await _context.MethadoneDosingRecords.AnyAsync(d => d.MethadonePatientId == patient.Id && !d.IsDeleted
+                    && d.Status == 0 && d.DosingDate >= day && d.DosingDate < next))
+                throw new InvalidOperationException("Bệnh nhân đã được cấp liều trong ngày này — không ghi nhận bỏ liều.");
+        }
 
         var entity = new MethadoneDosingRecord
         {
@@ -273,14 +283,19 @@ public partial class PublicHealthService
 
     public async Task<MethadoneUrineTestDto> RecordUrineTestAsync(CreateMethadoneUrineTestDto dto, string? userId)
     {
-        _ = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
+        // QA-R11: FindAsync accepted a soft-deleted enrolment, and any test date (future / before enrolment) was stored;
+        // default was UTC instead of VN date. Same rules as MethadoneTreatmentService.RecordUrineScreeningAsync.
+        var mpUrine = await _context.MethadonePatients.FirstOrDefaultAsync(m => m.Id == dto.MethadonePatientId && !m.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+        var testDate = !string.IsNullOrEmpty(dto.TestDate) && DateTime.TryParse(dto.TestDate, out var td) ? td : HIS.Core.Common.VnTime.NowVn;
+        if (testDate.Date > HIS.Core.Common.VnTime.TodayVn || testDate.Date < mpUrine.EnrollmentDate.Date)
+            throw new ArgumentException("Ngày xét nghiệm không hợp lệ (tương lai hoặc trước ngày đăng ký).");
 
         var entity = new MethadoneUrineTest
         {
             Id = Guid.NewGuid(),
             MethadonePatientId = dto.MethadonePatientId,
-            TestDate = !string.IsNullOrEmpty(dto.TestDate) && DateTime.TryParse(dto.TestDate, out var td) ? td : DateTime.UtcNow,
+            TestDate = testDate,
             IsRandom = dto.IsRandom,
             Morphine = dto.Morphine,
             Amphetamine = dto.Amphetamine,

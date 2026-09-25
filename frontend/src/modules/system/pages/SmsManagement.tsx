@@ -152,7 +152,9 @@ const SmsManagementV2: React.FC = () => {
     try {
       const { data: ok } = await testSmsConnection();
       setConnOk(ok);
-      if (ok) tk('Kết nối SMS thành công'); else te('Kết nối SMS thất bại');
+      if (ok) tk('Kết nối SMS thành công');
+      else if (balance && !balance.isEnabled) tw('Chưa cấu hình SMS gateway (dev mode) — không có kết nối để kiểm tra');
+      else te('Kết nối SMS thất bại');
     } catch { setConnOk(false); te('Không thể kết nối SMS'); }
     finally { setConnLoading(false); }
   };
@@ -162,7 +164,11 @@ const SmsManagementV2: React.FC = () => {
       const res = await sendTestSms(String(v.phoneNumber ?? ''), v.message ? String(v.message) : undefined);
       // BE answers 200 + false when the number is invalid or the gateway rejects it.
       if (res.data === false) throw new Error('not sent');
-      tk('Đã gửi SMS thử nghiệm');
+      // QA-R11: in dev mode (gateway not configured) the BE only writes a log row and answers true — say so
+      // instead of "Đã gửi".
+      if (balance && !balance.isEnabled) tw('Dev mode: tin nhắn chỉ được ghi nhật ký, KHÔNG gửi thật (chưa cấu hình SMS gateway)');
+      else tk('Đã gửi SMS thử nghiệm');
+      loadDashboard();
     } catch {
       te('Gửi SMS thất bại');
       throw new Error('failed');
@@ -171,7 +177,7 @@ const SmsManagementV2: React.FC = () => {
 
   // ── KPIs ────────────────────────────────────────────────────────────────────
   const kpis: KpiItem[] = [
-    { lbl: 'Số dư',        val: balance?.balance ?? 0,       unit: balance?.currency ?? '' },
+    { lbl: 'Số dư',        val: balance && balance.balance >= 0 ? balance.balance : '—', unit: balance && balance.balance >= 0 ? (balance.currency ?? '') : '' },
     { lbl: 'Đã gửi (30d)', val: stats?.totalSent   ?? 0,    tone: 'ok' },
     { lbl: 'Lỗi (30d)',    val: stats?.totalFailed  ?? 0,   tone: 'crit' },
     { lbl: 'Dev mode',     val: stats?.totalDevMode ?? 0,   tone: 'info' },
@@ -219,8 +225,9 @@ const SmsManagementV2: React.FC = () => {
           <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 12 }}>Thống kê theo loại</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {stats.byType.map(item => {
-              const pct = item.total > 0
-                ? Math.round((item.sent + item.devMode) / item.total * 100) : 0;
+              // dev-mode rows were never delivered → not "success" (same rule as BE successRate)
+              const pct = item.sent + item.failed > 0
+                ? Math.round(item.sent / (item.sent + item.failed) * 100) : 0;
               return (
                 <div key={item.messageType}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
@@ -310,9 +317,10 @@ const SmsManagementV2: React.FC = () => {
           </div>
           <div>
             <span style={{ color: 'var(--t-2)' }}>Số dư: </span>
-            {balance !== null
-              ? `${(balance?.balance ?? 0).toLocaleString()} ${balance?.currency ?? ''}`.trim()
-              : 'N/A'}
+            {/* BE returns -1 when the balance is unknown (not configured / provider error) */}
+            {balance && balance.balance >= 0
+              ? `${balance.balance.toLocaleString()} ${balance.currency ?? ''}`.trim()
+              : '—'}
           </div>
         </div>
         <div style={{ marginTop: 12, fontSize: 11, color: 'var(--t-3)' }}>

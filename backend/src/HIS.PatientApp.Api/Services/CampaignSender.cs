@@ -29,11 +29,21 @@ public static class CampaignSender
         try
         {
             var accountIds = await ResolveAudienceAsync(db, campaign, ct);
-            var sent = 0;
+
+            // QA-R11: each recipient is committed in its own transaction, so a run that stops midway (crash,
+            // restart, DB blip) leaves the campaign Scheduled with part of the audience already notified — the
+            // next worker pass then sent the SAME message to those people again. Idempotent per
+            // (campaign, account): recipients that already hold this campaign's notification are skipped.
+            var alreadyNotified = (await db.Notifications
+                .Where(n => n.CampaignId == campaign.Id)
+                .Select(n => n.AccountId)
+                .ToListAsync(ct)).ToHashSet();
+            var sent = alreadyNotified.Count;
 
             foreach (var accountId in accountIds)
             {
                 ct.ThrowIfCancellationRequested();
+                if (!alreadyNotified.Add(accountId)) continue;
 
                 await notifications.CreateAsync(
                     accountId,

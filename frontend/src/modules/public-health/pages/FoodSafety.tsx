@@ -4,8 +4,9 @@ import dayjs from 'dayjs';
 import {
   searchIncidents, getIncidentStats, createIncident, updateIncident,
   searchInspections, createInspection, updateInspection, getInspectionStats,
+  addSample, getSamplesByIncident, updateSampleResult,
 } from '../api/foodSafety';
-import type { FoodSafetyIncident, FoodSafetyStats, FoodInspection, InspectionStats } from '../api/foodSafety';
+import type { FoodSafetyIncident, FoodSafetyStats, FoodInspection, InspectionStats, FoodSafetySample } from '../api/foodSafety';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti,
@@ -40,6 +41,25 @@ const FS_FIELDS: CrudFieldCfg[] = [
 ];
 
 const STATUS_LABEL: Record<number, string> = { 0: 'Báo cáo', 1: 'Điều tra', 2: 'Xác nhận', 3: 'Đóng' };
+
+const SAMPLE_TYPE_LABEL: Record<string, string> = {
+  Food: 'Thực phẩm', Water: 'Nước', Swab: 'Bệnh phẩm lau', Stool: 'Phân', Blood: 'Máu', Vomit: 'Chất nôn',
+};
+const SAMPLE_FIELDS: CrudFieldCfg[] = [
+  { key: 'sampleType', label: 'Loại mẫu', type: 'select', required: true,
+    options: Object.entries(SAMPLE_TYPE_LABEL).map(([value, label]) => ({ value, label })) },
+  { key: 'sampleCode', label: 'Mã mẫu (bỏ trống = tự sinh)' },
+  { key: 'collectedDate', label: 'Ngày lấy mẫu', type: 'date', required: true },
+  { key: 'collectedBy', label: 'Người lấy mẫu' },
+];
+const SAMPLE_RESULT_FIELDS: CrudFieldCfg[] = [
+  { key: 'result', label: 'Kết quả', type: 'select', required: true, options: [
+    { value: 'Pending', label: 'Chờ kết quả' }, { value: 'Negative', label: 'Âm tính' }, { value: 'Positive', label: 'Dương tính' },
+  ] },
+  { key: 'organism', label: 'Tác nhân phát hiện' },
+  { key: 'resultDate', label: 'Ngày có kết quả', type: 'date' },
+  { key: 'notes', label: 'Mô tả kết quả', type: 'textarea' },
+];
 const SEVERITY_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Vừa', 3: 'Nặng', 4: 'Nguy kịch' };
 const SEVERITY_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 1: 'ok', 2: 'info', 3: 'warn', 4: 'crit' };
 
@@ -105,6 +125,14 @@ const FoodSafetyV2: React.FC = () => {
   const [fSev, setFSev] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<FoodSafetyIncident | null>(null);
+  // Mẫu xét nghiệm của vụ (API có sẵn nhưng trang chưa từng gọi → không lấy/ghi được mẫu)
+  const [samples, setSamples] = useState<FoodSafetySample[]>([]);
+  const [sampleOpen, setSampleOpen] = useState(false);
+  const [sampleEdit, setSampleEdit] = useState<FoodSafetySample | null>(null);
+  useEffect(() => {
+    if (!sel?.id) { setSamples([]); return; }
+    getSamplesByIncident(sel.id).then(setSamples).catch(() => setSamples([]));
+  }, [sel?.id]);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
 
@@ -360,6 +388,27 @@ const FoodSafetyV2: React.FC = () => {
                   <Line label="Mức độ" value={SEVERITY_LABEL[sel.severity] || '—'} tone={SEVERITY_TONE[sel.severity]} bold />
                 </div>
               </DrSec>
+              <DrSec title={`Mẫu xét nghiệm (${samples.length})`}>
+                {samples.length === 0
+                  ? <div style={{ color: 'var(--t-2)', fontSize: 13 }}>Chưa lấy mẫu</div>
+                  : samples.map((s) => (
+                    <div key={s.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5 }}>
+                      <span className="mono">{s.sampleCode}</span>
+                      <span className="chip info">{SAMPLE_TYPE_LABEL[s.sampleType] || s.sampleType}</span>
+                      <span style={{ color: 'var(--t-2)' }}>{s.collectedDate ? dayjs(s.collectedDate).format('DD/MM/YYYY') : '—'}</span>
+                      <span className={`chip ${s.result === 'Positive' ? 'crit' : s.result === 'Negative' ? 'ok' : 'warn'}`}>
+                        {s.result === 'Positive' ? 'Dương tính' : s.result === 'Negative' ? 'Âm tính' : 'Chờ KQ'}
+                      </span>
+                      {s.organism && <span style={{ color: 'var(--s-crit)' }}>{s.organism}</span>}
+                      <span style={{ marginLeft: 'auto' }}>
+                        <ActBtn ic="edit" title="Ghi kết quả XN" onClick={() => setSampleEdit(s)} />
+                      </span>
+                    </div>
+                  ))}
+                <div style={{ marginTop: 8 }}>
+                  <Btn size="sm" icon="plus" onClick={() => setSampleOpen(true)}>Lấy mẫu</Btn>
+                </div>
+              </DrSec>
               <DrSec title="Điều tra">
                 <DrField lbl="Trạng thái">
                   <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.investigationStatus))?.tone || 'info'} dot>
@@ -374,6 +423,36 @@ const FoodSafetyV2: React.FC = () => {
               </DrSec>
             </>}
           </DrawerShell>
+
+          <CrudModal
+            open={sampleOpen}
+            onClose={() => setSampleOpen(false)}
+            title="Lấy mẫu xét nghiệm"
+            sub={sel ? `Vụ ${sel.incidentCode}` : undefined}
+            fields={SAMPLE_FIELDS}
+            initial={{ sampleType: 'Food', collectedDate: dayjs().format('YYYY-MM-DD') }}
+            onSubmit={async (v) => {
+              if (!sel) return;
+              await addSample({ ...v, incidentId: sel.id } as Partial<FoodSafetySample>);
+              tk('Đã ghi nhận mẫu');
+              setSamples(await getSamplesByIncident(sel.id));
+            }}
+          />
+          <CrudModal
+            open={!!sampleEdit}
+            onClose={() => setSampleEdit(null)}
+            title="Kết quả xét nghiệm mẫu"
+            sub={sampleEdit?.sampleCode}
+            fields={SAMPLE_RESULT_FIELDS}
+            initial={sampleEdit ? { id: sampleEdit.id, result: sampleEdit.result, organism: sampleEdit.organism, resultDate: sampleEdit.resultDate, notes: sampleEdit.notes } : null}
+            onSubmit={async (v) => {
+              if (!sampleEdit || !sel) return;
+              await updateSampleResult(sampleEdit.id, v as Partial<FoodSafetySample>);
+              tk('Đã lưu kết quả xét nghiệm');
+              setSampleEdit(null);
+              setSamples(await getSamplesByIncident(sel.id));
+            }}
+          />
 
           <CrudModal
             open={crudOpen}

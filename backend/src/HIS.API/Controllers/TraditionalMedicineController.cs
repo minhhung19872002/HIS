@@ -51,6 +51,8 @@ public class TraditionalMedicineController : ControllerBase
     [HttpPost("herbal-prescriptions")]
     public async Task<ActionResult<HerbalPrescriptionDto>> CreateHerbalPrescription([FromBody] CreateHerbalPrescriptionDto dto)
     {
+        // QA-R11: the billed Prescription's doctor was "the first user in the table" — use the signed-in prescriber.
+        dto.PrescriberId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : null;
         return Ok(await _service.CreateHerbalPrescriptionAsync(dto));
     }
 
@@ -78,4 +80,13 @@ public class TraditionalMedicineController : ControllerBase
     {
         return Ok(await _service.CompleteTreatmentAsync(id));
     }
+
+    // QA-R11: the page has a "Hủy" status tab and an edit form with "Đã huỷ", but nothing could cancel a treatment.
+    [HttpPut("treatments/{id}/cancel")]
+    public async Task<ActionResult<TraditionalMedicineTreatmentDto>> CancelTreatment(Guid id, [FromBody] CancelTreatmentRequest? req)
+    {
+        return Ok(await _service.CancelTreatmentAsync(id, req?.Reason));
+    }
+
+    public class CancelTreatmentRequest { public string? Reason { get; set; } }
 }

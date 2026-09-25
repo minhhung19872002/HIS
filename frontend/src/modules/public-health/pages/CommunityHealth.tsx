@@ -4,8 +4,10 @@ import dayjs from 'dayjs';
 import {
   searchHouseholds, createHousehold, updateHousehold,
   searchNcdScreenings, createNcdScreening,
-  searchTeams, createTeam,
+  searchTeams, createTeam, updateTeam,
 } from '../api/communityHealth';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import type { Household, NcdScreening, CommunityTeam } from '../api/communityHealth';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
@@ -40,7 +42,7 @@ const HH_FIELDS: CrudFieldCfg[] = [
   { key: 'address',     label: 'Địa chỉ',     required: true },
   { key: 'ward',        label: 'Phường/Xã',    required: true },
   { key: 'district',    label: 'Quận/Huyện',   required: true },
-  { key: 'province',    label: 'Tỉnh/Thành',   required: true },
+  { key: 'province',    label: 'Tỉnh/Thành' },
   { key: 'phone',       label: 'Điện thoại' },
   { key: 'memberCount', label: 'Số thành viên', type: 'number', required: true },
   { key: 'riskLevel',   label: 'Mức rủi ro', type: 'select', required: true, options: [
@@ -59,8 +61,14 @@ const HH_FIELDS: CrudFieldCfg[] = [
   { key: 'hasChronicDisease', label: 'Bệnh mạn tính', type: 'select', options: [
     { value: 'true', label: 'Có' }, { value: 'false', label: 'Không' },
   ]},
+  { key: 'lastVisitDate', label: 'Ngày thăm gần nhất', type: 'date' },
+  { key: 'nextVisitDate', label: 'Hẹn thăm tiếp', type: 'date' },
+  { key: 'status', label: 'Trạng thái quản lý', type: 'select', options: [
+    { value: 0, label: 'Đang quản lý' }, { value: 1, label: 'Tạm ngưng' }, { value: 2, label: 'Đã chuyển đi' },
+  ]},
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
+const HH_BOOL_KEYS = ['hasElderlyMember', 'hasChildUnder5', 'hasPregnant', 'hasChronicDisease'] as const;
 
 // ── NCD Screening ──
 const NCD_STATUS_TABS: StatusTab<string>[] = [
@@ -85,13 +93,8 @@ const CVD_TONE = (r: NcdScreening): 'ok' | 'warn' | 'crit' => {
   return 'ok';
 };
 
-const NCD_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientName',   label: 'Họ tên', required: true },
-  { key: 'patientCode',   label: 'Mã đối tượng' },
-  { key: 'dateOfBirth',   label: 'Ngày sinh', type: 'date', required: true },
-  { key: 'gender',        label: 'Giới tính', type: 'select', required: true, options: [
-    { value: '0', label: 'Nữ' }, { value: '1', label: 'Nam' },
-  ]},
+// Đối tượng = BN đã có trong HIS (BE bắt buộc patientId) — ô chọn BN ghép trong component (ncdFields)
+const NCD_FIELDS_REST: CrudFieldCfg[] = [
   { key: 'screeningDate', label: 'Ngày sàng lọc', type: 'date', required: true },
   { key: 'screenerName',  label: 'Người thực hiện', required: true },
   { key: 'systolicBP',    label: 'Huyết áp tâm thu (mmHg)', type: 'number', required: true },
@@ -110,7 +113,8 @@ const NCD_FIELDS: CrudFieldCfg[] = [
     { value: 'true', label: 'Có' }, { value: 'false', label: 'Không' },
   ]},
   { key: 'followUpDate',  label: 'Ngày tái khám', type: 'date' },
-  { key: 'followUpNotes', label: 'Ghi chú theo dõi', type: 'textarea' },
+  { key: 'referralRequired', label: 'Chuyển tuyến điều trị', type: 'switch' },
+  { key: 'followUpNotes', label: 'Kết luận / ghi chú', type: 'textarea' },
 ];
 
 // ── Teams ──
@@ -120,6 +124,13 @@ const TEAM_FIELDS: CrudFieldCfg[] = [
   { key: 'wardAssigned', label: 'Phường/Xã phụ trách', required: true },
   { key: 'phone',        label: 'Điện thoại' },
   { key: 'notes',        label: 'Ghi chú', type: 'textarea' },
+];
+const TEAM_EDIT_FIELDS: CrudFieldCfg[] = [
+  ...TEAM_FIELDS.filter((f) => f.key !== 'phone' && f.key !== 'notes'),
+  { key: 'memberCount', label: 'Số thành viên', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Hoạt động' }, { value: 1, label: 'Tạm ngưng' },
+  ]},
 ];
 
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
@@ -149,6 +160,31 @@ const CommunityHealthV2: React.FC = () => {
   const [teamsLoaded, setTeamsLoaded] = useState(false);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamCreate, setTeamCreate] = useState(false);
+  const [teamEdit, setTeamEdit] = useState<CommunityTeam | null>(null);
+
+  // Đội y tế cho ô "Đội phụ trách" của hộ gia đình (trước đây không gán được đội → cột Đội luôn "—")
+  useEffect(() => { searchTeams().then(setTeams).catch(() => { /* đã cảnh báo trong api */ }); }, []);
+  const hhFields = useMemo<CrudFieldCfg[]>(() => [
+    ...HH_FIELDS.slice(0, 8),
+    { key: 'assignedTeamId', label: 'Đội phụ trách', type: 'select',
+      options: teams.filter((t) => t.status === 0).map((t) => ({ value: t.id, label: `${t.teamCode} — ${t.teamName}` })) },
+    ...HH_FIELDS.slice(8),
+  ], [teams]);
+
+  // Ô chọn BN cho phiếu sàng lọc NCD
+  const [ncdPatientOpts, setNcdPatientOpts] = useState<Array<{ id: string; patientCode: string; fullName: string }>>([]);
+  const searchNcdPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setNcdPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const ncdFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Đối tượng (bệnh nhân)', type: 'autocomplete', required: true,
+      options: ncdPatientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchNcdPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+    ...NCD_FIELDS_REST,
+  ], [ncdPatientOpts, searchNcdPatients]);
 
   const loadNcd = useCallback(async () => {
     setNcdLoad(true);
@@ -326,7 +362,10 @@ const CommunityHealthV2: React.FC = () => {
               return (
                 <div className="ab-actions">
                   <ActBtn ic="edit" title="Sửa hộ gia đình" onClick={() => {
-                    setHhCrudInit({ ...r } as unknown as Record<string, unknown>);
+                    // select Có/Không dùng giá trị chuỗi 'true'/'false' → chuyển boolean của BE sang chuỗi
+                    const init: Record<string, unknown> = { ...r, province: undefined };
+                    HH_BOOL_KEYS.forEach((k) => { init[k] = String(!!r[k]); });
+                    setHhCrudInit(init);
                     setHhCrudOpen(true);
                   }} />
                 </div>
@@ -374,13 +413,15 @@ const CommunityHealthV2: React.FC = () => {
           open={hhCrudOpen}
           onClose={() => { setHhCrudOpen(false); setHhCrudInit(null); }}
           title={hhCrudInit ? 'Sửa hộ gia đình' : 'Thêm hộ gia đình'}
-          fields={HH_FIELDS}
+          fields={hhFields}
           initial={hhCrudInit ?? undefined}
           size="lg"
           onSubmit={async (v) => {
             const payload = {
               ...v,
               memberCount: v.memberCount ? Number(v.memberCount) : 0,
+              assignedTeamId: v.assignedTeamId || undefined,
+              status: v.status != null && v.status !== '' ? Number(v.status) : undefined,
               hasElderlyMember: v.hasElderlyMember === 'true' || v.hasElderlyMember === true,
               hasChildUnder5: v.hasChildUnder5 === 'true' || v.hasChildUnder5 === true,
               hasPregnant: v.hasPregnant === 'true' || v.hasPregnant === true,
@@ -447,7 +488,7 @@ const CommunityHealthV2: React.FC = () => {
                     {ncdSel.patientCode && <DrField lbl="Mã"><span className="mono">{ncdSel.patientCode}</span></DrField>}
                     <DrField lbl="Giới tính">{ncdSel.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
                     <DrField lbl="Ngày sinh">{fmtDMY(ncdSel.dateOfBirth)}</DrField>
-                    <DrField lbl="Người SL">{ncdSel.screenerName}</DrField>
+                    <DrField lbl="Người SL">{ncdSel.screenerName || '—'}</DrField>
                   </DrSec>
                   <DrSec title="Kết quả đo">
                     <DrField lbl="Huyết áp">
@@ -466,9 +507,6 @@ const CommunityHealthV2: React.FC = () => {
                         )}
                       </DrField>
                     )}
-                    <DrField lbl="Chiều cao / Cân nặng">
-                      {ncdSel.height} cm / {ncdSel.weight} kg
-                    </DrField>
                     <DrField lbl="BMI">
                       <b>{ncdSel.bmi?.toFixed(1)}</b>{' '}
                       <StatusBadge tone={ncdSel.bmi >= 25 ? 'warn' : 'ok'}>{ncdSel.bmiClassification}</StatusBadge>
@@ -481,12 +519,12 @@ const CommunityHealthV2: React.FC = () => {
                     <DrField lbl="Rượu bia">{ncdSel.alcoholUse}</DrField>
                     <DrField lbl="Tiền sử gia đình CVD">{ncdSel.familyHistoryCVD ? 'Có' : 'Không'}</DrField>
                   </DrSec>
-                  {ncdSel.followUpRequired && (
+                  {(ncdSel.followUpRequired || ncdSel.referralRequired || ncdSel.followUpNotes) && (
                     <DrSec title="Theo dõi">
-                      <DrField lbl="Tái khám">{fmtDMY(ncdSel.followUpDate)}</DrField>
-                      {ncdSel.followUpNotes && <DrField lbl="Ghi chú">{ncdSel.followUpNotes}</DrField>}
+                      {ncdSel.followUpDate && <DrField lbl="Tái khám">{fmtDMY(ncdSel.followUpDate)}</DrField>}
+                      {ncdSel.followUpNotes && <DrField lbl="Kết luận">{ncdSel.followUpNotes}</DrField>}
                       {ncdSel.referralRequired && (
-                        <DrField lbl="Chuyển viện"><b style={{ color: 'var(--s-crit)' }}>Có — {ncdSel.referralFacility}</b></DrField>
+                        <DrField lbl="Chuyển tuyến"><b style={{ color: 'var(--s-crit)' }}>Có{ncdSel.referralFacility ? ` — ${ncdSel.referralFacility}` : ''}</b></DrField>
                       )}
                     </DrSec>
                   )}
@@ -497,12 +535,11 @@ const CommunityHealthV2: React.FC = () => {
               open={ncdCreate}
               onClose={() => setNcdCreate(false)}
               title="Sàng lọc NCD"
-              fields={NCD_FIELDS}
+              fields={ncdFields}
               size="lg"
               onSubmit={async (v) => {
                 await createNcdScreening({
                   ...v,
-                  gender: Number(v.gender) || 0,
                   systolicBP: Number(v.systolicBP) || 0,
                   diastolicBP: Number(v.diastolicBP) || 0,
                   fastingGlucose: v.fastingGlucose ? Number(v.fastingGlucose) : undefined,
@@ -510,7 +547,8 @@ const CommunityHealthV2: React.FC = () => {
                   weight: Number(v.weight) || 0,
                   isSmoker: v.isSmoker === 'true',
                   followUpRequired: v.followUpRequired === 'true',
-                } as Partial<NcdScreening>);
+                  referralRequired: !!v.referralRequired,
+                } as Partial<NcdScreening> & { height?: number; weight?: number; referralRequired?: boolean });
                 tk('Đã lưu kết quả sàng lọc');
                 loadNcd();
               }}
@@ -539,7 +577,32 @@ const CommunityHealthV2: React.FC = () => {
               data={teamsFiltered}
               rowKey={(r) => r.id}
               loading={teamsLoad}
+              actions={(r) => (
+                <div className="ab-actions">
+                  <ActBtn ic="edit" title="Sửa đội / tạm ngưng" onClick={() => setTeamEdit(r)} />
+                </div>
+              )}
               empty="Chưa có đội y tế"
+            />
+            <CrudModal
+              open={!!teamEdit}
+              onClose={() => setTeamEdit(null)}
+              title="Cập nhật đội y tế"
+              sub={teamEdit ? `${teamEdit.teamCode} · ${teamEdit.teamName}` : undefined}
+              fields={TEAM_EDIT_FIELDS}
+              initial={teamEdit ? { ...teamEdit } as unknown as Record<string, unknown> : null}
+              size="md"
+              onSubmit={async (v) => {
+                if (!teamEdit) return;
+                await updateTeam(teamEdit.id, {
+                  teamName: v.teamName, leaderName: v.leaderName, wardAssigned: v.wardAssigned,
+                  memberCount: v.memberCount != null ? Number(v.memberCount) : undefined,
+                  status: v.status != null ? Number(v.status) : undefined,
+                } as Partial<CommunityTeam>);
+                tk('Đã cập nhật đội y tế');
+                setTeamEdit(null);
+                loadTeams();
+              }}
             />
             <CrudModal
               open={teamCreate}

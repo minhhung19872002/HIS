@@ -41,14 +41,22 @@ public class MentalHealthService : IMentalHealthService
                     query = query.Where(c => c.Status == filter.Status.Value);
                 if (!string.IsNullOrEmpty(filter.Severity))
                     query = query.Where(c => c.Severity == filter.Severity);
+                // QA-R11: CreatedAt is UTC and the page picks VN calendar days → shift by +7h, inclusive end day.
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                    query = query.Where(c => c.CreatedAt >= from);
+                {
+                    var fromUtc = from.Date.AddHours(-7);
+                    query = query.Where(c => c.CreatedAt >= fromUtc);
+                }
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                    query = query.Where(c => c.CreatedAt <= to.AddDays(1));
+                {
+                    var toUtcExclusive = to.Date.AddDays(1).AddHours(-7);
+                    query = query.Where(c => c.CreatedAt < toUtcExclusive);
+                }
             }
 
             return await query
                 .OrderByDescending(c => c.CreatedAt)
+                .ThenBy(c => c.Id)
                 .Take(200)
                 .Select(c => new MentalHealthCaseDto
                 {
@@ -56,6 +64,7 @@ public class MentalHealthService : IMentalHealthService
                     CaseCode = c.CaseCode,
                     PatientId = c.PatientId,
                     PatientName = c.PatientName,
+                    PatientCode = _context.Patients.Where(p => p.Id == c.PatientId).Select(p => p.PatientCode).FirstOrDefault(),
                     DateOfBirth = c.DateOfBirth.HasValue ? c.DateOfBirth.Value.ToString("yyyy-MM-dd") : null,
                     Gender = c.Gender,
                     DiagnosisCode = c.DiagnosisCode,
@@ -125,8 +134,28 @@ public class MentalHealthService : IMentalHealthService
         catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
+    private static readonly HashSet<string> Severities = new() { "mild", "moderate", "severe" };
+    private static readonly HashSet<string> Adherence = new() { "good", "moderate", "poor" };
+
     public async Task<MentalHealthCaseDto> CreateCaseAsync(CreateMentalHealthCaseDto dto)
     {
+        // QA-R11: link the HIS patient (name/DOB/gender from the patient record) — the form used to post a
+        // free-text name only, so every case had PatientId = Guid.Empty and no patient code.
+        if (dto.PatientId.HasValue && dto.PatientId.Value != Guid.Empty)
+        {
+            var p = await _context.Patients.FirstOrDefaultAsync(x => x.Id == dto.PatientId.Value && !x.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+            dto.PatientName ??= p.FullName;
+            dto.DateOfBirth ??= p.DateOfBirth?.ToString("yyyy-MM-dd");
+            dto.Gender ??= p.Gender;
+            if (await _context.MentalHealthCases.AnyAsync(c => c.PatientId == p.Id && !c.IsDeleted && c.Status != 3
+                    && c.CaseType == (dto.CaseType ?? "other")))
+                throw new InvalidOperationException("Bệnh nhân đã có hồ sơ tâm thần cùng loại đang quản lý.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.PatientName))
+            throw new ArgumentException("Chưa chọn bệnh nhân.", nameof(dto.PatientName));
+        if (dto.Severity != null && !Severities.Contains(dto.Severity))
+            throw new ArgumentException("Mức độ không hợp lệ.", nameof(dto.Severity));
         var year = DateTime.UtcNow.Year;
         var count = await _context.MentalHealthCases.CountAsync(c => c.CreatedAt.Year == year) + 1;
 
@@ -160,8 +189,20 @@ public class MentalHealthService : IMentalHealthService
 
     public async Task<MentalHealthCaseDto> UpdateCaseAsync(Guid id, CreateMentalHealthCaseDto dto)
     {
-        var entity = await _context.MentalHealthCases.FindAsync(id)
-            ?? throw new InvalidOperationException("Mental health case not found");
+        var entity = await _context.MentalHealthCases.FindAsync(id);
+        if (entity == null || entity.IsDeleted) throw new KeyNotFoundException("Không tìm thấy ca tâm thần.");
+        if (dto.Status is < 0 or > 3)
+            throw new ArgumentException("Trạng thái ca không hợp lệ.", nameof(dto.Status));
+        if (dto.Severity != null && !Severities.Contains(dto.Severity))
+            throw new ArgumentException("Mức độ không hợp lệ.", nameof(dto.Severity));
+        if (dto.AdherenceLevel != null && !Adherence.Contains(dto.AdherenceLevel))
+            throw new ArgumentException("Mức tuân thủ không hợp lệ.", nameof(dto.AdherenceLevel));
+        // QA-R11: status / adherence / next visit / case type were never saved → the "Ổn định / Thuyên giảm /
+        // Đã xuất viện" tabs could never fill and "Quá hạn tái khám" had no input.
+        if (dto.Status.HasValue) entity.Status = dto.Status.Value;
+        if (dto.AdherenceLevel != null) entity.AdherenceLevel = dto.AdherenceLevel;
+        if (DateTime.TryParse(dto.NextVisitDate, out var nvd)) entity.NextVisitDate = nvd;
+        if (dto.CaseType != null) entity.CaseType = dto.CaseType;
 
         if (dto.DiagnosisCode != null) entity.DiagnosisCode = dto.DiagnosisCode;
         if (dto.DiagnosisName != null) entity.DiagnosisName = dto.DiagnosisName;
@@ -179,11 +220,18 @@ public class MentalHealthService : IMentalHealthService
 
     public async Task<PsychiatricAssessmentDto> AddAssessmentAsync(CreatePsychiatricAssessmentDto dto)
     {
+        // QA-R11: an assessment without a (live) case was stored as an orphan with CaseId = Guid.Empty.
+        if (!dto.CaseId.HasValue || !await _context.MentalHealthCases.AnyAsync(c => c.Id == dto.CaseId.Value && !c.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy ca tâm thần.");
+        if (dto.TotalScore < 0)
+            throw new ArgumentException("Điểm đánh giá không được âm.", nameof(dto.TotalScore));
+        if (string.Equals(dto.AssessmentType, "PHQ9", StringComparison.OrdinalIgnoreCase) && dto.TotalScore > 27)
+            throw new ArgumentException("Điểm PHQ-9 phải trong khoảng 0-27.", nameof(dto.TotalScore));
         var entity = new PsychiatricAssessment
         {
             Id = Guid.NewGuid(),
             CaseId = dto.CaseId ?? Guid.Empty,
-            AssessmentDate = DateTime.TryParse(dto.AssessmentDate, out var ad) ? ad : DateTime.UtcNow,
+            AssessmentDate = DateTime.TryParse(dto.AssessmentDate, out var ad) ? ad : HIS.Core.Common.VnTime.NowVn,
             AssessmentType = dto.AssessmentType ?? "custom",
             TotalScore = dto.TotalScore ?? 0,
             Interpretation = dto.Interpretation,
@@ -198,7 +246,7 @@ public class MentalHealthService : IMentalHealthService
 
         // Update last visit date on the case
         var mhCase = await _context.MentalHealthCases.FindAsync(dto.CaseId);
-        if (mhCase != null)
+        if (mhCase != null && (!mhCase.LastVisitDate.HasValue || entity.AssessmentDate >= mhCase.LastVisitDate.Value))
         {
             mhCase.LastVisitDate = entity.AssessmentDate;
             mhCase.UpdatedAt = DateTime.UtcNow;
@@ -252,12 +300,17 @@ public class MentalHealthService : IMentalHealthService
         {
             var cases = await _context.MentalHealthCases.Where(c => !c.IsDeleted).ToListAsync();
             var now = DateTime.UtcNow;
+            var todayVn = HIS.Core.Common.VnTime.TodayVn;
+            var monthStart = new DateTime(todayVn.Year, todayVn.Month, 1);
+            var assessmentsThisMonth = await _context.PsychiatricAssessments
+                .CountAsync(a => !a.IsDeleted && a.AssessmentDate >= monthStart && a.AssessmentDate < monthStart.AddMonths(1));
 
             return new MentalHealthStatsDto
             {
                 TotalCases = cases.Count,
                 ActiveCount = cases.Count(c => c.Status == 0),
                 StableCount = cases.Count(c => c.Status == 1),
+                AssessmentsThisMonth = assessmentsThisMonth,
                 OverdueFollowUps = cases.Count(c => c.Status == 0 && c.NextVisitDate.HasValue && c.NextVisitDate.Value < now),
                 CaseTypeBreakdown = cases.GroupBy(c => c.CaseType)
                     .Select(g => new MentalHealthCaseTypeBreakdownDto { CaseType = g.Key, Count = g.Count() })

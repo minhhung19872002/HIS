@@ -43,6 +43,8 @@ export interface ChronicStatisticsDto {
   needFollowUp: number;
   newThisMonth: number;
   closedOrRemoved: number;
+  totalClosed?: number;
+  totalRemission?: number;
 }
 
 export interface CreateChronicRecordDto {
@@ -188,13 +190,22 @@ export const getChronicStatistics = async (): Promise<ChronicStatisticsDto> => {
   try {
     const response = await apiClient.get<{
       totalActive: number; totalRemission: number; totalClosed: number; totalRemoved: number;
+      overdueFollowUps?: number; upcomingFollowUps7Days?: number;
     }>('/chronic-disease/statistics');
     const s = response.data;
+    // "Cần tái khám" = active records whose next visit is overdue or within 7 days. It used to read
+    // totalRemission, but nothing can set Remission, so the KPI/tab was a permanent 0.
+    // newThisMonth is not in the BE stats → counted with a diagnosis-date query below.
+    const monthStart = new Date(); monthStart.setDate(1);
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const month = await getChronicRecords({ fromDate: ymd(monthStart), toDate: ymd(new Date()), page: 1, pageSize: 500 });
     return {
       totalActive: s?.totalActive ?? 0,
-      needFollowUp: s?.totalRemission ?? 0, // tab "Cần tái khám" filters status=Remission
-      newThisMonth: 0, // not provided by BE
+      needFollowUp: (s?.overdueFollowUps ?? 0) + (s?.upcomingFollowUps7Days ?? 0),
+      newThisMonth: month.items.length,
       closedOrRemoved: (s?.totalClosed ?? 0) + (s?.totalRemoved ?? 0),
+      totalClosed: s?.totalClosed ?? 0,
+      totalRemission: s?.totalRemission ?? 0,
     };
   } catch {
     console.warn('Failed to fetch chronic disease statistics');

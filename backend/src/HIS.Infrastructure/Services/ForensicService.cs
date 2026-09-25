@@ -169,6 +169,7 @@ public class ForensicService : IForensicService
         if (dto.CouncilMembers != null) entity.CouncilMembers = dto.CouncilMembers;
         if (dto.Notes != null) entity.Notes = dto.Notes;
         if (DateTime.TryParse(dto.ExaminationDate, out var ed)) entity.ExaminationDate = ed;
+        if (DateTime.TryParse(dto.RequestDate, out var rd)) entity.RequestDate = rd; // QA-R11: edit form sends it, was dropped
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -202,6 +203,7 @@ public class ForensicService : IForensicService
                     DisabilityScore = e.DisabilityScore,
                     ExaminerName = e.ExaminerName,
                     Notes = e.Notes,
+                    ExamDate = e.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
                 })
                 .ToBoundedListAsync("Forensic.GetExaminations");
         }
@@ -215,6 +217,8 @@ public class ForensicService : IForensicService
             throw new KeyNotFoundException("Không tìm thấy hồ sơ giám định");
         if (targetCase.Status == 3)
             throw new InvalidOperationException("Hồ sơ giám định đã được duyệt kết luận — không thể thêm kết quả khám.");
+        if (dto.DisabilityScore is < 0 or > 100 || dto.FunctionScore is < 0 or > 100)
+            throw new ArgumentException("Điểm chức năng / tổn thương phải trong khoảng 0 – 100.");
         var entity = new ForensicExamination
         {
             Id = Guid.NewGuid(),
@@ -294,9 +298,14 @@ public class ForensicService : IForensicService
         try
         {
             var cases = await _context.ForensicCases.Where(c => !c.IsDeleted).ToListAsync();
+            var monthStartUtc = new DateTime(HIS.Core.Common.VnTime.TodayVn.Year, HIS.Core.Common.VnTime.TodayVn.Month, 1).AddHours(-7);
+            var withPct = cases.Where(c => c.DisabilityPercentage.HasValue).ToList();
             return new ForensicStatsDto
             {
                 TotalCases = cases.Count,
+                // approval stamps UpdatedAt (UTC) — no dedicated ApprovedAt column
+                ApprovedThisMonth = cases.Count(c => c.Status == 3 && (c.UpdatedAt ?? c.CreatedAt) >= monthStartUtc),
+                AvgDisabilityPercent = withPct.Count > 0 ? Math.Round((double)withPct.Average(c => c.DisabilityPercentage!.Value), 1) : 0,
                 PendingCount = cases.Count(c => c.Status == 0),
                 CompletedCount = cases.Count(c => c.Status == 2),
                 ApprovedCount = cases.Count(c => c.Status == 3),

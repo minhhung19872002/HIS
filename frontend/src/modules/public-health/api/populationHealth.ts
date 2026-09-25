@@ -58,8 +58,11 @@ const toRecordWire = (data: Partial<PopulationRecord>) => {
     .filter(Boolean).join(' · ');
   return {
     ...rest,
+    recordType: rest.recordType === 'birth' ? 'birth_report' : rest.recordType,
     patientName: fullName,
     ward: address,
+    // the list shows ward + district joined as "address" → saving it back must not keep the old district too
+    district: address !== undefined ? '' : undefined,
     facilityName: managingUnit,
     serviceDate: lastVisitDate,
     notes: [notes, extra].filter(Boolean).join('\n') || undefined,

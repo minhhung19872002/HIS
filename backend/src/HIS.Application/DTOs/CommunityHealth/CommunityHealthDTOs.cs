@@ -28,11 +28,19 @@ public class HouseholdListDto
     public string? LastVisitDate { get; set; }
     public string? NextVisitDate { get; set; }
     public bool IsOverdue { get; set; }
+    // QA-R11
+    public Guid? AssignedTeamId { get; set; }
+    public string? Notes { get; set; }
+    public bool HasElderlyMember { get; set; }
+    public bool HasChildUnder5 { get; set; }
+    public bool HasPregnant { get; set; }
+    public bool HasChronicDisease { get; set; }
+    public int Status { get; set; }
 }
 
 public class HouseholdCreateDto
 {
-    [Required]
+    // QA-R11: optional — the v2 form has no code field (every create was a 400); the service generates HH-yyyy-NNNNN.
     public string HouseholdCode { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string? WardName { get; set; }
@@ -44,6 +52,10 @@ public class HouseholdCreateDto
     public Guid? AssignedTeamId { get; set; }
     public string? NextVisitDate { get; set; }
     public string? Notes { get; set; }
+    public bool HasElderlyMember { get; set; }
+    public bool HasChildUnder5 { get; set; }
+    public bool HasPregnant { get; set; }
+    public bool HasChronicDisease { get; set; }
 }
 
 public class HouseholdUpdateDto
@@ -59,6 +71,11 @@ public class HouseholdUpdateDto
     public string? LastVisitDate { get; set; }
     public string? NextVisitDate { get; set; }
     public string? Notes { get; set; }
+    public bool? HasElderlyMember { get; set; }
+    public bool? HasChildUnder5 { get; set; }
+    public bool? HasPregnant { get; set; }
+    public bool? HasChronicDisease { get; set; }
+    public int? Status { get; set; }
 }
 
 // ==================== NcdScreening DTOs ====================
@@ -92,6 +109,12 @@ public class NcdScreeningListDto
     public string? Diagnosis { get; set; }
     public bool ReferredToFacility { get; set; }
     public string? ScreenedBy { get; set; }
+    // QA-R11: fields the v2 NCD tab shows (follow-up, lifestyle, patient gender/DOB)
+    public string? FollowUpDate { get; set; }
+    public int SmokingStatus { get; set; }
+    public int AlcoholUse { get; set; }
+    public int? Gender { get; set; }
+    public string? DateOfBirth { get; set; }
 }
 
 public class NcdScreeningCreateDto
@@ -181,6 +204,7 @@ public class TeamListDto
     public int ActiveHouseholds { get; set; }
     public int Status { get; set; }
     public string? EstablishedDate { get; set; }
+    public int VisitCoverage { get; set; } // QA-R11: % assigned households visited in the last 90 days
 }
 
 public class TeamCreateDto

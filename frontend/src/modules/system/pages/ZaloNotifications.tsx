@@ -27,6 +27,8 @@ const ZNS_STATUS: { v: number; l: string; tone: StatusTone }[] = [
   { v: 1, l: 'Đã gửi',   tone: 'info' },
   { v: 2, l: 'Đã nhận',  tone: 'ok'   },
   { v: 3, l: 'Lỗi',      tone: 'crit' },
+  // QA-R11: mock channel — the API records these instead of a fake "Đã nhận"
+  { v: 4, l: 'Giả lập (không gửi)', tone: 'warn' },
 ];
 const znsTone = (s: number): StatusTone => ZNS_STATUS[s]?.tone || 'info';
 const znsLabel = (s: number): string => ZNS_STATUS[s]?.l || '—';

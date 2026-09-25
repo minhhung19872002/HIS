@@ -13,7 +13,7 @@ import {
 import { RefreshButton } from '../../../components/actions';
 
 const POP_FIELDS: CrudFieldCfg[] = [
-  { key: 'recordCode', label: 'Mã hồ sơ', required: true, disabledOnEdit: true },
+  { key: 'recordCode', label: 'Mã hồ sơ', disabledOnEdit: true }, // BE tự sinh DS-yyyy-NNNN → chỉ hiện khi sửa
   { key: 'fullName', label: 'Họ tên', required: true },
   { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
   { key: 'gender', label: 'Giới tính', type: 'select', options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
@@ -30,7 +30,10 @@ const POP_FIELDS: CrudFieldCfg[] = [
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
+// BE lưu khai sinh là 'birth_report' (stats đếm theo mã này) + có 'population_survey' → chuẩn hoá khi đọc/ghi;
+// trước đây tab "Khai sinh" lọc 'birth' nên không bao giờ thấy hồ sơ khai sinh, nhãn hiện mã thô.
 const TYPE_LABEL: Record<string, string> = {
+  population_survey: 'Điều tra DS',
   birth: 'Khai sinh', family_planning: 'KHHGD', elderly_care: 'CS người già',
   prenatal: 'Tiền sản', child_health: 'SK trẻ em', other: 'Khác',
 };
@@ -74,6 +77,7 @@ const PopulationHealthV2: React.FC = () => {
       type BeRec = PopulationRecord & { patientName?: string; ward?: string; district?: string; facilityName?: string; serviceDate?: string };
       setItems(normalizeArrayResponse<BeRec>(r).map((x) => ({
         ...x,
+        recordType: (String(x.recordType) === 'birth_report' ? 'birth' : x.recordType) as PopulationRecord['recordType'],
         fullName: x.fullName ?? x.patientName ?? '',
         address: x.address ?? [x.ward, x.district].filter(Boolean).join(', '),
         managingUnit: x.managingUnit ?? x.facilityName ?? '',
@@ -237,7 +241,7 @@ const PopulationHealthV2: React.FC = () => {
         open={crudOpen}
         onClose={() => setCrudOpen(false)}
         title={crudInit?.id ? 'Cập nhật hồ sơ dân số' : 'Thêm hồ sơ dân số'}
-        fields={POP_FIELDS}
+        fields={crudInit?.id ? POP_FIELDS : POP_FIELDS.filter((f) => f.key !== 'recordCode')}
         initial={crudInit}
         size="lg"
         onSubmit={async (v, editing) => {

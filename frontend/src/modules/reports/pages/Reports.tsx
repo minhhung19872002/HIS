@@ -1,6 +1,6 @@
 import React from 'react';
 import * as file from '../../../services/file.service';
-import { App as AntdApp, Drawer, Form, Input, Modal, Select, Tooltip } from 'antd';
+import { App as AntdApp, Drawer, Form, Input, Modal, Select, Switch, Tooltip } from 'antd';
 import {
   DownloadOutlined,
   EyeOutlined,
@@ -15,11 +15,14 @@ import {
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
-import { statisticsApi } from '../../system/api/system';
+import { financeApi, statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
-import { getReportHistory, getScheduledReports } from '../api/reporting';
-import type { ReportHistoryDto, ScheduledReportConfigDto } from '../api/reporting';
+import {
+  deleteScheduledReport, getKPIDashboard, getReportHistory, getScheduledReports, runScheduledReportNow, saveScheduledReport,
+} from '../api/reporting';
+import type { KPIDashboardDto, ReportHistoryDto, ScheduledReportConfigDto } from '../api/reporting';
+import { getWaitingPhaseAnalysis } from '../../reception/api/reception';
 import ReportsHospitalTab from './ReportsHospitalTab';
 import ReportBuilderTab from './ReportBuilderTab';
 import '../../../styles/reports-v2.css';
@@ -47,15 +50,36 @@ type ReportDefinition = {
   owner: string;
 };
 
-type NewReportForm = {
-  name: string;
-  category: ReportCategoryId;
-  cycle: 'day' | 'week' | 'month' | 'quarter';
-  scope?: string;
-  owner: string;
-  format?: 'pdf' | 'xlsx' | 'csv';
-  emails?: string;
+// QA-R11: the "Tạo báo cáo mới" modal only toasted "chưa được triển khai" and "Cấu hình" / "Gửi báo cáo" were
+// permanently disabled, although /reporting/scheduled (save / delete / run-now + e-mail) exists. One modal now edits
+// the delivery config (SystemConfigs "ScheduledReport_*") of a report card.
+type ScheduleForm = {
+  reportCode: string;
+  schedule: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
+  format: 'Excel' | 'PDF';
+  recipients?: string;
+  isActive: boolean;
 };
+
+const SCHEDULE_OPTIONS: Array<{ value: ScheduleForm['schedule']; label: string }> = [
+  { value: 'Daily', label: 'Hằng ngày (hôm nay)' },
+  { value: 'Weekly', label: 'Hằng tuần (7 ngày gần nhất)' },
+  { value: 'Monthly', label: 'Hằng tháng (từ đầu tháng)' },
+  { value: 'Quarterly', label: 'Hằng quý (từ đầu quý)' },
+  { value: 'Yearly', label: 'Hằng năm (từ đầu năm)' },
+];
+const scheduleLabel = (s?: string) =>
+  SCHEDULE_OPTIONS.find((o) => o.value.toLowerCase() === (s ?? '').toLowerCase())?.label.replace(/ \(.*\)$/, '') ?? (s || 'Thủ công');
+
+/**
+ * QA-R11: cards whose code has no data source in the export map (BE ReportingCompleteService.Export.cs ReportCodeMap /
+ * HospitalReportService) — every "Tải PDF / Excel / In" answered 400 "chưa có nguồn dữ liệu". Shown as such instead.
+ */
+const NO_SOURCE_REPORTS = new Set([
+  'RPT-004', 'RPT-005', 'RPT-104', 'RPT-105', 'RPT-302',
+  'bhyt-16', 'bhyt-17', 'bhyt-18', 'pharma-bc-cong-tac', 'pharma-tieu-hao-bdm',
+]);
+const NO_SOURCE_HINT = 'Chưa có nguồn dữ liệu cho báo cáo này';
 
 type DashboardPayload = Partial<HospitalDashboardDto> & Record<string, unknown>;
 type DashboardTrendPoint = Record<string, unknown>;
@@ -238,6 +262,16 @@ function formatPeriodLabel(period: ReportPeriodId): string {
   }
 }
 
+function periodRange(period: ReportPeriodId): { fromDate: string; toDate: string } {
+  const now = dayjs();
+  switch (period) {
+    case 'day':   return { fromDate: now.format('YYYY-MM-DD'), toDate: now.format('YYYY-MM-DD') };
+    case 'week':  return { fromDate: now.startOf('week').format('YYYY-MM-DD'), toDate: now.endOf('week').format('YYYY-MM-DD') };
+    case 'year':  return { fromDate: now.startOf('year').format('YYYY-MM-DD'), toDate: now.endOf('year').format('YYYY-MM-DD') };
+    default:      return { fromDate: now.startOf('month').format('YYYY-MM-DD'), toDate: now.endOf('month').format('YYYY-MM-DD') };
+  }
+}
+
 // QA-R10: shared CSV helpers (BOM + quoting + formula-injection guard) instead of a local copy
 const { downloadCsv, escapeCsvCell } = file;
 
@@ -297,9 +331,15 @@ const ReportsV2: React.FC = () => {
   const [period, setPeriod] = React.useState<ReportPeriodId>('month');
   const [dashboard, setDashboard] = React.useState<HospitalDashboardDto | null>(null);
   const [selectedReport, setSelectedReport] = React.useState<ReportDefinition | null>(null);
-  const [createModalOpen, setCreateModalOpen] = React.useState(false);
+  // null = closed; '' = opened from the toolbar (report selectable); a code = opened from that report's drawer
+  const [scheduleFor, setScheduleFor] = React.useState<string | null>(null);
+  const [scheduleSaving, setScheduleSaving] = React.useState(false);
   const [runningReport, setRunningReport] = React.useState<string | null>(null);
-  const [form] = Form.useForm<NewReportForm>();
+  const [form] = Form.useForm<ScheduleForm>();
+  // QA-R11: the Ngày/Tuần/Tháng/Năm switch only changed the title — every KPI stayed today's. Period KPIs + top depts.
+  const [kpi, setKpi] = React.useState<KPIDashboardDto | null>(null);
+  const [deptRevenue, setDeptRevenue] = React.useState<DepartmentRevenueDto[] | undefined>(undefined);
+  const [avgWait, setAvgWait] = React.useState<number | null>(null);
   // QA-R3: real run history + schedules (the strip, "Lần chạy" and "Lịch" used to be hard-coded text).
   const [history, setHistory] = React.useState<ReportHistoryDto[]>([]);
   const [schedules, setSchedules] = React.useState<ScheduledReportConfigDto[]>([]);
@@ -323,13 +363,34 @@ const ReportsV2: React.FC = () => {
     loadRunInfo();
   }, [loadRunInfo]);
 
+  React.useEffect(() => {
+    const { fromDate, toDate } = periodRange(period);
+    let cancelled = false;
+    getKPIDashboard(fromDate, toDate)
+      .then((r) => { if (!cancelled) setKpi(r.data ?? null); })
+      .catch(() => { if (!cancelled) setKpi(null); });
+    financeApi.getRevenueByExecutingDept(fromDate, toDate)
+      .then((r) => {
+        if (cancelled) return;
+        setDeptRevenue((r.data ?? []).map((d) => ({ departmentId: d.departmentId, departmentName: d.departmentName, revenue: d.totalRevenue })));
+      })
+      .catch(() => { if (!cancelled) setDeptRevenue(undefined); });
+    // "Chờ khám TB" was a permanent "—": registration → exam start of the period's OPD visits (F9.4 phase analysis).
+    getWaitingPhaseAnalysis(fromDate, toDate)
+      .then((w) => { if (!cancelled) setAvgWait(w && w.totalVisits > 0 ? w.registrationToExamMinutes : null); })
+      .catch(() => { if (!cancelled) setAvgWait(null); });
+    return () => { cancelled = true; };
+  }, [period]);
+
   const lastRunOf = (code: string): string => {
     const last = history.find((h) => h.reportCode?.toLowerCase() === code.toLowerCase());
     return last ? utcDay(last.createdAt).format('DD/MM/YYYY HH:mm') : 'Chưa chạy';
   };
+  const configOf = (code: string): ScheduledReportConfigDto | undefined =>
+    schedules.find((x) => x.reportCode?.toLowerCase() === code.toLowerCase());
   const scheduleOf = (code: string): string => {
-    const sch = schedules.find((x) => x.isActive && x.reportCode?.toLowerCase() === code.toLowerCase());
-    return sch ? (sch.schedule || 'Tự động') : 'Thủ công';
+    const sch = configOf(code);
+    return sch && sch.isActive ? `${scheduleLabel(sch.schedule)} · gửi khi bấm "Gửi báo cáo"` : 'Thủ công';
   };
 
   const categoryCounts = REPORT_CATEGORIES.reduce<Record<ReportCategoryId, number>>((counts, category) => {
@@ -352,13 +413,13 @@ const ReportsV2: React.FC = () => {
   const outpatientChange = readDashboardNumber(dashboardData, ['outpatientChange']) ?? calculateTrendChange(dashboardTrends, 'outpatients');
   const totalRevenue = readDashboardNumber(dashboardData, ['totalRevenue', 'todayRevenue']);
   const revenueChange = readDashboardNumber(dashboardData, ['revenueChange']) ?? calculateTrendChange(dashboardTrends, 'revenue');
-  const currentInpatients = readDashboardNumber(dashboardData, ['currentInpatients', 'inpatientCount']);
-  const availableBeds = readDashboardNumber(dashboardData, ['availableBeds']);
-  const bedOccupancyRate = readDashboardNumber(dashboardData, ['bedOccupancyRate'])
-    ?? (currentInpatients !== null && availableBeds !== null && currentInpatients + availableBeds > 0
-      ? Number(((currentInpatients / (currentInpatients + availableBeds)) * 100).toFixed(1))
-      : null);
-  const inpatientChange = readDashboardNumber(dashboardData, ['inpatientChange']) ?? calculateTrendChange(dashboardTrends, 'admissions');
+  // QA-R11: occupancy was currentInpatients / (currentInpatients + availableBeds) — inpatients without a bed count
+  // too, so it showed 96,4% (53/55) while 13 of 15 beds were occupied (86,7%, /reporting/kpi KPI-C04 = bed board).
+  const kpiItem = (code: string) => [...(kpi?.clinicalKPIs ?? []), ...(kpi?.financialKPIs ?? [])].find((k) => k.code === code);
+  const kpiVisits = kpiItem('KPI-C01');
+  const kpiRevenue = kpiItem('KPI-F01');
+  const kpiBeds = kpiItem('KPI-C04');
+  const bedOccupancyRate = kpiBeds ? kpiBeds.currentValue : readDashboardNumber(dashboardData, ['bedOccupancyRate']);
   const surgeryCount = readDashboardNumber(dashboardData, ['surgeryCount', 'todaySurgeries']);
   const surgeryChange = readDashboardNumber(dashboardData, ['surgeryChange']);
   const averageStayDays = readDashboardNumber(dashboardData, ['averageStayDays']);
@@ -371,32 +432,40 @@ const ReportsV2: React.FC = () => {
   const NO_DATA = '—';
   const metricText = (kind: string, value: number | null) => (value === null ? NO_DATA : formatMetricValue(kind, value));
   const subText = (value: number | null, text: string) => (value === null ? 'chưa có số liệu' : text);
-  const visits = hasLiveVisitData ? visitTotal : null;
+  // Visits / revenue follow the selected period (/reporting/kpi, change vs the previous period of the same length);
+  // without the KPI payload only the day view can fall back to today's dashboard.
+  const visits = kpiVisits ? kpiVisits.currentValue : (period === 'day' && hasLiveVisitData ? visitTotal : null);
+  const visitsTrend = kpiVisits ? kpiVisits.changePercent : (period === 'day' ? outpatientChange ?? 0 : 0);
+  const periodRevenue = kpiRevenue ? kpiRevenue.currentValue : (period === 'day' ? totalRevenue : null);
+  const periodRevenueTrend = kpiRevenue ? kpiRevenue.changePercent : (period === 'day' ? revenueChange ?? 0 : 0);
+  const todayOnly = period === 'day' ? '' : ' (hôm nay)';
 
   const todayRuns = history.filter((h) => utcDay(h.createdAt).isSame(dayjs(), 'day')).length;
   const activeSchedules = schedules.filter((x) => x.isActive).length;
   const stripCards = [
     { label: 'Báo cáo có sẵn', value: REPORTS.length.toString(), sub: `${REPORT_CATEGORIES.length} nhóm` },
     { label: 'Đã chạy hôm nay', value: todayRuns.toString(), sub: 'theo lịch sử xuất', tone: 'ok' },
-    { label: 'Lịch chạy', value: activeSchedules.toString(), sub: 'lịch tự động đang bật', tone: 'info' },
+    { label: 'Cấu hình gửi', value: activeSchedules.toString(), sub: 'báo cáo đã cấu hình người nhận', tone: 'info' },
     { label: 'Báo cáo BYT', value: categoryCounts.regulatory.toString(), sub: 'định kỳ', tone: 'info' },
   ];
 
   const boardMetrics = [
-    { label: 'Lượt khám', value: metricText('count', visits), trend: outpatientChange ?? 0, sub: subText(visits, 'vs kỳ trước') },
-    { label: 'Doanh thu', value: metricText('currency', totalRevenue), trend: revenueChange ?? 0, sub: subText(totalRevenue, 'vs kỳ trước') },
-    { label: 'Lấp đầy giường', value: metricText('percent', bedOccupancyRate), trend: inpatientChange ?? 0, sub: subText(bedOccupancyRate, 'vs kỳ trước') },
-    { label: 'Chờ khám TB', value: NO_DATA, trend: 0, sub: 'chưa có số liệu', inverse: true },
-    { label: 'Phẫu thuật', value: metricText('count', surgeryCount), trend: surgeryChange ?? 0, sub: subText(surgeryCount, 'ca thực hiện') },
+    { label: 'Lượt khám', value: metricText('count', visits), trend: visitsTrend, sub: subText(visits, 'vs kỳ trước') },
+    { label: 'Doanh thu', value: metricText('currency', periodRevenue), trend: periodRevenueTrend, sub: subText(periodRevenue, 'vs kỳ trước') },
+    { label: 'Lấp đầy giường', value: metricText('percent', bedOccupancyRate), trend: 0, sub: subText(bedOccupancyRate, 'giường đang có BN') },
+    { label: 'Chờ khám TB', value: metricText('minutes', avgWait), trend: 0, sub: subText(avgWait, 'đăng ký → bắt đầu khám'), inverse: true },
+    { label: `Phẫu thuật${todayOnly}`, value: metricText('count', surgeryCount), trend: surgeryChange ?? 0, sub: subText(surgeryCount, 'ca thực hiện') },
     { label: 'LOS nội trú', value: metricText('duration', averageStayDays), trend: 0, sub: subText(averageStayDays, 'trung bình'), inverse: true },
     { label: 'Tỷ lệ tử vong', value: NO_DATA, trend: 0, sub: 'chưa có số liệu', inverse: true },
-    { label: 'Doanh thu BN BHYT', value: metricText('currency', bhytRevenue), trend: 0, sub: subText(bhytRevenue, 'hôm nay') },
+    { label: `Doanh thu BN BHYT${todayOnly}`, value: metricText('currency', bhytRevenue), trend: 0, sub: subText(bhytRevenue, 'hôm nay') },
   ];
 
   const selectedCategory = REPORT_CATEGORIES.find((category) => category.id === activeCategory) ?? REPORT_CATEGORIES[0];
-  const topDepartments = mapTopDepartments(Array.isArray(dashboardData?.revenueByDepartment)
+  // QA-R11: /statistics/dashboard carries no revenueByDepartment, so "Top 5 khoa/phòng" was always empty.
+  // Revenue of the selected period by executing department (/finance/revenue/executing-dept).
+  const topDepartments = mapTopDepartments(deptRevenue ?? (Array.isArray(dashboardData?.revenueByDepartment)
     ? dashboardData.revenueByDepartment as DepartmentRevenueDto[]
-    : undefined);
+    : undefined));
 
 
   const handleExportList = () => {
@@ -422,22 +491,83 @@ const ReportsV2: React.FC = () => {
     message.success('Đã xuất danh sách báo cáo');
   };
 
-  const handleCreateReport = async () => {
-    // Chưa có endpoint POST /reporting/definitions — ẩn chức năng tạo mới
-    setCreateModalOpen(false);
-    form.resetFields();
-    message.warning('Tạo báo cáo mới chưa được triển khai');
+  const openSchedule = (code: string) => {
+    const cfg = code ? configOf(code) : undefined;
+    form.setFieldsValue({
+      reportCode: code || undefined,
+      schedule: (SCHEDULE_OPTIONS.find((o) => o.value.toLowerCase() === (cfg?.schedule ?? '').toLowerCase())?.value) ?? 'Monthly',
+      format: cfg?.format?.toLowerCase() === 'pdf' ? 'PDF' : 'Excel',
+      recipients: cfg?.recipients ?? '',
+      isActive: cfg ? cfg.isActive : true,
+    });
+    setScheduleFor(code);
   };
 
-  const getDateRange = () => {
-    const now = dayjs();
-    switch (period) {
-      case 'day':   return { fromDate: now.format('YYYY-MM-DD'), toDate: now.format('YYYY-MM-DD') };
-      case 'week':  return { fromDate: now.startOf('week').format('YYYY-MM-DD'), toDate: now.endOf('week').format('YYYY-MM-DD') };
-      case 'year':  return { fromDate: now.startOf('year').format('YYYY-MM-DD'), toDate: now.endOf('year').format('YYYY-MM-DD') };
-      default:      return { fromDate: now.startOf('month').format('YYYY-MM-DD'), toDate: now.endOf('month').format('YYYY-MM-DD') };
+  const handleSaveSchedule = async () => {
+    if (scheduleSaving) return;
+    const values = await form.validateFields().catch(() => null);
+    if (!values) return;
+    setScheduleSaving(true);
+    try {
+      const existing = configOf(values.reportCode);
+      await saveScheduledReport({
+        id: existing?.id,
+        reportCode: values.reportCode,
+        schedule: values.schedule,
+        cronExpression: existing?.cronExpression ?? '',
+        format: values.format,
+        recipients: (values.recipients ?? '').trim(),
+        isActive: values.isActive,
+      });
+      message.success('Đã lưu cấu hình gửi báo cáo');
+      setScheduleFor(null);
+      loadRunInfo();
+    } catch (error) {
+      message.error(friendlyErrorMessage(error, 'Lưu cấu hình thất bại'));
+    } finally {
+      setScheduleSaving(false);
     }
   };
+
+  const handleDeleteSchedule = async () => {
+    const code = form.getFieldValue('reportCode') as string | undefined;
+    const existing = code ? configOf(code) : undefined;
+    if (!existing || scheduleSaving) return;
+    setScheduleSaving(true);
+    try {
+      await deleteScheduledReport(existing.id);
+      message.success('Đã xoá cấu hình gửi báo cáo');
+      setScheduleFor(null);
+      loadRunInfo();
+    } catch (error) {
+      message.error(friendlyErrorMessage(error, 'Xoá cấu hình thất bại'));
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  /** "Gửi báo cáo": produce the report for the configured cycle and e-mail it to the configured recipients. */
+  const handleSendReport = async (report: ReportDefinition) => {
+    const cfg = configOf(report.id);
+    if (!cfg || !cfg.recipients?.trim()) {
+      message.warning('Chưa có email người nhận — nhập trong "Cấu hình" rồi gửi lại');
+      openSchedule(report.id);
+      return;
+    }
+    if (runningReport === report.id) return;
+    setRunningReport(report.id);
+    try {
+      await runScheduledReportNow(cfg.id);
+      message.success(`Đã tạo báo cáo (${scheduleLabel(cfg.schedule).toLowerCase()}) và gửi tới ${cfg.recipients}`);
+      loadRunInfo();
+    } catch (error) {
+      message.error(friendlyErrorMessage(error, 'Gửi báo cáo thất bại'));
+    } finally {
+      setRunningReport(null);
+    }
+  };
+
+  const getDateRange = () => periodRange(period);
 
   const downloadBlob = async (url: string, filename: string) => {
     const resp = await apiClient.get(url, { responseType: 'blob' });
@@ -600,9 +730,9 @@ const ReportsV2: React.FC = () => {
             <DownloadOutlined />
             <span>Xuất danh sách</span>
           </button>
-          <button type="button" className="reports-v2-btn primary" onClick={() => setCreateModalOpen(true)}>
+          <button type="button" className="reports-v2-btn primary" onClick={() => openSchedule('')}>
             <PlusOutlined />
-            <span>Tạo báo cáo mới</span>
+            <span>Cấu hình gửi báo cáo</span>
           </button>
         </div>
       </section>
@@ -653,7 +783,7 @@ const ReportsV2: React.FC = () => {
                 </span>
                 <span className="reports-v2-card-code">{report.id}</span>
               </div>
-              <span className="reports-v2-pill">{report.periodLabel}</span>
+              <span className="reports-v2-pill">{NO_SOURCE_REPORTS.has(report.id) ? NO_SOURCE_HINT : report.periodLabel}</span>
             </div>
 
             <h3 className="reports-v2-card-title">{report.name}</h3>
@@ -669,7 +799,8 @@ const ReportsV2: React.FC = () => {
               <button
                 type="button"
                 className="reports-v2-btn ghost"
-                disabled={runningReport === report.id}
+                disabled={runningReport === report.id || NO_SOURCE_REPORTS.has(report.id)}
+                title={NO_SOURCE_REPORTS.has(report.id) ? NO_SOURCE_HINT : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleRunReport(report);
@@ -681,7 +812,8 @@ const ReportsV2: React.FC = () => {
               <button
                 type="button"
                 className="reports-v2-btn ghost"
-                disabled={runningReport === report.id}
+                disabled={runningReport === report.id || NO_SOURCE_REPORTS.has(report.id)}
+                title={NO_SOURCE_REPORTS.has(report.id) ? NO_SOURCE_HINT : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleDownloadExcel(report);
@@ -693,7 +825,8 @@ const ReportsV2: React.FC = () => {
               <button
                 type="button"
                 className="reports-v2-btn ghost"
-                disabled={runningReport === report.id}
+                disabled={runningReport === report.id || NO_SOURCE_REPORTS.has(report.id)}
+                title={NO_SOURCE_REPORTS.has(report.id) ? NO_SOURCE_HINT : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
                   void handlePrintReport(report);
@@ -740,8 +873,13 @@ const ReportsV2: React.FC = () => {
             <button type="button" className="reports-v2-btn ghost" onClick={() => setSelectedReport(null)}>
               Đóng
             </button>
-            <Tooltip title="Cấu hình lịch báo cáo tự động chưa được triển khai">
-              <button type="button" className="reports-v2-btn" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+            <Tooltip title={NO_SOURCE_REPORTS.has(selectedReport.id) ? NO_SOURCE_HINT : 'Chu kỳ số liệu, định dạng và email nhận khi gửi báo cáo'}>
+              <button
+                type="button"
+                className="reports-v2-btn"
+                disabled={NO_SOURCE_REPORTS.has(selectedReport.id)}
+                onClick={() => openSchedule(selectedReport.id)}
+              >
                 <SettingOutlined />
                 <span>Cấu hình</span>
               </button>
@@ -749,7 +887,7 @@ const ReportsV2: React.FC = () => {
             <button
               type="button"
               className="reports-v2-btn"
-              disabled={runningReport === selectedReport.id}
+              disabled={runningReport === selectedReport.id || NO_SOURCE_REPORTS.has(selectedReport.id)}
               onClick={() => handleRunReport(selectedReport)}
             >
               <ReloadOutlined />
@@ -758,7 +896,7 @@ const ReportsV2: React.FC = () => {
             <button
               type="button"
               className="reports-v2-btn"
-              disabled={runningReport === selectedReport.id}
+              disabled={runningReport === selectedReport.id || NO_SOURCE_REPORTS.has(selectedReport.id)}
               onClick={() => handleDownloadExcel(selectedReport)}
             >
               <FileExcelOutlined />
@@ -767,16 +905,22 @@ const ReportsV2: React.FC = () => {
             <button
               type="button"
               className="reports-v2-btn"
-              disabled={runningReport === selectedReport.id}
+              disabled={runningReport === selectedReport.id || NO_SOURCE_REPORTS.has(selectedReport.id)}
               onClick={() => void handlePrintReport(selectedReport)}
             >
               <PrinterOutlined />
               <span>In báo cáo</span>
             </button>
-            <Tooltip title="Gửi email báo cáo chưa được triển khai">
-              <button type="button" className="reports-v2-btn primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+            <Tooltip title={NO_SOURCE_REPORTS.has(selectedReport.id) ? NO_SOURCE_HINT
+              : configOf(selectedReport.id)?.recipients ? `Tạo báo cáo và gửi tới ${configOf(selectedReport.id)?.recipients}` : 'Chưa có email nhận — bấm để cấu hình'}>
+              <button
+                type="button"
+                className="reports-v2-btn primary"
+                disabled={runningReport === selectedReport.id || NO_SOURCE_REPORTS.has(selectedReport.id)}
+                onClick={() => void handleSendReport(selectedReport)}
+              >
                 <SendOutlined />
-                <span>Gửi báo cáo</span>
+                <span>{runningReport === selectedReport.id ? 'Đang gửi…' : 'Gửi báo cáo'}</span>
               </button>
             </Tooltip>
           </div>
@@ -797,7 +941,7 @@ const ReportsV2: React.FC = () => {
             </section>
 
             <section className="reports-v2-drawer-section">
-              <div className="reports-v2-section-label">Top 5 khoa/phòng</div>
+              <div className="reports-v2-section-label">Top 5 khoa/phòng theo doanh thu (triệu đ · {formatPeriodLabel(period).replace("BẢNG KPI · ", "")})</div>
               <div className="reports-v2-ranking">
                 {topDepartments.length === 0 && <div className="reports-v2-empty">Chưa có dữ liệu doanh thu theo khoa</div>}
                 {topDepartments.map((department, index) => {
@@ -812,9 +956,7 @@ const ReportsV2: React.FC = () => {
                         />
                       </div>
                       <span className="reports-v2-ranking-value">
-                        {selectedReport.category === 'financial'
-                          ? `${department.value.toLocaleString('vi-VN')}M`
-                          : department.value.toLocaleString('vi-VN')}
+                        {`${department.value.toLocaleString('vi-VN')}M`}
                       </span>
                     </div>
                   );
@@ -826,115 +968,55 @@ const ReportsV2: React.FC = () => {
       </Drawer>
 
       <Modal
-        title="Tạo báo cáo mới"
-        open={createModalOpen}
-        onCancel={() => {
-          setCreateModalOpen(false);
-          form.resetFields();
-        }}
-        destroyOnHidden
+        title={scheduleFor ? `Cấu hình gửi báo cáo · ${scheduleFor}` : 'Cấu hình gửi báo cáo'}
+        open={scheduleFor !== null}
+        onCancel={() => setScheduleFor(null)}
+        forceRender
+        zIndex={1100} /* opened from the report drawer — must stack above it */
         footer={[
-          <button
-            key="cancel"
-            type="button"
-            className="reports-v2-btn ghost"
-            onClick={() => {
-              setCreateModalOpen(false);
-              form.resetFields();
-            }}
-          >
+          <button key="cancel" type="button" className="reports-v2-btn ghost" onClick={() => setScheduleFor(null)}>
             Hủy
           </button>,
-          <button
-            key="submit"
-            type="button"
-            className="reports-v2-btn primary"
-            onClick={() => void handleCreateReport()}
-          >
-            <PlusOutlined />
-            <span>Tạo & lưu</span>
+          ...(scheduleFor && configOf(scheduleFor) ? [
+            <button key="delete" type="button" className="reports-v2-btn ghost" disabled={scheduleSaving}
+              onClick={() => void handleDeleteSchedule()}>
+              Xoá cấu hình
+            </button>,
+          ] : []),
+          <button key="submit" type="button" className="reports-v2-btn primary" disabled={scheduleSaving}
+            onClick={() => void handleSaveSchedule()}>
+            <SettingOutlined />
+            <span>{scheduleSaving ? 'Đang lưu…' : 'Lưu cấu hình'}</span>
           </button>,
         ]}
       >
-        <Form<NewReportForm>
-          form={form}
-          layout="vertical"
-          initialValues={{
-            category: 'operational',
-            cycle: 'month',
-            scope: 'all',
-            format: 'pdf',
-          }}
-        >
-          <Form.Item
-            label="Tên báo cáo"
-            name="name"
-            rules={[{ required: true, message: 'Vui lòng nhập tên báo cáo' }]}
-          >
-            <Input placeholder="VD: Báo cáo doanh thu khoa Nội" />
+        <Form<ScheduleForm> form={form} layout="vertical">
+          <Form.Item label="Báo cáo" name="reportCode" rules={[{ required: true, message: 'Chọn báo cáo' }]}>
+            <Select
+              showSearch
+              optionFilterProp="label"
+              disabled={!!scheduleFor}
+              options={REPORTS.filter((r) => !NO_SOURCE_REPORTS.has(r.id)).map((r) => ({ value: r.id, label: `${r.id} · ${r.name}` }))}
+            />
           </Form.Item>
-
           <div className="reports-v2-modal-grid">
-            <Form.Item
-              label="Nhóm báo cáo"
-              name="category"
-              rules={[{ required: true, message: 'Vui lòng chọn nhóm báo cáo' }]}
-            >
-              <Select
-                options={REPORT_CATEGORIES.map((category) => ({
-                  value: category.id,
-                  label: category.label,
-                }))}
-              />
+            <Form.Item label="Chu kỳ số liệu" name="schedule" rules={[{ required: true, message: 'Chọn chu kỳ' }]}>
+              <Select options={SCHEDULE_OPTIONS} />
             </Form.Item>
-
-            <Form.Item
-              label="Chu kỳ"
-              name="cycle"
-              rules={[{ required: true, message: 'Vui lòng chọn chu kỳ' }]}
-            >
-              <Select
-                options={[
-                  { value: 'day', label: 'Hằng ngày' },
-                  { value: 'week', label: 'Hằng tuần' },
-                  { value: 'month', label: 'Hằng tháng' },
-                  { value: 'quarter', label: 'Hằng quý' },
-                ]}
-              />
+            <Form.Item label="Định dạng" name="format" rules={[{ required: true, message: 'Chọn định dạng' }]}>
+              <Select options={[{ value: 'Excel', label: 'Excel (XLSX)' }, { value: 'PDF', label: 'PDF' }]} />
             </Form.Item>
           </div>
-
-          <Form.Item label="Phạm vi" name="scope">
-            <Select
-              options={[
-                { value: 'all', label: 'Toàn viện' },
-                { value: 'dept', label: 'Theo khoa' },
-                { value: 'unit', label: 'Đơn vị cụ thể' },
-              ]}
-            />
+          <Form.Item label="Email nhận" name="recipients" extra="Nhiều email cách nhau bởi dấu phẩy">
+            <Input placeholder="ketoan@benhvien.vn, khth@benhvien.vn" />
           </Form.Item>
-
-          <Form.Item
-            label="Người sở hữu"
-            name="owner"
-            rules={[{ required: true, message: 'Vui lòng nhập đơn vị sở hữu' }]}
-          >
-            <Input placeholder="Phòng/khoa chịu trách nhiệm" />
+          <Form.Item label="Đang dùng" name="isActive" valuePropName="checked">
+            <Switch />
           </Form.Item>
-
-          <Form.Item label="Định dạng xuất" name="format">
-            <Select
-              options={[
-                { value: 'pdf', label: 'PDF' },
-                { value: 'xlsx', label: 'Excel (XLSX)' },
-                { value: 'csv', label: 'CSV' },
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item label="Email nhận" name="emails">
-            <Input placeholder="email1@..., email2@..." />
-          </Form.Item>
+          <div style={{ fontSize: 12, color: 'var(--t-2)' }}>
+            Bấm &quot;Gửi báo cáo&quot; ở báo cáo để tạo file theo chu kỳ trên và gửi tới các email nhận.
+            Hệ thống chưa có bộ hẹn giờ tự gửi — báo cáo không tự chạy theo lịch.
+          </div>
         </Form>
       </Modal>
       </>

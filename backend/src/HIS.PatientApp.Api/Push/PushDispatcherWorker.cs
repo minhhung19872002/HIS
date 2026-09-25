@@ -88,7 +88,16 @@ public class PushDispatcherWorker : BackgroundService
 
         foreach (var item in pending)
         {
-            var result = await sender.SendAsync(item.PushToken, item.Payload, ct);
+            // QA-R11: the batch was saved once at the end — one sender exception (or a stop) midway threw away
+            // the "Sent" marks of the items already delivered, and the next pass pushed them all again.
+            // Treat a throw as "retry later" and persist each item right after its attempt.
+            PushResult result;
+            try { result = await sender.SendAsync(item.PushToken, item.Payload, ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Gửi push {OutboxId} lỗi, sẽ thử lại.", item.Id);
+                result = PushResult.RetryLater;
+            }
             item.AttemptCount++;
 
             switch (result)
@@ -126,9 +135,10 @@ public class PushDispatcherWorker : BackgroundService
                         : $"Đã thử {item.AttemptCount} lần không thành công.";
                     break;
             }
-        }
 
-        await db.SaveChangesAsync(ct);
+            // Not `ct`: once the relay accepted the push, its "Sent" mark must be stored even while stopping.
+            await db.SaveChangesAsync(CancellationToken.None);
+        }
 
         var sent = pending.Count(p => p.Status == PushOutboxStatus.Sent);
         _logger.LogInformation("Đẩy thông báo: {Sent}/{Total} thành công.", sent, pending.Count);

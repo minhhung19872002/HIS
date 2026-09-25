@@ -116,7 +116,11 @@ public class SatisfactionSurveyController : ControllerBase
     /// <summary>
     /// Xuất dữ liệu khảo sát dạng CSV.
     /// </summary>
+    // QA-R11 (R10 leftover 4): the export is a bulk PHI file (patient code + name + comments, any date range)
+    // and was reachable by every signed-in role incl. Tiếp đón (the page route only needs Patient.Read).
+    // Same gate as the other report exports.
     [HttpGet("export")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Report.Export)]
     public async Task<IActionResult> ExportSurveys([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] Guid? campaignId)
     {
         var bytes = await _svc.ExportSurveysAsync(from, to, campaignId);

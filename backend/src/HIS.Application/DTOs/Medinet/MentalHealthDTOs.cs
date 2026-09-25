@@ -20,6 +20,7 @@ public class MentalHealthCaseDto
     public string CaseCode { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
+    public string? PatientCode { get; set; } // QA-R11: list showed a blank "Mã BN"
     public string? DateOfBirth { get; set; }
     public int? Gender { get; set; }
     public string? DiagnosisCode { get; set; }
@@ -59,6 +60,10 @@ public class CreateMentalHealthCaseDto
     public string? EmergencyContactName { get; set; }
     public string? EmergencyContactPhone { get; set; }
     public string? Notes { get; set; }
+    // QA-R11: update-only fields the v2 "Cập nhật ca" form edits (status tabs were unreachable)
+    public int? Status { get; set; } // 0=Đang điều trị 1=Ổn định 2=Thuyên giảm 3=Đã xuất viện
+    public string? AdherenceLevel { get; set; }
+    public string? NextVisitDate { get; set; }
 }
 
 public class PsychiatricAssessmentDto
@@ -94,6 +99,7 @@ public class MentalHealthStatsDto
     public int ActiveCount { get; set; }
     public int StableCount { get; set; }
     public int OverdueFollowUps { get; set; }
+    public int AssessmentsThisMonth { get; set; } // QA-R11: KPI "ĐG tháng này" was a literal 0
     public List<MentalHealthCaseTypeBreakdownDto> CaseTypeBreakdown { get; set; } = new();
     public List<MentalHealthSeverityBreakdownDto> SeverityBreakdown { get; set; } = new();
 }

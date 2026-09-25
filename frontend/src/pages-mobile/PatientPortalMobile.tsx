@@ -168,7 +168,9 @@ const PatientPortalMobile: React.FC = () => {
         dept: a.departmentName || a.specialtyName || '—',
         doctor: a.doctorName || 'Chưa phân',
         room: a.roomName || a.room || '',
-        status: (a.status === 0 || a.statusName === 'Đã đặt' || a.statusName === 'Scheduled') ? 'scheduled' : a.statusName === 'Hoàn thành' || a.status === 2 ? 'done' : 'scheduled',
+        // QA-R11: /portal/appointments returns a string status (Pending/Confirmed/CheckedIn/NoShow/Cancelled) —
+        // a cancelled or already-visited booking must not be shown as "SẮP TỚI".
+        status: (a.status === 'Pending' || a.status === 'Confirmed' || a.status === 0 || a.statusName === 'Đã đặt' || a.statusName === 'Scheduled') ? 'scheduled' : 'done',
         note: a.reason || a.note,
       })));
       // prescriptions

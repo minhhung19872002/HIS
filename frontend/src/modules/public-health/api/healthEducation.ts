@@ -80,11 +80,16 @@ export const searchMaterials = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<Array<HealthMaterial & { filePath?: string; downloads?: number }>>('/health-education/materials', { params });
+    const response = await apiClient.get<Array<HealthMaterial & {
+      filePath?: string; downloads?: number; isActive?: boolean; createdAt?: string;
+    }>>('/health-education/materials', { params });
+    // BE HealthEducationMaterialDto: isActive (no draft/published/archived) + createdAt
     return (response.data || []).map((m) => ({
       ...m,
       fileUrl: m.fileUrl ?? m.filePath,
       downloadCount: m.downloadCount ?? m.downloads ?? 0,
+      status: m.status ?? (m.isActive === false ? 2 : 1),
+      createdDate: m.createdDate ?? m.createdAt ?? '',
     }));
   } catch {
     console.warn('Failed to fetch health materials');

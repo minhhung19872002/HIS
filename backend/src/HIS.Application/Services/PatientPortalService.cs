@@ -321,6 +321,10 @@ namespace HIS.Application.Services
             };
         }
 
+        // Interface completeness only — this legacy class is not registered in DI (PatientPortalServiceImpl is).
+        public Task<List<ServiceFeedbackDto>> GetFeedbacksAsync(Guid patientId)
+            => Task.FromResult(new List<ServiceFeedbackDto>());
+
         public async Task<List<PortalNotificationDto>> GetNotificationsAsync(Guid accountId, bool unreadOnly = false)
         {
             _logger.LogInformation("Getting notifications for account {AccountId}", accountId);

@@ -100,7 +100,7 @@ const PatientAppDashboardPage: React.FC = () => {
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Chưa có thiết bị nào nhận được thông báo đẩy"
+          title="Chưa có thiết bị nào nhận được thông báo đẩy"
           description={
             'Thông báo vẫn vào hộp thư trong app, nhưng người bệnh sẽ không thấy trên màn hình khoá. '
             + 'Nguyên nhân thường gặp: chưa cấu hình Firebase (google-services.json / khoá FCM).'

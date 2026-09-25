@@ -183,6 +183,7 @@ public partial class PublicHealthService
 
         return await query
             .OrderByDescending(o => o.ExamDate)
+            .ThenBy(o => o.Id) // QA-R11: deterministic paging
             .Skip(skip)
             .Take(pageSize)
             .Select(o => MapOccupationalHealthDto(o))

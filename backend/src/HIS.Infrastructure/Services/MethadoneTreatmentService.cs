@@ -74,6 +74,9 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
             throw new ArgumentException("Ngày cấp liều trước ngày đăng ký điều trị.");
         if (!missed)
             ValidateDoseMg(doseMg, "Liều cấp");
+        // QA-R11: the FE blocks a dose above the prescribed daily dose, the API did not (direct call / stale page).
+        if (!missed && mp.CurrentDoseMg > 0 && doseMg > mp.CurrentDoseMg + 0.001)
+            throw new ArgumentException($"Liều cấp vượt liều chỉ định ({mp.CurrentDoseMg} mg) — cập nhật liều điều trị trước.");
 
         var nextDay = day.AddDays(1);
         var sameDay = await context.MethadoneDosingRecords
@@ -118,6 +121,7 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
 
         var items = await query
             .OrderByDescending(m => m.EnrollmentDate)
+            .ThenBy(m => m.Id) // QA-R11: deterministic paging
             .Skip(filter.PageIndex * filter.PageSize)
             .Take(filter.PageSize)
             .Select(m => new MethadoneListDto

@@ -1104,6 +1104,51 @@ export const searchStaffPortalAccounts = (keyword?: string, take = 20) =>
 export const answerPatientQuestion = (id: string, data: AnswerPatientQuestionDto) =>
   apiClient.put<PatientQuestionDto>(`${BASE_URL}/questions/${id}/answer`, data);
 
+// QA-R11: the shapes the API really returns/accepts for /portal/appointments and /portal/bills
+// (OnlineAppointmentDto / BillSummaryDto above describe fields the backend never sends).
+export interface PortalAppointmentRow {
+  id: string;
+  appointmentCode?: string;
+  patientId: string;
+  patientName?: string;
+  appointmentDate: string;
+  appointmentTime?: string; // "HH:mm:ss"
+  departmentName?: string;
+  doctorName?: string;
+  roomNumber?: string;
+  reasonForVisit?: string;
+  status: string; // Pending, Confirmed, CheckedIn, NoShow, Cancelled
+  queueNumber?: number | null;
+}
+
+export interface PortalBookAppointmentDto {
+  appointmentDate: string; // YYYY-MM-DD
+  appointmentTime: string; // HH:mm:ss
+  departmentId: string;
+  doctorId?: string;
+  visitType: string; // New, FollowUp, HealthCheck
+  reasonForVisit: string;
+  symptoms: string;
+}
+
+export interface PortalInvoiceRow {
+  id: string;
+  invoiceCode: string;
+  invoiceDate: string;
+  totalAmount: number;
+  paymentStatus: string; // Paid, Unpaid
+}
+
+export const getPatientAppointments = (patientId?: string, includeHistory = false) =>
+  apiClient.get<PortalAppointmentRow[]>(`${BASE_URL}/appointments`, { params: { patientId, includeHistory } });
+
+/** Staff-on-behalf booking: patientId is required for a staff token (the API books a real HIS appointment). */
+export const bookPatientAppointment = (patientId: string, dto: PortalBookAppointmentDto) =>
+  apiClient.post<PortalAppointmentRow>(`${BASE_URL}/appointments`, dto, { params: { patientId } });
+
+export const getPatientInvoices = (patientId: string, unpaidOnly = false) =>
+  apiClient.get<PortalInvoiceRow[]>(`${BASE_URL}/invoices`, { params: { patientId, unpaidOnly } });
+
 // #endregion
 
 export default {

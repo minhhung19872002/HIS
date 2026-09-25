@@ -140,7 +140,10 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var e = await _context.TeleSessions.Include(x => x.Appointment).FirstOrDefaultAsync(x => x.Id == sessionId);
         if (e == null) return null!;
-        return new TeleSessionDto { Id = e.Id, SessionCode = e.SessionCode, Status = e.Status, StartTime = e.StartTime ?? DateTime.Now, EndTime = e.EndTime };
+        // QA-R11: appointmentId / roomId / join links were left empty, so a reopened session had no way back into the room.
+        var roomUrl = e.Status == "InProgress" && !string.IsNullOrEmpty(e.RoomId) ? BuildRoomUrl(e.RoomId) : null;
+        return new TeleSessionDto { Id = e.Id, SessionCode = e.SessionCode, AppointmentId = e.AppointmentId, RoomId = e.RoomId, Status = e.Status,
+            StartTime = e.StartTime ?? DateTime.Now, EndTime = e.EndTime, DoctorJoinUrl = roomUrl, PatientJoinUrl = roomUrl };
     }
 
     public async Task<WaitingRoomDto> GetWaitingRoomStatusAsync(Guid appointmentId)
@@ -153,7 +156,9 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var e = await _context.TeleSessions.FindAsync(sessionId);
         if (e == null) return false;
-        if (e.Status == "Completed")
+        // QA-R11: only "Completed" was refused — an Aborted session could be ended again (EndTime/duration rewritten) and,
+        // once a diagnosis was saved afterwards, flipped to Completed while its appointment stayed Aborted.
+        if (e.Status != "InProgress")
             throw new InvalidOperationException("Phiên khám đã kết thúc.");
         // QA-R4 (decision #352 lot 10): a tele visit must not close as COMPLETED without a primary diagnosis
         // on record. The v2 page saves the consultation (primaryDiagnosis) before calling end; enforce it
@@ -190,7 +195,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
         var sessionStatus = await _context.TeleSessions.Where(s => s.Id == dto.SessionId).Select(s => s.Status).FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
         // QA-R4: the record is final once the session is closed (the page writes it BEFORE ending the session).
-        if (sessionStatus == "Completed")
+        if (sessionStatus is "Completed" or "Aborted") // QA-R11: Aborted is closed too
             throw new InvalidOperationException("Phiên khám đã kết thúc — hồ sơ tư vấn không sửa được nữa.");
         if (dto.FollowUpDate.HasValue && dto.FollowUpDate.Value.Date < HIS.Core.Common.VnTime.TodayVn)
             throw new ArgumentException("Ngày tái khám không được ở quá khứ", nameof(dto.FollowUpDate));

@@ -13,4 +13,5 @@ public interface ITraditionalMedicineService
     Task<List<HerbItemDto>> GetHerbsAsync(string? keyword);
     Task<TraditionalMedicineStatsDto> GetStatsAsync();
     Task<TraditionalMedicineTreatmentDto> CompleteTreatmentAsync(Guid id);
+    Task<TraditionalMedicineTreatmentDto> CancelTreatmentAsync(Guid id, string? reason);
 }

@@ -160,6 +160,7 @@ type HivStatsDto = {
   lostToFollowUpCount: number;
   deceasedCount: number;
   suppressedRate: number;
+  newThisMonthCount?: number;
 };
 
 type PmtctStatsDto = {
@@ -355,6 +356,20 @@ export const addPmtctRecord = async (data: Partial<PmtctRecord>) => {
   return mapPmtctRecord(response.data);
 };
 
+// Cập nhật PMTCT (ngày sinh, dự phòng, KQ XN trẻ…) — PUT /hiv-management/pmtct/{id}
+export const updatePmtctRecord = async (id: string, data: Partial<PmtctRecord>) => {
+  const response = await apiClient.put<PmtctRecordDto>(`/hiv-management/pmtct/${id}`, {
+    artDuringPregnancy: data.artDuringPregnancy,
+    deliveryDate: data.deliveryDate || undefined,
+    deliveryMode: data.deliveryMode,
+    infantProphylaxis: data.infantProphylaxis,
+    infantHivTestDate: data.infantTestDate || undefined,
+    infantHivTestResult: data.infantTestResult,
+    breastfeedingStatus: data.infantFeedingMethod,
+  });
+  return mapPmtctRecord(response.data);
+};
+
 export const getPmtctRecords = async (params?: {
   patientId?: string;
   keyword?: string;
@@ -383,7 +398,7 @@ export const getStats = async (): Promise<HivStats> => {
       onArt: patientStats?.onARTCount ?? 0,
       viralSuppressed: patientStats?.virallySuppressedCount ?? 0,
       pmtctEnrolled: pmtctStats?.totalPregnancies ?? 0,
-      newEnrollmentsThisMonth: 0,
+      newEnrollmentsThisMonth: patientStats?.newThisMonthCount ?? 0,
       lostToFollowUp: patientStats?.lostToFollowUpCount ?? 0,
       artCoverageRate: patientStats ? Math.round(((patientStats.onARTCount || 0) / Math.max(patientStats.totalPatients || 1, 1)) * 1000) / 10 : 0,
       viralSuppressionRate: patientStats?.suppressedRate ?? 0,
@@ -429,6 +444,7 @@ export default {
   addLabResult,
   getLabHistory,
   addPmtctRecord,
+  updatePmtctRecord,
   getPmtctRecords,
   getStats,
 };

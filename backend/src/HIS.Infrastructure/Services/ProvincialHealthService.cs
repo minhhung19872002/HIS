@@ -319,12 +319,16 @@ public class ProvincialHealthService : IProvincialHealthService
 
         if (!string.IsNullOrWhiteSpace(search.DateTo) &&
             DateTime.TryParse(search.DateTo, out var dtTo))
-            q = q.Where(d => d.IssueDate <= dtTo.AddDays(1));
+        {
+            var toExclusive = dtTo.Date.AddDays(1); // QA-R11: inclusive end day without the next midnight
+            q = q.Where(d => d.IssueDate < toExclusive);
+        }
 
         var totalCount = await q.CountAsync();
         var items = await q
             .OrderByDescending(d => d.IssueDate)
             .ThenByDescending(d => d.CreatedAt)
+            .ThenBy(d => d.Id)
             .Skip(search.PageIndex * search.PageSize)
             .Take(search.PageSize)
             .Select(d => new ProvincialDirectiveDto
@@ -375,10 +379,21 @@ public class ProvincialHealthService : IProvincialHealthService
 
     public async Task<ProvincialDirectiveDto> SaveDirectiveAsync(SaveProvincialDirectiveRequest req, string userId)
     {
+        // QA-R11: an empty body created a title-less directive dated 01/01/0001, and editing a missing id
+        // surfaced EF's "Sequence contains no elements".
+        if (string.IsNullOrWhiteSpace(req.Title))
+            throw new ArgumentException("Chưa nhập tiêu đề chỉ đạo.", nameof(req.Title));
+        if (req.Status is < 0 or > 3) // 0=Mới 1=Đang thực hiện 2=Hoàn thành 3=Hết hiệu lực (FE DIRECTIVE_STATUS)
+            throw new ArgumentException("Trạng thái chỉ đạo không hợp lệ.", nameof(req.Status));
+        // QA-R11 (UI-audit B): a missing date must be a 400, not silently "today" / 01/01/0001.
+        if (req.IssueDate == default || req.IssueDate.Year < 1900)
+            throw new ArgumentException("Chưa nhập ngày ban hành hợp lệ.", nameof(req.IssueDate));
+        req.Title = req.Title.Trim();
         ProvincialDirective entity;
         if (req.Id.HasValue && req.Id.Value != Guid.Empty)
         {
-            entity = await _db.ProvincialDirectives.FirstAsync(d => d.Id == req.Id.Value && !d.IsDeleted);
+            entity = await _db.ProvincialDirectives.FirstOrDefaultAsync(d => d.Id == req.Id.Value && !d.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy chỉ đạo tuyến.");
             entity.UpdatedAt  = DateTime.UtcNow;
             entity.UpdatedBy  = userId;
         }

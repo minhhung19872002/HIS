@@ -178,10 +178,11 @@ public class QualityManagementServiceImpl : IQualityManagementService
         // Unknown incident ids produced orphan CAPA rows; the assignee was "whichever user comes first".
         if (!await _context.IncidentReports.AnyAsync(x => x.Id == incidentId))
             throw new KeyNotFoundException("Không tìm thấy sự cố");
-        var assignee = Guid.TryParse(action.AssignedTo, out var assignedId) && await _context.Users.AnyAsync(u => u.Id == assignedId)
-            ? assignedId
-            : await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
-        if (assignee == Guid.Empty) return false;
+        // QA-R11: an unknown/blank assignee fell back to "the first user in the table" (fabricated responsibility).
+        if (!Guid.TryParse(action.AssignedTo, out var assignee) || !await _context.Users.AnyAsync(u => u.Id == assignee && !u.IsDeleted))
+            throw new ArgumentException("Chưa chọn người thực hiện hành động khắc phục hợp lệ", nameof(action.AssignedTo));
+        if (string.IsNullOrWhiteSpace(action.Description))
+            throw new ArgumentException("Phải nhập nội dung hành động khắc phục", nameof(action.Description));
         var capa = new CAPA
         {
             Id = Guid.NewGuid(),
@@ -192,7 +193,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
             ActionDescription = action.Description ?? "",
             AssignedToId = assignee,
             DueDate = action.DueDate == default ? DateTime.Now.AddDays(7) : action.DueDate,
-            Status = string.IsNullOrWhiteSpace(action.Status) ? "Open" : action.Status,
+            Status = "Open", // a new CAPA always starts Open (was: any client-supplied string, e.g. "Closed")
             Priority = "Medium",
             CreatedAt = DateTime.Now,
             CreatedBy = assignee.ToString(),
@@ -202,13 +203,26 @@ public class QualityManagementServiceImpl : IQualityManagementService
         return true;
     }
 
+    // QA-R11: any string was stored as the CAPA status ("abc", "" …) and a Closed CAPA could be re-opened or re-closed
+    // (overwriting its verification note). Allowed: Open → InProgress → PendingVerification → Closed.
+    private static readonly string[] CapaStatuses = { "Open", "InProgress", "PendingVerification", "Closed" };
+
     public async Task<bool> UpdateCorrectiveActionStatusAsync(Guid actionId, string status, string notes)
     {
         var capa = await _context.CAPAs.FindAsync(actionId);
         if (capa == null) return false;
+        if (status == "Completed") status = "Closed"; // legacy alias used by the incident drawer
+        if (!CapaStatuses.Contains(status))
+            throw new ArgumentException($"Trạng thái CAPA không hợp lệ: \"{status}\" (Open/InProgress/PendingVerification/Closed)", nameof(status));
+        if (capa.Status == "Closed")
+            throw new InvalidOperationException("CAPA đã đóng — không cập nhật trạng thái được nữa.");
+        if (Array.IndexOf(CapaStatuses, status) < Array.IndexOf(CapaStatuses, capa.Status))
+            throw new InvalidOperationException($"Không chuyển CAPA từ \"{capa.Status}\" về \"{status}\".");
+        if (status == "Closed" && string.IsNullOrWhiteSpace(notes))
+            throw new ArgumentException("Phải nhập kết quả xác minh hiệu quả khi đóng CAPA", nameof(notes));
         capa.Status = status;
         capa.VerificationNotes = notes;
-        if (status == "Closed" || status == "Completed") { capa.CompletedDate = DateTime.Now; capa.IsEffective = true; }
+        if (status == "Closed") { capa.CompletedDate = DateTime.Now; capa.IsEffective = true; capa.VerifiedDate = DateTime.Now; }
         capa.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
@@ -312,13 +326,73 @@ public class QualityManagementServiceImpl : IQualityManagementService
     {
         var e = await _context.AuditPlans.FindAsync(id);
         if (e == null) return false;
+        // QA-R11: approving flipped ANY status (Completed/Cancelled included) back to "Approved".
+        if (e.Status != "Planned")
+            throw new InvalidOperationException($"Chỉ duyệt được kế hoạch audit đang ở trạng thái \"Đã lên lịch\" (hiện: {e.Status}).");
         e.Status = "Approved";
+        e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public Task<AuditResultDto> GetAuditResultAsync(Guid id) => Task.FromResult(new AuditResultDto { Id = id });
-    public Task<AuditResultDto> SubmitAuditResultAsync(AuditResultDto dto) => Task.FromResult(dto);
+    // QA-R11: both were stubs (Task.FromResult) — an audit could be scheduled but its result never recorded, so every
+    // audit stayed "Đã lên lịch" and findings counts stayed empty. Stored on the AuditPlan row itself.
+    public async Task<AuditResultDto> GetAuditResultAsync(Guid id)
+    {
+        var e = await _context.AuditPlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (e == null) return null!;
+        return MapAuditResult(e);
+    }
+
+    public async Task<AuditResultDto> SubmitAuditResultAsync(AuditResultDto dto)
+    {
+        var id = dto.Id != Guid.Empty ? dto.Id : dto.ScheduleId;
+        var e = await _context.AuditPlans.FirstOrDefaultAsync(x => x.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy kế hoạch audit");
+        if (e.Status is "Completed" or "Cancelled")
+            throw new InvalidOperationException("Audit đã kết thúc — không ghi lại kết quả được.");
+        if (e.Status == "Planned")
+            throw new InvalidOperationException("Kế hoạch audit chưa được duyệt — duyệt trước khi ghi kết quả.");
+        if (dto.MajorNonConformities < 0 || dto.MinorNonConformities < 0 || dto.Observations < 0)
+            throw new ArgumentException("Số phát hiện không được âm");
+        if (string.IsNullOrWhiteSpace(dto.ExecutiveSummary))
+            throw new ArgumentException("Phải nhập tóm tắt kết quả audit", nameof(dto.ExecutiveSummary));
+        var auditDate = dto.AuditDate == default ? DateTime.Today : dto.AuditDate.Date;
+        if (auditDate > DateTime.Today)
+            throw new ArgumentException("Ngày audit không được ở tương lai", nameof(dto.AuditDate));
+        e.ActualStartDate ??= auditDate;
+        e.ActualEndDate = auditDate;
+        e.MajorNonconformities = dto.MajorNonConformities;
+        e.MinorNonconformities = dto.MinorNonConformities;
+        e.Observations = dto.Observations;
+        e.TotalFindings = dto.MajorNonConformities + dto.MinorNonConformities + dto.Observations + Math.Max(0, dto.Opportunities);
+        // SummaryReport also carries the notes typed when the audit was scheduled — keep them, replace only the result block.
+        const string resultMarker = "[Kết quả audit]";
+        var baseNotes = e.SummaryReport ?? "";
+        var markerAt = baseNotes.IndexOf(resultMarker, StringComparison.Ordinal);
+        if (markerAt >= 0) baseNotes = baseNotes[..markerAt].TrimEnd();
+        var resultBlock = string.Join("\n", new[]
+            {
+                dto.ExecutiveSummary!.Trim(),
+                string.IsNullOrWhiteSpace(dto.Strengths) ? null : $"Điểm mạnh: {dto.Strengths.Trim()}",
+                string.IsNullOrWhiteSpace(dto.AreasForImprovement) ? null : $"Cần cải tiến: {dto.AreasForImprovement.Trim()}",
+                string.IsNullOrWhiteSpace(dto.OverallRating) ? null : $"Đánh giá chung: {dto.OverallRating.Trim()}",
+            }.Where(x => x != null));
+        e.SummaryReport = baseNotes.Length == 0 ? $"{resultMarker}\n{resultBlock}" : $"{baseNotes}\n{resultMarker}\n{resultBlock}";
+        e.Status = "Completed";
+        e.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return MapAuditResult(e);
+    }
+
+    private static AuditResultDto MapAuditResult(AuditPlan e) => new()
+    {
+        Id = e.Id, AuditCode = e.AuditCode, ScheduleId = e.Id, AuditDate = e.ActualEndDate ?? e.PlannedStartDate,
+        Department = e.DepartmentsAudited ?? "", Process = e.ScopeDescription ?? "", LeadAuditor = e.LeadAuditorId.ToString(),
+        Findings = new List<AuditFindingDto>(), TotalFindings = e.TotalFindings ?? 0,
+        MajorNonConformities = e.MajorNonconformities ?? 0, MinorNonConformities = e.MinorNonconformities ?? 0,
+        Observations = e.Observations ?? 0, ExecutiveSummary = e.SummaryReport ?? "",
+    };
     public Task<List<AuditFindingDto>> GetOpenFindingsAsync(Guid? departmentId = null) => Task.FromResult(new List<AuditFindingDto>());
 
     // F10 (audit FLOW-FINAL): THỐNG NHẤT 2 hệ khảo sát — dùng chung 1 nguồn `SatisfactionSurveyResults`
@@ -326,23 +400,31 @@ public class QualityManagementServiceImpl : IQualityManagementService
     // riêng của module Quality (gây split data, báo cáo lệch). Bảng cũ giữ nguyên (không destructive) nhưng ngừng dùng.
     // A date-only toDate (FE sends "YYYY-MM-DD") must include that whole day.
     private static DateTime ToExclusiveEnd(DateTime toDate) => toDate.TimeOfDay == TimeSpan.Zero ? toDate.Date.AddDays(1) : toDate.AddTicks(1);
+    // QA-R11: SatisfactionSurveyResults.CreatedAt is a UTC audit value while fromDate/toDate are VN calendar dates —
+    // comparing them directly dropped 00:00–07:00 VN of the first day and pulled in 00:00–07:00 of the day after.
+    private static DateTime VnLocalToUtc(DateTime local) => VnTime.DayRangeUtc(local.Date).FromUtc + local.TimeOfDay;
 
     public async Task<List<PatientSatisfactionSurveyDto>> GetSurveysAsync(DateTime fromDate, DateTime toDate, string? surveyType = null)
     {
-        var toExclusive = ToExclusiveEnd(toDate);
-        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromDate && x.CreatedAt < toExclusive);
+        var fromUtc = VnLocalToUtc(fromDate);
+        var toExclusive = VnLocalToUtc(ToExclusiveEnd(toDate));
+        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromUtc && x.CreatedAt < toExclusive);
         if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.TemplateName == surveyType);
         var list = await query.OrderByDescending(x => x.CreatedAt).ToBoundedListAsync("QualityManagement.GetSurveys");
         return list.Select(e => new PatientSatisfactionSurveyDto
         {
             Id = e.Id, SurveyDate = e.CreatedAt, SurveyType = e.TemplateName ?? "General",
-            OverallSatisfaction = (int)Math.Round(e.OverallScore), Department = e.DepartmentName ?? "",
+            OverallSatisfaction = (int)Math.Round(e.OverallScore, MidpointRounding.AwayFromZero), Department = e.DepartmentName ?? "",
             PatientId = e.PatientId, PositiveFeedback = e.Comment ?? "",
         }).ToList();
     }
 
     public async Task<PatientSatisfactionSurveyDto> SubmitSurveyAsync(PatientSatisfactionSurveyDto dto)
     {
+        // QA-R11: a body without overallSatisfaction (e.g. {rating:4}) stored OverallScore = 0 — a score outside the
+        // 1–5 scale that dragged every average on /satisfaction-survey and /quality down.
+        if (dto.OverallSatisfaction < 1 || dto.OverallSatisfaction > 5)
+            throw new ArgumentException("Điểm hài lòng tổng thể (overallSatisfaction) phải từ 1 đến 5", nameof(dto.OverallSatisfaction));
         var entity = new SatisfactionSurveyResult
         {
             Id = Guid.NewGuid(),
@@ -351,7 +433,9 @@ public class QualityManagementServiceImpl : IQualityManagementService
             DepartmentName = dto.Department,
             OverallScore = dto.OverallSatisfaction,
             Comment = string.IsNullOrWhiteSpace(dto.NegativeFeedback) ? dto.PositiveFeedback : dto.NegativeFeedback,
-            CreatedAt = DateTime.Now,
+            // Audit column is UTC everywhere else (SatisfactionSurveyService, range filters) — DateTime.Now shifted
+            // these rows 7h against the others.
+            CreatedAt = DateTime.UtcNow,
         };
         _context.SatisfactionSurveyResults.Add(entity);
         await _context.SaveChangesAsync();
@@ -361,8 +445,9 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<SatisfactionReportDto> GetSatisfactionReportAsync(DateTime fromDate, DateTime toDate, string? surveyType = null, string? department = null)
     {
-        var toExclusive = ToExclusiveEnd(toDate);
-        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromDate && x.CreatedAt < toExclusive);
+        var fromUtc = VnLocalToUtc(fromDate);
+        var toExclusive = VnLocalToUtc(ToExclusiveEnd(toDate));
+        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromUtc && x.CreatedAt < toExclusive);
         if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.TemplateName == surveyType);
         if (!string.IsNullOrEmpty(department)) query = query.Where(x => x.DepartmentName == department);
         var surveys = await query.ToListAsync();
@@ -390,14 +475,34 @@ public class QualityManagementServiceImpl : IQualityManagementService
         var query = _context.CAPAs.AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (!string.IsNullOrEmpty(source)) query = query.Where(x => x.Source == source);
-        var list = await query.ToBoundedListAsync("QualityManagement.GetCAPAs");
-        return list.Select(e => new CAPADto { Id = e.Id, CAPACode = e.CAPACode, Title = e.ActionDescription, Source = e.Source, Status = e.Status, TargetCompletionDate = e.DueDate }).ToList();
+        var list = await query.OrderByDescending(x => x.CreatedAt).ToBoundedListAsync("QualityManagement.GetCAPAs");
+        var owners = await LoadCapaOwnerNamesAsync(list);
+        return list.Select(e => MapCapa(e, owners)).ToList();
     }
+
+    // QA-R11: the list returned only code/title/source/status/due — priority, type, owner, incident link, completion and
+    // verification were stored but never sent, so the CAPA table showed "P" / "—" everywhere.
+    private async Task<Dictionary<Guid, string>> LoadCapaOwnerNamesAsync(List<CAPA> list)
+    {
+        var ids = list.Select(x => x.AssignedToId).Where(x => x != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0) return new();
+        return await _context.Users.AsNoTracking().Where(u => ids.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName ?? "");
+    }
+
+    private static CAPADto MapCapa(CAPA e, Dictionary<Guid, string> owners) => new()
+    {
+        Id = e.Id, CAPACode = e.CAPACode, Title = e.ActionDescription, Type = e.Type, Source = e.Source,
+        SourceIncidentId = e.IncidentReportId, ProblemDescription = e.ExpectedOutcome ?? "", Priority = e.Priority,
+        Owner = owners.TryGetValue(e.AssignedToId, out var n) ? n : "", Status = e.Status, TargetCompletionDate = e.DueDate,
+        ActualCompletionDate = e.CompletedDate, EffectivenessVerified = e.IsEffective, VerificationDate = e.VerifiedDate,
+        VerificationResults = e.VerificationNotes ?? "", CreatedAt = e.CreatedAt,
+    };
 
     public async Task<CAPADto> GetCAPAAsync(Guid id)
     {
         var e = await _context.CAPAs.FindAsync(id);
-        return e == null ? null! : new CAPADto { Id = e.Id, CAPACode = e.CAPACode, Title = e.ActionDescription, Source = e.Source, Status = e.Status, TargetCompletionDate = e.DueDate, ProblemDescription = e.ExpectedOutcome ?? "" };
+        return e == null ? null! : MapCapa(e, await LoadCapaOwnerNamesAsync(new List<CAPA> { e }));
     }
 
     public async Task<CAPADto> CreateCAPAAsync(CAPADto dto)

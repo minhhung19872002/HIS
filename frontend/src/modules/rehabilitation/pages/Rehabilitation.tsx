@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { DatePicker, TimePicker, Select, Input, InputNumber, Radio } from 'antd';
 import {
-  getReferrals, acceptReferral, printReferral,
+  getReferrals, acceptReferral, printReferral, createReferral, rejectReferral, dischargePatient,
   getSessionsByDate, createSession, completeSession, cancelSession, markNoShow,
   getActiveTreatmentPlans, createAssessment, createTreatmentPlan,
 } from '../api/rehabilitation';
@@ -20,6 +19,9 @@ import {
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { Field } from '../../../components/form/Field';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type Row = {
   id: string;
@@ -155,7 +157,61 @@ const TOP_TABS: { v: MainTab; l: string; ic?: string }[] = [
 
 const RehabilitationV2: React.FC = () => {
   const [tab, setTab] = useState<MainTab>('referrals');
-  const navigate = useNavigate();
+
+  // ── QA-R11: "Giấy GT" navigated to the v1 route /rehabilitation instead of creating a referral; reject and
+  // "kết thúc điều trị" (BE /referrals/{id}/reject, /discharge/{planId}) had no UI at all. ──
+  const [refOpen, setRefOpen] = useState(false);
+  const [patientOpts, setPatientOpts] = useState<{ id: string; patientCode: string; fullName: string }[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const refFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: patientOpts.map((pt) => ({ value: pt.id, label: `${pt.patientCode} — ${pt.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+    { key: 'rehabType', label: 'Loại PHCN', type: 'select', required: true, options: THERAPY_TYPES.map((t) => ({ value: t.v, label: t.l })) },
+    { key: 'primaryDiagnosis', label: 'Chẩn đoán chính', required: true },
+    { key: 'diagnosisICD', label: 'Mã ICD-10' },
+    { key: 'rehabGoals', label: 'Mục tiêu / yêu cầu PHCN', type: 'textarea' },
+    { key: 'precautions', label: 'Lưu ý / chống chỉ định', type: 'textarea' },
+  ], [patientOpts, searchPatients]);
+  const REF_INIT = useMemo(() => ({ rehabType: 'PT' }), []);
+
+  const [rejectTarget, setRejectTarget] = useState<Row | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectBusy, setRejectBusy] = useState(false);
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectReason.trim()) { tw('Nhập lý do từ chối'); return; }
+    setRejectBusy(true);
+    try {
+      await rejectReferral(rejectTarget.id, rejectReason.trim());
+      tk(`Đã từ chối ${rejectTarget.referralCode || ''}`.trim());
+      setRejectTarget(null); setSel(null); load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Từ chối thất bại')); }
+    finally { setRejectBusy(false); }
+  };
+
+  const [dischargeTarget, setDischargeTarget] = useState<Row | null>(null);
+  const [dischargeNote, setDischargeNote] = useState('');
+  const [dischargeBusy, setDischargeBusy] = useState(false);
+  const submitDischarge = async () => {
+    if (!dischargeTarget) return;
+    if (!dischargeNote.trim()) { tw('Nhập tình trạng chức năng khi kết thúc'); return; }
+    setDischargeBusy(true);
+    try {
+      const plans = ((await getActiveTreatmentPlans()).data || []) as TreatmentPlanDto[];
+      const plan = plans.find((x) => x.referralId === dischargeTarget.id);
+      if (!plan) { tw('Không tìm thấy kế hoạch điều trị đang thực hiện của giấy GT này'); return; }
+      await dischargePatient(plan.id, { functionalStatus: dischargeNote.trim(), dischargeStatus: 'Completed' });
+      tk('Đã kết thúc điều trị PHCN');
+      setDischargeTarget(null); setSel(null); load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Kết thúc điều trị thất bại')); }
+    finally { setDischargeBusy(false); }
+  };
 
   // ══════════════════════ Tab: Chỉ định PHCN (referrals) ══════════════════════
   const [items, setItems] = useState<Row[]>([]);
@@ -320,8 +376,14 @@ const RehabilitationV2: React.FC = () => {
         hidden: sKey(r.status) === 'pending' || sKey(r.status) === 'cancelled',
         onClick: () => openAssess(r) },
       { key: 'plan', icon: 'file-text', label: 'Lập KH điều trị',
-        hidden: sKey(r.status) === 'pending' || sKey(r.status) === 'cancelled',
+        hidden: sKey(r.status) !== 'accepted',
         onClick: () => openPlan(r) },
+      { key: 'discharge', icon: 'check', label: 'Kết thúc điều trị', tone: 'warn',
+        hidden: sKey(r.status) !== 'progress',
+        onClick: () => { setDischargeNote(''); setDischargeTarget(r); } },
+      { key: 'reject', icon: 'x', label: 'Từ chối', tone: 'danger',
+        hidden: sKey(r.status) !== 'pending',
+        onClick: () => { setRejectReason(''); setRejectTarget(r); } },
     ]} />
   );
 
@@ -497,7 +559,7 @@ const RehabilitationV2: React.FC = () => {
             </Btn>
             <span className="spacer" />
             <RefreshButton onRefresh={async () => { await load() }} />
-            <Btn variant="primary" onClick={() => navigate('/rehabilitation')}>
+            <Btn variant="primary" onClick={() => setRefOpen(true)}>
               <Ico name="plus" size={12} /> Giấy GT
             </Btn>
           </div>
@@ -537,13 +599,25 @@ const RehabilitationV2: React.FC = () => {
                   <Ico name="check" size={12} /> {accepting === sel.id ? 'Đang chấp nhận…' : 'Chấp nhận'}
                 </Btn>
               )}
+              {sel && sKey(sel.status) === 'pending' && (
+                <Btn onClick={() => { setRejectReason(''); setRejectTarget(sel); }}>
+                  <Ico name="x" size={12} /> Từ chối
+                </Btn>
+              )}
               {sel && sKey(sel.status) !== 'pending' && sKey(sel.status) !== 'cancelled' && <>
                 <Btn onClick={() => { const r = sel; setSel(null); openAssess(r); }}>
                   <Ico name="stethoscope" size={12} /> Đánh giá
                 </Btn>
-                <Btn variant="primary" onClick={() => { const r = sel; setSel(null); openPlan(r); }}>
-                  <Ico name="file-text" size={12} /> Lập KH
-                </Btn>
+                {sKey(sel.status) === 'accepted' && (
+                  <Btn variant="primary" onClick={() => { const r = sel; setSel(null); openPlan(r); }}>
+                    <Ico name="file-text" size={12} /> Lập KH
+                  </Btn>
+                )}
+                {sKey(sel.status) === 'progress' && (
+                  <Btn variant="primary" onClick={() => { setDischargeNote(''); setDischargeTarget(sel); }}>
+                    <Ico name="check" size={12} /> Kết thúc điều trị
+                  </Btn>
+                )}
               </>}
             </>}
           >
@@ -621,6 +695,60 @@ const RehabilitationV2: React.FC = () => {
           </ModalShell>
 
           {/* Modal: Lập kế hoạch PHCN */}
+          <CrudModal
+            open={refOpen}
+            onClose={() => setRefOpen(false)}
+            title="Giấy giới thiệu PHCN"
+            fields={refFields}
+            initial={REF_INIT}
+            size="lg"
+            onSubmit={async (v) => {
+              await createReferral({
+                patientId: String(v.patientId ?? ''), rehabType: String(v.rehabType ?? 'PT'),
+                primaryDiagnosis: String(v.primaryDiagnosis ?? '').trim(),
+                diagnosisICD: String(v.diagnosisICD ?? '').trim() || undefined,
+                rehabGoals: String(v.rehabGoals ?? '').trim() || undefined,
+                precautions: String(v.precautions ?? '').trim() || undefined,
+              });
+              tk('Đã tạo giấy giới thiệu PHCN');
+              load();
+            }}
+          />
+
+          <ModalShell
+            open={!!rejectTarget}
+            onClose={() => setRejectTarget(null)}
+            size="md"
+            title={rejectTarget ? `Từ chối giấy GT ${rejectTarget.referralCode || ''}` : 'Từ chối giấy GT'}
+            footer={<>
+              <Btn variant="ghost" onClick={() => setRejectTarget(null)}>Đóng</Btn>
+              <Btn variant="primary" disabled={rejectBusy} onClick={submitReject}>{rejectBusy ? 'Đang lưu…' : 'Từ chối'}</Btn>
+            </>}
+          >
+            <Field label="Lý do từ chối" required>
+              <Input.TextArea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+            </Field>
+          </ModalShell>
+
+          <ModalShell
+            open={!!dischargeTarget}
+            onClose={() => setDischargeTarget(null)}
+            size="md"
+            title={dischargeTarget ? `Kết thúc điều trị PHCN · ${dischargeTarget.patientName || ''}` : 'Kết thúc điều trị PHCN'}
+            footer={<>
+              <Btn variant="ghost" onClick={() => setDischargeTarget(null)}>Đóng</Btn>
+              <Btn variant="primary" disabled={dischargeBusy} onClick={submitDischarge}>{dischargeBusy ? 'Đang lưu…' : 'Kết thúc điều trị'}</Btn>
+            </>}
+          >
+            <Field label="Tình trạng chức năng khi kết thúc" required>
+              <Input.TextArea rows={3} value={dischargeNote} onChange={(e) => setDischargeNote(e.target.value)}
+                placeholder="Barthel cuối đợt, khả năng tự sinh hoạt, hướng dẫn tập tại nhà…" />
+            </Field>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-6)' }}>
+              Các buổi tập còn lịch của kế hoạch sẽ được huỷ.
+            </div>
+          </ModalShell>
+
           <CrudModal
             open={planCrudOpen}
             onClose={() => setPlanCrudOpen(false)}

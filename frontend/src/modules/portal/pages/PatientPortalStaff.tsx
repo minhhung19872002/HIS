@@ -21,15 +21,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
-import { Avatar, DatePicker, Input, Select } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { DatePicker, Input, Modal, Select } from 'antd';
 import {
-  getAccount,
-  getMyAppointments,
-  bookAppointment,
+  getPatientAppointments,
+  bookPatientAppointment,
+  cancelAppointment,
   getDepartments,
   getDoctors,
-  getBills,
+  getPatientInvoices,
   getPatientQuestions,
   createPatientQuestion,
   answerPatientQuestion,
@@ -37,11 +36,10 @@ import {
 } from '../api/patientPortal';
 import type {
   PortalAccountLookupDto,
-  PatientAccountDto,
-  OnlineAppointmentDto,
+  PortalAppointmentRow,
+  PortalInvoiceRow,
   DepartmentInfoDto,
   DoctorInfoDto,
-  BillSummaryDto,
   PatientQuestionDto,
 } from '../api/patientPortal';
 import {
@@ -73,14 +71,18 @@ const TABS: { v: TabKey; l: string; ic: string }[] = [
   { v: 'account', l: 'Tài khoản', ic: 'user' },
 ];
 
-const APPT_STATUS: Record<number, { label: string; tone: StatusTone }> = {
-  1: { label: 'Yêu cầu', tone: 'info' },
-  2: { label: 'Xác nhận', tone: 'ok' },
-  3: { label: 'Đã check-in', tone: 'info' },
-  4: { label: 'Hoàn thành', tone: 'ok' },
-  5: { label: 'Đã hủy', tone: 'crit' },
-  6: { label: 'Vắng mặt', tone: 'warn' },
+// QA-R11: /portal/appointments returns a string status (HIS appointment 0..4 mapped by the API).
+const APPT_STATUS: Record<string, { label: string; tone: StatusTone }> = {
+  Pending: { label: 'Chờ xác nhận', tone: 'info' },
+  Confirmed: { label: 'Đã xác nhận', tone: 'ok' },
+  CheckedIn: { label: 'Đã đến khám', tone: 'ok' },
+  NoShow: { label: 'Không đến', tone: 'warn' },
+  Cancelled: { label: 'Đã hủy', tone: 'crit' },
 };
+
+// /portal/departments and /portal/doctors return the raw entity names, not DepartmentInfoDto/DoctorInfoDto.
+type DeptOption = DepartmentInfoDto & { departmentName?: string; departmentCode?: string };
+type DoctorOption = DoctorInfoDto & { fullName?: string };
 
 const QUESTION_STATUS: Record<number, { label: string; tone: StatusTone }> = {
   1: { label: 'Chờ trả lời', tone: 'warn' },
@@ -90,11 +92,11 @@ const QUESTION_STATUS: Record<number, { label: string; tone: StatusTone }> = {
 
 const TIME_SLOTS = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '14:00', '14:30', '15:00', '15:30'];
 
+// Values = CreatePortalAppointmentDto.VisitType (the HIS booking has no tele-visit type — use the Telemedicine page).
 const APPT_TYPES = [
-  { value: 'NewVisit', label: 'Khám mới' },
+  { value: 'New', label: 'Khám mới' },
   { value: 'FollowUp', label: 'Tái khám' },
   { value: 'HealthCheck', label: 'Khám sức khỏe' },
-  { value: 'Telemedicine', label: 'Khám từ xa' },
 ];
 
 const QUESTION_CATEGORIES = ['Khám bệnh', 'Xét nghiệm', 'Thuốc', 'Bảo hiểm', 'Thủ tục', 'Khác'];
@@ -115,17 +117,19 @@ const PatientPortalStaffV2: React.FC = () => {
   const [tab, setTab] = useTabState<TabKey>('appointments');
   const [loading, setLoading] = useState(true);
 
-  const [account, setAccount] = useState<PatientAccountDto | null>(null);
-  const [appointments, setAppointments] = useState<OnlineAppointmentDto[]>([]);
-  const [departments, setDepartments] = useState<DepartmentInfoDto[]>([]);
-  const [doctors, setDoctors] = useState<DoctorInfoDto[]>([]);
-  const [bills, setBills] = useState<BillSummaryDto[]>([]);
+  // QA-R11: staff act on behalf of ONE selected portal account (was: GET /portal/account = empty stub for staff,
+  // hospital-wide appointments/bills, and a booking with no patient that the API could not accept).
+  const [selected, setSelected] = useState<PortalAccountLookupDto | null>(null);
+  const [appointments, setAppointments] = useState<PortalAppointmentRow[]>([]);
+  const [departments, setDepartments] = useState<DeptOption[]>([]);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [bills, setBills] = useState<PortalInvoiceRow[]>([]);
   const [questions, setQuestions] = useState<PatientQuestionDto[]>([]);
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookForm, setBookForm] = useState<BookForm>(EMPTY_BOOK);
   const [booking, setBooking] = useState(false);
-  const [apptDetail, setApptDetail] = useState<OnlineAppointmentDto | null>(null);
+  const [apptDetail, setApptDetail] = useState<PortalAppointmentRow | null>(null);
 
   const [askOpen, setAskOpen] = useState(false);
   const [askForm, setAskForm] = useState<QuestionForm>(EMPTY_QUESTION);
@@ -142,23 +146,17 @@ const PatientPortalStaffV2: React.FC = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [accRes, apptRes, deptRes, docRes, billRes, qRes] = await Promise.allSettled([
-        getAccount(),
-        getMyAppointments(),
+      const [deptRes, docRes, qRes] = await Promise.allSettled([
         getDepartments(),
         getDoctors(),
-        getBills(),
         getPatientQuestions(),
       ]);
-      if (accRes.status === 'fulfilled') setAccount(accRes.value.data ?? null);
-      if (apptRes.status === 'fulfilled') setAppointments(apptRes.value.data ?? []);
-      if (deptRes.status === 'fulfilled') setDepartments(deptRes.value.data ?? []);
-      if (docRes.status === 'fulfilled') setDoctors(docRes.value.data ?? []);
-      if (billRes.status === 'fulfilled') setBills(billRes.value.data ?? []);
+      if (deptRes.status === 'fulfilled') setDepartments((deptRes.value.data ?? []) as DeptOption[]);
+      if (docRes.status === 'fulfilled') setDoctors((docRes.value.data ?? []) as DoctorOption[]);
       if (qRes.status === 'fulfilled') setQuestions(qRes.value.data ?? []);
       // #467 — nhánh rejected trước đây bị nuốt hoàn toàn: gom 1 cảnh báo nêu rõ phần nào thiếu
-      const settled: PromiseSettledResult<unknown>[] = [accRes, apptRes, deptRes, docRes, billRes, qRes];
-      const labels = ['tài khoản', 'lịch hẹn', 'danh sách khoa', 'danh sách bác sĩ', 'hóa đơn', 'câu hỏi'];
+      const settled: PromiseSettledResult<unknown>[] = [deptRes, docRes, qRes];
+      const labels = ['danh sách khoa', 'danh sách bác sĩ', 'câu hỏi'];
       const failed = labels.filter((_, i) => settled[i].status === 'rejected');
       if (failed.length > 0) {
         const first = settled.find((r) => r.status === 'rejected');
@@ -174,53 +172,93 @@ const PatientPortalStaffV2: React.FC = () => {
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
+  // Appointments + invoices of the selected patient (history included so cancelled/visited rows show too).
+  const selectedPatientId = selected?.patientId ?? undefined;
+  const loadPatientData = useCallback(async () => {
+    if (!selectedPatientId) { setAppointments([]); setBills([]); return; }
+    const [apptRes, billRes] = await Promise.allSettled([
+      getPatientAppointments(selectedPatientId, true),
+      getPatientInvoices(selectedPatientId),
+    ]);
+    setAppointments(apptRes.status === 'fulfilled' ? apptRes.value.data ?? [] : []);
+    setBills(billRes.status === 'fulfilled' ? billRes.value.data ?? [] : []);
+    const failed = [apptRes, billRes].find((r) => r.status === 'rejected');
+    if (failed && failed.status === 'rejected') tw(friendlyErrorMessage(failed.reason, 'Không tải được lịch hẹn / hóa đơn của người bệnh'));
+  }, [selectedPatientId]);
+  useEffect(() => { void loadPatientData(); }, [loadPatientData]);
+
   // ── Appointments tab ─────────────────────────────────────────────────────
-  const apptColumns: ColumnDef<OnlineAppointmentDto>[] = [
-    { key: 'date', label: 'Ngày', width: 110, render: (r) => (r.preferredDate ? dayjs(r.preferredDate).format('DD/MM/YYYY') : '—') },
-    { key: 'time', label: 'Giờ', width: 80, render: (r) => r.preferredTime || '—' },
+  const apptColumns: ColumnDef<PortalAppointmentRow>[] = [
+    { key: 'code', label: 'Mã hẹn', width: 140, mono: true, render: (r) => r.appointmentCode || '—' },
+    { key: 'date', label: 'Ngày', width: 110, render: (r) => (r.appointmentDate ? dayjs(r.appointmentDate).format('DD/MM/YYYY') : '—') },
+    { key: 'time', label: 'Giờ', width: 80, render: (r) => (r.appointmentTime && r.appointmentTime !== '00:00:00' ? r.appointmentTime.slice(0, 5) : '—') },
     { key: 'doctor', label: 'Bác sĩ', render: (r) => r.doctorName || '—' },
-    { key: 'dept', label: 'Khoa', render: (r) => r.departmentName },
-    { key: 'type', label: 'Loại', width: 130, render: (r) => r.appointmentTypeName || '—' },
+    { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
     {
       key: 'status', label: 'Trạng thái', width: 140, render: (r) => {
-        const s = APPT_STATUS[r.status] || { label: r.statusName || 'N/A', tone: 'info' as StatusTone };
+        const s = APPT_STATUS[r.status] || { label: r.status || 'N/A', tone: 'info' as StatusTone };
         return <StatusBadge tone={s.tone} dot>{s.label}</StatusBadge>;
       },
     },
   ];
 
-  const openBook = () => { setBookForm({ ...EMPTY_BOOK }); setBookOpen(true); };
+  const openBook = () => {
+    if (!selected?.patientId) { te('Chọn tài khoản người bệnh (đã liên kết hồ sơ) trước khi đặt lịch hộ'); return; }
+    setBookForm({ ...EMPTY_BOOK });
+    setBookOpen(true);
+  };
 
-  // handleBookAppointment — verbatim mapping từ v1
+  // QA-R11: send the fields the API reads (CreatePortalAppointmentDto) + the patient; the API now books a real
+  // HIS appointment (slot capacity, same-day duplicate, queue number) and returns its validation message.
   const onBook = async () => {
+    if (!selected?.patientId) { te('Chưa chọn người bệnh'); return; }
     if (!bookForm.departmentId) { te('Vui lòng chọn khoa'); return; }
     if (!bookForm.date) { te('Vui lòng chọn ngày'); return; }
     if (!bookForm.time) { te('Vui lòng chọn giờ'); return; }
     if (!bookForm.type) { te('Vui lòng chọn loại khám'); return; }
     setBooking(true);
     try {
-      await bookAppointment({
-        appointmentType: bookForm.type,
+      await bookPatientAppointment(selected.patientId, {
+        appointmentDate: bookForm.date,
+        appointmentTime: `${bookForm.time}:00`,
         departmentId: bookForm.departmentId,
         doctorId: bookForm.doctorId,
-        preferredDate: bookForm.date,
-        preferredTime: bookForm.time,
-        chiefComplaint: bookForm.notes,
-        isFirstVisit: bookForm.type === 'NewVisit',
-        insuranceUsed: false,
-        notes: bookForm.notes,
+        visitType: bookForm.type,
+        reasonForVisit: bookForm.notes,
+        symptoms: '',
       });
       tk('Đã đặt lịch hẹn thành công');
       setBookOpen(false);
-      try {
-        const res = await getMyAppointments();
-        setAppointments(res.data ?? []);
-      } catch { /* ignore refresh error */ }
-    } catch {
-      te('Không thể đặt lịch hẹn. Vui lòng thử lại.');
+      void loadPatientData();
+    } catch (err) {
+      te(friendlyErrorMessage(err, 'Không thể đặt lịch hẹn. Vui lòng thử lại.'));
     } finally {
       setBooking(false);
     }
+  };
+
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const onCancelAppt = (r: PortalAppointmentRow) => {
+    if (cancellingId) return;
+    Modal.confirm({
+      title: 'Hủy lịch hẹn',
+      content: `Hủy lịch hẹn ${r.appointmentCode || ''} ngày ${dayjs(r.appointmentDate).format('DD/MM/YYYY')}?`,
+      okText: 'Hủy lịch',
+      okButtonProps: { danger: true },
+      cancelText: 'Đóng',
+      onOk: async () => {
+        setCancellingId(r.id);
+        try {
+          await cancelAppointment(r.id, 'Nhân viên hủy hộ người bệnh');
+          tk('Đã hủy lịch hẹn');
+          void loadPatientData();
+        } catch (err) {
+          te(friendlyErrorMessage(err, 'Không hủy được lịch hẹn'));
+        } finally {
+          setCancellingId(null);
+        }
+      },
+    });
   };
 
   // ── Q&A tab ──────────────────────────────────────────────────────────────
@@ -310,13 +348,31 @@ const PatientPortalStaffV2: React.FC = () => {
     }
   };
 
-  // ── Account tab (verbatim view-only từ v1, không có form sửa) ───────────────
-  const unpaidBills = bills.filter((b) => b.status === 'Pending' || b.status === 'Overdue' || b.status === 'PartialPaid');
+  // ── Account tab (view-only: the selected portal account + its unpaid invoices) ───────
+  const unpaidBills = bills.filter((b) => b.paymentStatus !== 'Paid');
+  useEffect(() => { void loadPortalAccounts(); }, [loadPortalAccounts]);
 
   return (
     <div className="ab-module">
       <div className="ab-header">
         <h2 className="ab-title">Cổng bệnh nhân (Nhân viên)</h2>
+      </div>
+
+      <div className="ab-tools">
+        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Người bệnh</span>
+        <Select
+          style={{ width: 420 }}
+          showSearch
+          allowClear
+          filterOption={false}
+          loading={accountsLoading}
+          placeholder="Chọn tài khoản cổng BN (mã BN / họ tên / 3 số cuối SĐT)"
+          value={selected?.id}
+          onSearch={(kw) => void loadPortalAccounts(kw)}
+          onChange={(v) => setSelected(portalAccounts.find((a) => a.id === v) ?? null)}
+          notFoundContent={accountsLoading ? 'Đang tìm…' : 'Không có tài khoản phù hợp'}
+          options={portalAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))}
+        />
       </div>
 
       <TopTabs<TabKey> tabs={TABS} tab={tab} setTab={setTab} />
@@ -327,12 +383,15 @@ const PatientPortalStaffV2: React.FC = () => {
             <span className="spacer" />
             <Btn variant="primary" icon="plus" onClick={openBook}>Đặt lịch mới</Btn>
           </div>
-          <DataTable<OnlineAppointmentDto>
+          <DataTable<PortalAppointmentRow>
             columns={apptColumns}
             data={appointments}
             rowKey={(r) => r.id}
             onRowClick={setApptDetail}
-            empty={loading ? 'Đang tải…' : 'Chưa có lịch hẹn nào'}
+            actions={(r) => (r.status === 'Pending' || r.status === 'Confirmed'
+              ? <ActBtn ic="x" title="Hủy lịch hẹn" onClick={() => onCancelAppt(r)} />
+              : null)}
+            empty={!selected ? 'Chọn người bệnh để xem lịch hẹn' : 'Chưa có lịch hẹn nào'}
           />
         </>
       )}
@@ -360,44 +419,32 @@ const PatientPortalStaffV2: React.FC = () => {
 
       {tab === 'account' && (
         <div style={{ padding: 'var(--space-16) 0' }}>
-          {account ? (
+          {selected ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-16)', marginBottom: 'var(--space-16)' }}>
-                <Avatar size={72} icon={<UserOutlined />} src={account.avatarUrl} />
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>{account.fullName}</div>
-                  <StatusBadge tone={account.accountStatus === 1 ? 'ok' : account.accountStatus === 2 ? 'crit' : 'info'} dot>
-                    {account.accountStatusName || '—'}
-                  </StatusBadge>
-                </div>
-              </div>
-              <DrSec title="Thông tin liên hệ">
-                <DrField lbl="SĐT">{account.phone}</DrField>
-                <DrField lbl="Email">{account.email || '—'}</DrField>
-                <DrField lbl="Địa chỉ">{account.address || '—'}</DrField>
-              </DrSec>
-              <DrSec title="Thông tin cá nhân">
-                <DrField lbl="Ngày sinh">{account.dateOfBirth ? dayjs(account.dateOfBirth).format('DD/MM/YYYY') : '—'}</DrField>
-                <DrField lbl="CCCD">{account.idNumber || '—'}</DrField>
-                <DrField lbl="BHYT">{account.healthInsurance?.cardNumber || 'Không có'}</DrField>
+              <DrSec title="Tài khoản cổng bệnh nhân">
+                <DrField lbl="Người bệnh"><b>{selected.patientName || '—'}</b></DrField>
+                <DrField lbl="Mã BN">{selected.patientCode || '—'}</DrField>
+                <DrField lbl="SĐT">{selected.maskedPhone || '—'}</DrField>
+                <DrField lbl="Trạng thái">
+                  <StatusBadge tone={selected.status === 'Active' ? 'ok' : 'warn'} dot>{selected.status || '—'}</StatusBadge>
+                </DrField>
                 <DrField lbl="Liên kết BN">
-                  {account.isLinkedToPatient
-                    ? <StatusBadge tone="ok" dot>{`Đã liên kết (${account.patientCode || ''})`}</StatusBadge>
+                  {selected.patientId
+                    ? <StatusBadge tone="ok" dot>{`Đã liên kết (${selected.patientCode || ''})`}</StatusBadge>
                     : <StatusBadge tone="warn" dot>Chưa liên kết</StatusBadge>}
                 </DrField>
-                <DrField lbl="Đăng nhập gần nhất">{account.lastLoginAt ? dayjs(account.lastLoginAt).format('DD/MM/YYYY HH:mm') : '—'}</DrField>
               </DrSec>
               <DrSec title="Hóa đơn chưa thanh toán">
                 {unpaidBills.length > 0 ? unpaidBills.map((b) => (
                   <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line-soft)' }}>
-                    <span>{`Hóa đơn ${b.billCode} — ${b.billDate ? dayjs(b.billDate).format('DD/MM/YYYY') : '—'}`}</span>
-                    <b style={{ color: 'var(--clr-crit)' }}>{(b.amountDue ?? 0).toLocaleString('vi-VN')} VND</b>
+                    <span>{`Hóa đơn ${b.invoiceCode} — ${b.invoiceDate ? dayjs(b.invoiceDate).format('DD/MM/YYYY') : '—'}`}</span>
+                    <b style={{ color: 'var(--clr-crit)' }}>{(b.totalAmount ?? 0).toLocaleString('vi-VN')} VND</b>
                   </div>
                 )) : <div style={{ color: 'var(--t-2)', fontSize: 12.5 }}>Không có hóa đơn chưa thanh toán</div>}
               </DrSec>
             </>
           ) : (
-            <div style={{ color: 'var(--t-2)' }}>Chưa có thông tin tài khoản</div>
+            <div style={{ color: 'var(--t-2)' }}>Chọn tài khoản người bệnh ở trên để xem thông tin</div>
           )}
         </div>
       )}
@@ -406,15 +453,16 @@ const PatientPortalStaffV2: React.FC = () => {
       <DrawerShell open={!!apptDetail} onClose={() => setApptDetail(null)} title="Chi tiết lịch hẹn" size="md">
         {apptDetail && (
           <DrSec title="Thông tin lịch hẹn">
-            <DrField lbl="Bệnh nhân">{apptDetail.patientName}</DrField>
-            <DrField lbl="Ngày hẹn">{apptDetail.preferredDate ? dayjs(apptDetail.preferredDate).format('DD/MM/YYYY') : '—'}</DrField>
-            <DrField lbl="Giờ">{apptDetail.preferredTime}</DrField>
-            <DrField lbl="Khoa">{apptDetail.departmentName}</DrField>
+            <DrField lbl="Mã hẹn">{apptDetail.appointmentCode || '—'}</DrField>
+            <DrField lbl="Bệnh nhân">{apptDetail.patientName || selected?.patientName || '—'}</DrField>
+            <DrField lbl="Ngày hẹn">{apptDetail.appointmentDate ? dayjs(apptDetail.appointmentDate).format('DD/MM/YYYY') : '—'}</DrField>
+            <DrField lbl="Giờ">{apptDetail.appointmentTime && apptDetail.appointmentTime !== '00:00:00' ? apptDetail.appointmentTime.slice(0, 5) : '—'}</DrField>
+            <DrField lbl="Khoa">{apptDetail.departmentName || '—'}</DrField>
+            <DrField lbl="Phòng">{apptDetail.roomNumber || '—'}</DrField>
             <DrField lbl="Bác sĩ">{apptDetail.doctorName || '—'}</DrField>
-            <DrField lbl="Lý do">{apptDetail.chiefComplaint || '—'}</DrField>
-            <DrField lbl="Trạng thái">{apptDetail.statusName}</DrField>
-            {apptDetail.confirmationCode && <DrField lbl="Mã xác nhận">{apptDetail.confirmationCode}</DrField>}
-            {apptDetail.notes && <DrField lbl="Ghi chú">{apptDetail.notes}</DrField>}
+            <DrField lbl="Lý do">{apptDetail.reasonForVisit || '—'}</DrField>
+            <DrField lbl="Trạng thái">{APPT_STATUS[apptDetail.status]?.label ?? apptDetail.status}</DrField>
+            {apptDetail.queueNumber != null && <DrField lbl="Số thứ tự">{apptDetail.queueNumber}</DrField>}
           </DrSec>
         )}
       </DrawerShell>
@@ -437,7 +485,7 @@ const PatientPortalStaffV2: React.FC = () => {
             placeholder="Chọn khoa"
             value={bookForm.departmentId}
             onChange={(v) => setBookForm({ ...bookForm, departmentId: v })}
-            options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            options={departments.map((d) => ({ value: d.id, label: d.departmentName ?? d.name }))}
           />
         </DrField>
         <DrField lbl="Bác sĩ">
@@ -447,7 +495,11 @@ const PatientPortalStaffV2: React.FC = () => {
             allowClear
             value={bookForm.doctorId}
             onChange={(v) => setBookForm({ ...bookForm, doctorId: v })}
-            options={doctors.map((d) => ({ value: d.id, label: d.title ? `${d.title} ${d.name} - ${d.specialty}` : `${d.name} - ${d.specialty}` }))}
+            options={doctors.map((d) => {
+              const name = d.fullName ?? d.name;
+              const spec = d.specialty ? ` - ${d.specialty}` : '';
+              return { value: d.id, label: d.title ? `${d.title} ${name}${spec}` : `${name}${spec}` };
+            })}
           />
         </DrField>
         <DrField lbl="Ngày" required>

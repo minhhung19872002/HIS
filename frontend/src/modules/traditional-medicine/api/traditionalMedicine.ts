@@ -5,6 +5,8 @@ import { apiClient } from '../../../services/apiClient';
 export interface TraditionalTreatment {
   id: string;
   treatmentCode: string;
+  /** HIS patient id — BE requires it on create (QA-R11: name-only treatments were never billed). */
+  patientId?: string;
   patientName: string;
   patientCode: string;
   treatmentType: 'acupuncture' | 'herbal' | 'massage' | 'cupping' | 'moxibustion' | 'combined';
@@ -149,6 +151,12 @@ export const getStats = async (): Promise<TraditionalMedicineStats> => {
     console.warn('Failed to fetch traditional medicine statistics');
     return { activeTreatments: 0, completedThisMonth: 0, acupunctureSessions: 0, herbalPrescriptions: 0 };
   }
+};
+
+/** QA-R11: hủy đợt điều trị đang hoạt động (BE PUT /traditional-medicine/treatments/{id}/cancel, lý do bắt buộc). */
+export const cancelTreatment = async (id: string, reason: string) => {
+  const response = await apiClient.put(`/traditional-medicine/treatments/${id}/cancel`, { reason });
+  return response.data;
 };
 
 export const completeTreatment = async (id: string) => {

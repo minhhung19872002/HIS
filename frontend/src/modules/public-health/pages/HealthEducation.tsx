@@ -46,7 +46,8 @@ const MATERIAL_FIELDS: CrudFieldCfg[] = [
   { key: 'materialType', label: 'Loại tài liệu', type: 'select', required: true,
     options: Object.entries(MATERIAL_TYPE_LABEL).map(([value, label]) => ({ value, label })) },
   { key: 'topic', label: 'Chủ đề' },
-  { key: 'author', label: 'Tác giả' },
+  // "Tác giả" bỏ: HealthEducationMaterial không có cột này → trước đây nhập rồi mất khi lưu
+  { key: 'fileUrl', label: 'Đường dẫn tệp / URL' },
   { key: 'language', label: 'Ngôn ngữ', type: 'select',
     options: [{ value: 'vi', label: 'Tiếng Việt' }, { value: 'en', label: 'English' }] },
 ];
@@ -139,7 +140,7 @@ const HealthEducationV2: React.FC = () => {
         <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
       </div>
     ) },
-    { key: 'count', label: 'Người TG', mono: true, render: (r) => r.participantCount.toLocaleString('vi-VN') },
+    { key: 'count', label: 'Người TG', mono: true, render: (r) => (r.participantCount ?? 0).toLocaleString('vi-VN') },
     { key: 'budget', label: 'Ngân sách', mono: true, render: (r) => r.budget !== undefined ? `${fmt(r.budget)} đ` : '—' },
     { key: 'org', label: 'Người tổ chức', render: (r) => r.organizerName },
     { key: 'st', label: 'Trạng thái', render: (r) => {
@@ -159,7 +160,8 @@ const HealthEducationV2: React.FC = () => {
     { key: 'type', label: 'Loại', render: (r) => (
       <StatusBadge tone="info">{MATERIAL_TYPE_LABEL[r.materialType] || r.materialType}</StatusBadge>
     ) },
-    { key: 'author', label: 'Tác giả', render: (r) => r.author },
+    { key: 'file', label: 'Tệp', render: (r) => r.fileUrl
+      ? <a href={r.fileUrl} target="_blank" rel="noreferrer">Mở</a> : '—' },
     { key: 'date', label: 'Ngày tạo', mono: true, render: (r) => r.createdDate ? dayjs(r.createdDate).format('DD/MM/YYYY') : '—' },
     { key: 'dl', label: 'Lượt tải', mono: true, render: (r) => r.downloadCount },
     { key: 'st', label: 'Trạng thái', render: (r) => {
@@ -180,7 +182,7 @@ const HealthEducationV2: React.FC = () => {
     </div>
   );
 
-  const totalParticipants = items.reduce((s, c) => s + c.participantCount, 0);
+  const totalParticipants = items.reduce((s, c) => s + (c.participantCount ?? 0), 0);
 
   return (
     <div className="ab">
@@ -276,7 +278,7 @@ const HealthEducationV2: React.FC = () => {
             <DrField lbl="Kết thúc">{dayjs(sel.endDate).format('DD/MM/YYYY')}</DrField>
             <DrField lbl="Số ngày"><span style={{ fontFamily: 'var(--font-mono)' }}>{dayjs(sel.endDate).diff(dayjs(sel.startDate), 'day') + 1}</span></DrField>
             <DrField lbl="Người tổ chức">{sel.organizerName}</DrField>
-            <DrField lbl="Người tham gia"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.participantCount.toLocaleString('vi-VN')}</span></DrField>
+            <DrField lbl="Người tham gia"><span style={{ fontFamily: 'var(--font-mono)' }}>{(sel.participantCount ?? 0).toLocaleString('vi-VN')}</span></DrField>
             {sel.budget !== undefined && <DrField lbl="Ngân sách"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sel.budget)} đ</span></DrField>}
             <DrField lbl="Trạng thái">
               <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>

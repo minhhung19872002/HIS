@@ -297,6 +297,8 @@ export interface InternalAuditDto {
   followUpAuditRequired: boolean;
   followUpAuditDate?: string;
   status: number; // 1-Planned, 2-InProgress, 3-Completed, 4-FollowUp, 5-Closed
+  /** QA-R11: raw BE status (Planned/Approved/InProgress/Completed/Cancelled) — `status` merges Planned+Approved. */
+  statusCode?: string;
   statusName: string;
   closedDate?: string;
   closedBy?: string;
@@ -848,7 +850,10 @@ export const getAudits = (departmentId?: string, status?: number, fromDate?: str
     if (Array.isArray(r.data)) {
       r.data = r.data.map((a) => {
         const s = (a as unknown as { status?: number | string }).status;
-        return { ...a, status: typeof s === 'string' ? (AUDIT_STATUS_NUM[s] ?? 1) : (s ?? 1) };
+        return {
+          ...a, status: typeof s === 'string' ? (AUDIT_STATUS_NUM[s] ?? 1) : (s ?? 1),
+          statusCode: typeof s === 'string' ? s : undefined,
+        };
       });
     }
     return r;
@@ -859,6 +864,16 @@ export const getAudit = (id: string) =>
 
 export const createAudit = (dto: CreateAuditDto) =>
   apiClient.post<InternalAuditDto>(`${BASE_URL}/audits`, dto);
+
+/** QA-R11: Planned → Approved (BE POST /quality/audits/{id}/approve). */
+export const approveAudit = (auditId: string) =>
+  apiClient.post<boolean>(`${BASE_URL}/audits/${auditId}/approve`);
+
+/** QA-R11: record the audit result and close it (Approved → Completed). */
+export const submitAuditResult = (auditId: string, dto: {
+  auditDate?: string; majorNonConformities: number; minorNonConformities: number; observations: number;
+  opportunities?: number; executiveSummary: string; strengths?: string; areasForImprovement?: string; overallRating?: string;
+}) => apiClient.post(`${BASE_URL}/audits/${auditId}/result`, dto);
 
 export const startAudit = (auditId: string) =>
   apiClient.post<InternalAuditDto>(`${BASE_URL}/audits/${auditId}/start`);
@@ -913,8 +928,53 @@ export const exportSatisfactionReport = (fromDate: string, toDate: string, depar
 
 // #region CAPA
 
+// QA-R11: BE CAPADto is { capaCode, title, source, priority:'High', owner, targetCompletionDate, status:'Open',
+// problemDescription, verificationResults … } — the page read sourceType/dueDate/numeric status/priority, so every
+// CAPA showed "P", "Trạng thái Open" and no due date. Normalise here (v2 + v1 read this function).
+const CAPA_STATUS_NUM: Record<string, number> = { Open: 1, InProgress: 2, PendingVerification: 3, Verified: 4, Closed: 5, Overdue: 2 };
+const CAPA_STATUS_NAME: Record<number, string> = { 1: 'Mở', 2: 'Đang thực hiện', 3: 'Chờ xác minh', 4: 'Đã xác minh', 5: 'Đã đóng' };
+const CAPA_PRIORITY_NUM: Record<string, number> = { Low: 1, Medium: 2, High: 3, Critical: 4 };
+const CAPA_PRIORITY_NAME: Record<number, string> = { 1: 'Thấp', 2: 'Trung bình', 3: 'Cao', 4: 'Khẩn' };
+const CAPA_SOURCE_NAME: Record<string, string> = { Incident: 'Sự cố', Audit: 'Audit', Complaint: 'Khiếu nại', Proactive: 'Chủ động', Other: 'Khác' };
+type BeCapa = Partial<CAPADto> & {
+  source?: string; owner?: string; targetCompletionDate?: string; problemDescription?: string;
+  verificationResults?: string; actualCompletionDate?: string; sourceIncidentId?: string;
+  status?: number | string; priority?: number | string;
+};
+const normalizeCapa = (c: BeCapa): CAPADto => {
+  const status = typeof c.status === 'string' ? (CAPA_STATUS_NUM[c.status] ?? 1) : (c.status ?? 1);
+  const priority = typeof c.priority === 'string' ? (CAPA_PRIORITY_NUM[c.priority] ?? 2) : (c.priority ?? 2);
+  const sourceType = c.sourceType ?? c.source ?? '';
+  return {
+    ...(c as CAPADto),
+    status, statusName: c.statusName || CAPA_STATUS_NAME[status] || String(c.status ?? ''),
+    priority, priorityName: c.priorityName || CAPA_PRIORITY_NAME[priority] || '',
+    sourceType, sourceTypeName: c.sourceTypeName || CAPA_SOURCE_NAME[sourceType] || sourceType,
+    sourceId: c.sourceId ?? c.sourceIncidentId,
+    responsiblePersonName: c.responsiblePersonName || c.owner || '',
+    dueDate: c.dueDate || c.targetCompletionDate || '',
+    description: c.description || c.title || '',
+    problemStatement: c.problemStatement || c.problemDescription || '',
+    verificationResult: c.verificationResult || c.verificationResults,
+    closedDate: c.closedDate || c.actualCompletionDate,
+    correctiveActions: c.correctiveActions || [],
+    preventiveActions: c.preventiveActions || [],
+  };
+};
+
 export const getCAPAs = (departmentId?: string, status?: number, priority?: number) =>
-  apiClient.get<CAPADto[]>(`${BASE_URL}/capas`, { params: { departmentId, status, priority } });
+  apiClient.get<CAPADto[]>(`${BASE_URL}/capas`, { params: { departmentId, status, priority } }).then((r) => {
+    if (Array.isArray(r.data)) r.data = (r.data as BeCapa[]).map(normalizeCapa);
+    return r;
+  });
+
+/** QA-R11: CAPA status step (BE PUT /quality/corrective-actions/{capaId}/status). Open → InProgress → PendingVerification → Closed. */
+export const updateCapaStatus = (capaId: string, status: 'InProgress' | 'PendingVerification' | 'Closed', notes?: string) =>
+  apiClient.put<boolean>(`${BASE_URL}/corrective-actions/${capaId}/status`, { status, notes });
+
+/** QA-R11: add a corrective action (CAPA) to an incident — BE POST /quality/incidents/{id}/corrective-actions. */
+export const addIncidentCorrectiveAction = (incidentId: string, dto: { description: string; actionType?: string; assignedTo?: string; dueDate?: string }) =>
+  apiClient.post<boolean>(`${BASE_URL}/incidents/${incidentId}/corrective-actions`, dto);
 
 export const getCAPA = (id: string) =>
   apiClient.get<CAPADto>(`${BASE_URL}/capas/${id}`);

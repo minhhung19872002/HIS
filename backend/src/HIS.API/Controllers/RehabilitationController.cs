@@ -39,7 +39,7 @@ namespace HIS.API.Controllers
 
         [HttpGet("referrals/pending")]
         public async Task<ActionResult<List<RehabReferralDto>>> GetPendingReferrals()
-            => Ok(await _service.GetPendingReferralsAsync());
+            => Ok((await _service.GetPendingReferralsAsync()).Where(r => r.Status is "Pending" or "Accepted").ToList());
 
         [HttpGet("referrals/{id}")]
         public async Task<ActionResult<RehabReferralDto>> GetReferral(Guid id)

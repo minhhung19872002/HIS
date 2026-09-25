@@ -55,6 +55,7 @@ public partial class PublicHealthService : IPublicHealthService
 
         return await query
             .OrderByDescending(h => h.ExamDate ?? h.CreatedAt)
+            .ThenBy(h => h.Id) // QA-R11: deterministic paging
             .Skip(skip)
             .Take(pageSize)
             .Select(h => new HealthCheckupDto

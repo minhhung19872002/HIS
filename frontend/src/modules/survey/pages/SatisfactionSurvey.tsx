@@ -7,10 +7,11 @@ import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getConfig, updateConfig,
   getCampaigns, updateCampaignStatus, submitSurveyResult,
+  getCallbacks, acknowledgeFeedback,
 } from '../api/satisfactionSurvey';
 import type {
   CreateCampaignDto, ContactCallbackDto,
-  SurveyTemplate, SurveyQuestion, SurveyConfig, Campaign,
+  SurveyTemplate, SurveyQuestion, SurveyConfig, Campaign, FeedbackCallback,
 } from '../api/satisfactionSurvey';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
@@ -21,6 +22,7 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { usePermission } from '../../../hooks/usePermission';
 
 interface SurveyResult {
   id: string;
@@ -31,6 +33,8 @@ interface SurveyResult {
   date: string;
   status: string;
   department?: string;
+  comment?: string;
+  answers?: string;
 }
 
 const PER = 18;
@@ -46,9 +50,10 @@ const scoreKey = (s: number): ScoreKey => s >= 4 ? 'high' : s >= 3 ? 'mid' : 'lo
 const toneFor = (s: number): 'ok' | 'warn' | 'crit' | 'info' =>
   s >= 4.5 ? 'ok' : s >= 3.5 ? 'info' : s >= 2.5 ? 'warn' : 'crit';
 
-type ViewKey = 'results' | 'templates' | 'config';
+type ViewKey = 'results' | 'callbacks' | 'templates' | 'config';
 const VIEW_TABS: TopTab<ViewKey>[] = [
   { v: 'results', l: 'Kết quả', ic: 'list' },
+  { v: 'callbacks', l: 'Phản hồi cần xử lý', ic: 'phone' },
   { v: 'templates', l: 'Mẫu khảo sát', ic: 'file-text' },
   { v: 'config', l: 'Cấu hình', ic: 'settings' },
 ];
@@ -85,11 +90,19 @@ const CAMPAIGN_NEXT: Record<number, { to: number; l: string }[]> = {
 
 type AnswerValue = string | number | string[] | undefined;
 
+/** SurveyFeedbackCallback.Status — BE: 0 Pending · 1 Contacted · 2 Resolved · 3 Closed. */
+const CALLBACK_STATUS: Record<number, { l: string; tone: 'ok' | 'warn' | 'info' | 'crit' }> = {
+  0: { l: 'Chờ liên hệ', tone: 'crit' }, 1: { l: 'Đã liên hệ', tone: 'warn' }, 2: { l: 'Đã xử lý', tone: 'ok' }, 3: { l: 'Đã đóng', tone: 'info' },
+};
+
 const DEFAULT_SURVEY_CONFIG: SurveyConfig = {
   autoSend: false, sendDelayHours: 24, channels: ['email'], reminderEnabled: false, reminderAfterHours: 48,
 };
 
 const SatisfactionSurveyV2: React.FC = () => {
+  // Export carries patient data and needs Report.Export on the server (Admin/Thu ngân) — hide it for others.
+  const { can } = usePermission();
+  const canExport = can('Report.Export');
   const [view, setView] = useState<ViewKey>('results');
   const [items, setItems] = useState<SurveyResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,13 +115,17 @@ const SatisfactionSurveyV2: React.FC = () => {
   // --- Chiến dịch mới ---
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [campaignSubmitting, setCampaignSubmitting] = useState(false);
-  const [campaignForm] = Form.useForm<{ name: string; description?: string; startDate: string; endDate: string; targetCount?: number; notes?: string }>();
+  const [campaignForm] = Form.useForm<{ name: string; description?: string; startDate: string; endDate: string; targetCount?: number; notes?: string; templateId?: string }>();
 
   const submitCampaign = async () => {
     try {
       const v = await campaignForm.validateFields();
       setCampaignSubmitting(true);
-      const dto: CreateCampaignDto = { name: v.name, description: v.description, startDate: v.startDate, endDate: v.endDate, targetCount: v.targetCount, notes: v.notes };
+      // QA-R11: a campaign could not be tied to a template from the UI, so "Nhập phiếu" never pre-selected its questions.
+      const dto: CreateCampaignDto = {
+        name: v.name, description: v.description, startDate: v.startDate, endDate: v.endDate, targetCount: v.targetCount, notes: v.notes,
+        templateId: v.templateId, templateName: surveyTemplates.find((t) => t.id === v.templateId)?.name,
+      };
       await createCampaign(dto);
       tk('Đã tạo chiến dịch khảo sát');
       setCampaignOpen(false);
@@ -140,8 +157,8 @@ const SatisfactionSurveyV2: React.FC = () => {
       tk('Đã ghi nhận liên hệ phản hồi');
       setCallbackTarget(null);
       callbackForm.resetFields();
-      load();
-    } catch { tw('Ghi nhận liên hệ thất bại'); }
+      load(); loadCallbacks();
+    } catch (e) { if ((e as { errorFields?: unknown })?.errorFields) return; tw(friendlyErrorMessage(e, 'Ghi nhận liên hệ thất bại')); }
     finally { setCallbackSubmitting(false); }
   };
 
@@ -161,6 +178,37 @@ const SatisfactionSurveyV2: React.FC = () => {
     finally { setCampaignBusy(null); }
   };
   const campaignOpts = useMemo(() => campaigns.map((c) => ({ v: c.id, l: `${c.name} (${CAMPAIGN_STATUS[c.status]?.l ?? c.status})` })), [campaigns]);
+
+  // --- Phản hồi cần xử lý (QA-R11: GET /callbacks + acknowledge had no UI — a recorded contact could never be closed) ---
+  const [callbacks, setCallbacks] = useState<FeedbackCallback[]>([]);
+  const [cbLoading, setCbLoading] = useState(false);
+  const [ackTarget, setAckTarget] = useState<FeedbackCallback | null>(null);
+  const [ackNote, setAckNote] = useState('');
+  const [ackSaving, setAckSaving] = useState(false);
+  const loadCallbacks = async () => {
+    setCbLoading(true);
+    try { setCallbacks(normalizeArrayResponse<FeedbackCallback>((await getCallbacks()).data)); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách phản hồi cần xử lý')); }
+    finally { setCbLoading(false); }
+  };
+  useEffect(() => { loadCallbacks(); }, []);
+  /** Latest callback per survey result → the results table "TT" column (was always "—"). */
+  const cbByResult = useMemo(() => {
+    const m = new Map<string, FeedbackCallback>();
+    callbacks.forEach((c) => { if (c.surveyResultId && !m.has(c.surveyResultId)) m.set(c.surveyResultId, c); });
+    return m;
+  }, [callbacks]);
+  const submitAck = async () => {
+    if (!ackTarget) return;
+    setAckSaving(true);
+    try {
+      await acknowledgeFeedback(ackTarget.id, ackNote.trim() || undefined);
+      tk('Đã xác nhận xử lý phản hồi');
+      setAckTarget(null);
+      loadCallbacks();
+    } catch (e) { tw(friendlyErrorMessage(e, 'Xác nhận xử lý thất bại')); }
+    finally { setAckSaving(false); }
+  };
 
   // --- Nhập phiếu khảo sát (QA-R3: POST /satisfaction-survey/results); entryQuestions is derived after the template state ---
   const [entryOpen, setEntryOpen] = useState(false);
@@ -346,6 +394,7 @@ const SatisfactionSurveyV2: React.FC = () => {
         date?: string; createdAt?: string;
         status?: string;
         department?: string; departmentName?: string;
+        comment?: string; answers?: string;
       }
       const data = normalizeArrayResponse<RawSurveyRow>(res.data);
       const rows: SurveyResult[] = data.map((r, i) => ({
@@ -358,6 +407,8 @@ const SatisfactionSurveyV2: React.FC = () => {
         date: r.date || r.createdAt || '',
         status: r.status || '',
         department: r.department || r.departmentName,
+        comment: r.comment,
+        answers: r.answers,
       }));
       setItems(rows);
     } catch { setItems([]); ti('Không tải được phản hồi khảo sát'); }
@@ -420,12 +471,18 @@ const SatisfactionSurveyV2: React.FC = () => {
       <StatusBadge tone={toneFor(r.score)} dot>{r.score?.toFixed(1) || '—'}</StatusBadge>
     ) },
     { key: 'date', label: 'Ngày', mono: true, render: (r) => r.date ? dayjs(r.date).format('DD/MM/YYYY') : '—' },
-    { key: 'status', label: 'TT', render: (r) => r.status || '—' },
+    { key: 'status', label: 'TT', render: (r) => {
+      const cb = cbByResult.get(r.id);
+      return cb ? <StatusBadge tone={CALLBACK_STATUS[cb.status]?.tone || 'info'} dot>{CALLBACK_STATUS[cb.status]?.l ?? cb.status}</StatusBadge> : (r.status || '—');
+    } },
   ];
+
+  // Question texts for the drawer's answers come from the templates (loaded lazily on the templates tab).
+  const openDetail = (r: SurveyResult) => { if (!surveyTemplates.length) loadTemplates(); setSel(r); };
 
   const actions = (r: SurveyResult) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="eye" title="Chi tiết" onClick={() => openDetail(r)} />
       {r.score <= 2 && r.score > 0 && (
         <ActBtn ic="phone" title="Liên hệ phản hồi" onClick={() => { callbackForm.resetFields(); setCallbackTarget(r); }} tone="warn" />
       )}
@@ -477,13 +534,15 @@ const SatisfactionSurveyV2: React.FC = () => {
         <span className="spacer" />
         <RefreshButton onRefresh={async () => { await load() }} />
         <Filter value={exportCampaign} onChange={setExportCampaign} options={campaignOpts} placeholder="▾ Xuất theo chiến dịch" />
-        <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
-          <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
-        </Btn>
+        {canExport && (
+          <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
+            <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
+          </Btn>
+        )}
         <Btn variant="ghost" onClick={() => { loadCampaigns(); setCampaignListOpen(true); }}>
           <Ico name="list" size={12} /> Chiến dịch
         </Btn>
-        <Btn variant="ghost" onClick={() => { campaignForm.resetFields(); setCampaignOpen(true); }}>
+        <Btn variant="ghost" onClick={() => { campaignForm.resetFields(); if (!surveyTemplates.length) loadTemplates(); setCampaignOpen(true); }}>
           <Ico name="plus" size={12} /> Chiến dịch mới
         </Btn>
         <Btn variant="primary" onClick={openEntry}>
@@ -518,11 +577,45 @@ const SatisfactionSurveyV2: React.FC = () => {
 
       <DataTable<SurveyResult>
         columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
+        onRowClick={openDetail} actions={actions}
         loading={loading}
         empty="Chưa có phản hồi khảo sát"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
+
+      {view === 'callbacks' && <>
+      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+        <span style={{ color: 'var(--t-1)', fontWeight: 600 }}>Phản hồi cần xử lý ({callbacks.filter((c) => c.status < 2).length} chưa xong / {callbacks.length})</span>
+        <span className="spacer" />
+        <RefreshButton onRefresh={async () => { await loadCallbacks() }} />
+      </div>
+      <DataTable<FeedbackCallback>
+        columns={[
+          { key: 'pat', label: 'Bệnh nhân', render: (c) => (
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{c.patientName || '—'}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{[c.patientCode, c.patientPhone].filter(Boolean).join(' · ')}</div>
+            </div>
+          ) },
+          { key: 'issue', label: 'Vấn đề', render: (c) => c.issueDescription || '—' },
+          { key: 'by', label: 'Người liên hệ', render: (c) => c.contactedByName || '—' },
+          { key: 'at', label: 'Liên hệ lúc', mono: true, render: (c) => c.contactedAt ? dayjs(c.contactedAt).format('DD/MM/YYYY HH:mm') : '—' },
+          { key: 'res', label: 'Hướng xử lý', render: (c) => c.resolution || '—' },
+          { key: 'ack', label: 'Ghi chú xác nhận', render: (c) => c.acknowledgmentNote || '—' },
+          { key: 'st', label: 'Trạng thái', render: (c) => (
+            <StatusBadge tone={CALLBACK_STATUS[c.status]?.tone || 'info'} dot>{CALLBACK_STATUS[c.status]?.l ?? c.status}</StatusBadge>
+          ) },
+        ]}
+        data={callbacks} rowKey={(c) => c.id}
+        actions={(c) => (
+          <div className="ab-actions">
+            {c.status < 2 && <ActBtn ic="check" title="Xác nhận đã xử lý" onClick={() => { setAckNote(''); setAckTarget(c); }} />}
+          </div>
+        )}
+        loading={cbLoading}
+        empty="Chưa có phản hồi cần liên hệ"
+      />
       </>}
 
       {view === 'templates' && <>
@@ -626,8 +719,24 @@ const SatisfactionSurveyV2: React.FC = () => {
           <DrSec title="Khảo sát">
             <DrField lbl="Mẫu">{sel.templateName}</DrField>
             <DrField lbl="Ngày phản hồi">{sel.date ? dayjs(sel.date).format('DD/MM/YYYY HH:mm') : '—'}</DrField>
-            <DrField lbl="Trạng thái">{sel.status || '—'}</DrField>
+            <DrField lbl="Trạng thái">{cbByResult.get(sel.id) ? CALLBACK_STATUS[cbByResult.get(sel.id)!.status]?.l : (sel.status || '—')}</DrField>
+            <DrField lbl="Góp ý">{sel.comment || '—'}</DrField>
           </DrSec>
+          {(() => {
+            // QA-R11: per-question answers were saved but never shown anywhere.
+            let ans: Record<string, AnswerValue> = {};
+            try { ans = sel.answers ? JSON.parse(sel.answers) : {}; } catch { ans = {}; }
+            const keys = Object.keys(ans);
+            if (!keys.length) return null;
+            const qText = (id: string) => surveyTemplates.flatMap((t) => t.questions || []).find((q) => q.id === id)?.text || id;
+            return (
+              <DrSec title="Câu trả lời">
+                {keys.map((k) => (
+                  <DrField key={k} lbl={qText(k)}>{Array.isArray(ans[k]) ? (ans[k] as string[]).join(', ') : ans[k] === 'yes' ? 'Có' : ans[k] === 'no' ? 'Không' : String(ans[k] ?? '—')}</DrField>
+                ))}
+              </DrSec>
+            );
+          })()}
           <DrSec title="Đánh giá">
             <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', textAlign: 'center' }}>
               <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'var(--font-mono)', color: `var(--a-${toneFor(sel.score) === 'ok' ? 'em' : toneFor(sel.score) === 'warn' ? 'or' : toneFor(sel.score) === 'crit' ? 'rd' : 'cy'}-text)` }}>
@@ -671,6 +780,9 @@ const SatisfactionSurveyV2: React.FC = () => {
           </Form.Item>
           <Form.Item name="endDate" label="Ngày kết thúc" rules={[{ required: true }]}>
             <Input type="date" />
+          </Form.Item>
+          <Form.Item name="templateId" label="Mẫu khảo sát">
+            <Select allowClear placeholder="Chọn mẫu dùng cho chiến dịch" options={surveyTemplates.map((t) => ({ value: t.id, label: t.name }))} />
           </Form.Item>
           <Form.Item name="targetCount" label="Mục tiêu số phản hồi">
             <Input type="number" min={1} placeholder="VD: 200" />
@@ -784,7 +896,7 @@ const SatisfactionSurveyV2: React.FC = () => {
         </>}
       >
         <Form form={callbackForm} layout="vertical">
-          <Form.Item name="issueDescription" label="Mô tả vấn đề BN phản ánh">
+          <Form.Item name="issueDescription" label="Mô tả vấn đề BN phản ánh" rules={[{ required: true, message: 'Nhập vấn đề người bệnh phản ánh' }]}>
             <Input.TextArea rows={3} placeholder="BN phàn nàn về…" />
           </Form.Item>
           <Form.Item name="contactedByName" label="Người liên hệ (nhân viên)">
@@ -792,6 +904,26 @@ const SatisfactionSurveyV2: React.FC = () => {
           </Form.Item>
           <Form.Item name="resolution" label="Hướng xử lý / kết quả">
             <Input.TextArea rows={2} placeholder="Đã giải thích / hẹn gặp / chuyển khoa…" />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* QA-R11: xác nhận đã xử lý phản hồi (POST /callbacks/{id}/acknowledge) */}
+      <ModalShell
+        open={!!ackTarget}
+        onClose={() => setAckTarget(null)}
+        size="md"
+        title={ackTarget?.patientName ? `Xác nhận đã xử lý · ${ackTarget.patientName}` : 'Xác nhận đã xử lý'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setAckTarget(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitAck} disabled={ackSaving}>
+            <Ico name="check" size={12} /> {ackSaving ? 'Đang lưu…' : 'Xác nhận'}
+          </Btn>
+        </>}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Ghi chú xử lý">
+            <Input.TextArea rows={3} value={ackNote} onChange={(ev) => setAckNote(ev.target.value)} placeholder="Kết quả xử lý / phản hồi lại BN…" />
           </Form.Item>
         </Form>
       </ModalShell>

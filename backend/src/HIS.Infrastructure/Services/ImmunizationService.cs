@@ -59,6 +59,7 @@ public class ImmunizationService : IImmunizationService
 
         var items = await query
             .OrderByDescending(v => v.VaccinationDate)
+            .ThenBy(v => v.Id) // QA-R11: deterministic paging
             .Skip(filter.PageIndex * filter.PageSize)
             .Take(filter.PageSize)
             .Select(v => MapToListDto(v))
@@ -204,6 +205,9 @@ public class ImmunizationService : IImmunizationService
             ?? throw new KeyNotFoundException("Không tìm thấy bản ghi tiêm chủng");
         if (dto.AefiSeverity is < 0 or > 3)
             throw new ArgumentException("Mức độ phản ứng sau tiêm không hợp lệ (0=Không, 1=Nhẹ, 2=Vừa, 3=Nặng)."); // QA-R4
+        // QA-R11: AEFI could be recorded on a scheduled/missed/cancelled dose that was never given.
+        if (entity.Status != 1)
+            throw new InvalidOperationException("Chỉ ghi nhận phản ứng sau tiêm cho mũi đã tiêm.");
 
         entity.AefiReport = dto.AefiReport;
         entity.AefiSeverity = dto.AefiSeverity;

@@ -20,6 +20,7 @@ import {
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { Field } from '../../../components/form/Field';
@@ -138,13 +139,13 @@ const TelemedicineV2: React.FC = () => {
     if (confirmBusy) return;
     setConfirmBusy(r.id);
     try { await confirmAppointment(r.id); message.success(`Đã xác nhận · ${r.patientName}`); reload(); }
-    catch { message.error('Xác nhận thất bại'); }
+    catch (e) { message.error(friendlyErrorMessage(e, 'Xác nhận thất bại')); }
     finally { setConfirmBusy(null); }
   };
 
   const onCancel = async (r: TelemedicineAppointmentDto) => {
     try { await cancelAppointment(r.id, 'Hủy từ giao diện quản trị'); message.warning(`Đã hủy · ${r.patientName}`); reload(); }
-    catch { message.error('Hủy thất bại'); }
+    catch (e) { message.error(friendlyErrorMessage(e, 'Hủy thất bại')); }
   };
 
   const onJoin = (r: TelemedicineAppointmentDto) => {
@@ -160,7 +161,7 @@ const TelemedicineV2: React.FC = () => {
       const roomUrl = res.data?.roomUrl;
       if (roomUrl) { window.open(roomUrl, '_blank'); reload(); }
       else message.warning('Phòng họp chưa sẵn sàng');
-    } catch { message.error('Không thể tạo phiên video'); }
+    } catch (e) { message.error(friendlyErrorMessage(e, 'Không thể tạo phiên video')); }
     finally { setStartSessionBusy(false); }
   };
 
@@ -351,7 +352,8 @@ const TelemedicineV2: React.FC = () => {
               <RowActions actions={[
                 {
                   key: 'join', icon: 'play', label: 'Vào phòng', primary: true,
-                  hidden: !([0, 1].includes(r.status) && !!r.videoRoomUrl), onClick: () => onJoin(r)
+                  // QA-R11: videoRoomUrl only exists while the session is InProgress (status 2) — gating on [0, 1] hid it always.
+                  hidden: !(r.status === 2 && !!r.videoRoomUrl), onClick: () => onJoin(r)
                 },
                 {
                   key: 'confirm', icon: 'check', label: 'Xác nhận', primary: true,
@@ -392,7 +394,7 @@ const TelemedicineV2: React.FC = () => {
                 <TermIcon name="check" size={12} /> Xác nhận
               </Btn>
             )}
-            {![3, 4, 5].includes(detail.status) && (
+            {(![3, 4, 5].includes(detail.status) || detail.beStatus === 'Aborted') && (
               <Btn
                 onClick={() => cf(
                   `Huỷ lịch hẹn khám từ xa của ${detail.patientName}? Thao tác không thể hoàn tác.`,
@@ -405,7 +407,7 @@ const TelemedicineV2: React.FC = () => {
               </Btn>
             )}
             {/* ── NEW B: Bắt đầu phòng khám — status=1 waiting ── */}
-            {detail.status === 1 && (
+            {(detail.status === 1 || detail.beStatus === 'Aborted') && (
               <Btn variant="primary" disabled={startSessionBusy} onClick={() => onStartSession(detail)}>
                 <TermIcon name="play" size={12} /> Bắt đầu phòng khám
               </Btn>

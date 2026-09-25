@@ -199,37 +199,20 @@ public partial class ReportingCompleteService
     {
         try
         {
-            // Generate report data based on code
-            var fileName = $"{reportCode}_{request.FromDate:yyyyMMdd}_{request.ToDate:yyyyMMdd}.{request.Format.ToLower()}";
-            var contentType = request.Format.ToLower() switch
-            {
-                "pdf" => "application/pdf",
-                "excel" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                _ => "text/html"
-            };
-
-            // Log export history
-            var history = new GeneratedReport
-            {
-                Id = Guid.NewGuid(),
-                CreatedAt = DateTime.Now,
-                CreatedBy = GetCurrentUserId()
-            };
-            // Store in GeneratedReports if table exists
-            try
-            {
-                _context.GeneratedReports.Add(history);
-                await _context.SaveChangesAsync();
-            }
-            catch (SqlException) { /* table may not exist */ }
+            // QA-R11: this answered Success=true with an EMPTY file and wrote a blank history row (no code, no bytes).
+            // Produce the real report of the code — same path as /reporting/export/{excel|pdf}.
+            var format = (request.Format ?? "").Trim().ToLowerInvariant() == "pdf" ? "pdf" : "xlsx";
+            var table = await BuildReportTableAsync(reportCode, request.FromDate, request.ToDate, request.DepartmentId);
+            var file = HIS.Infrastructure.Services.Export.ReportFileRenderer.Render(table, format);
+            await SaveReportHistoryAsync(reportCode, table.Title, file, request.FromDate, request.ToDate, null);
 
             return new ReportExportResultDto
             {
                 Success = true,
-                FileName = fileName,
-                ContentType = contentType,
-                FileContent = Array.Empty<byte>(),
-                Message = "Xuat bao cao thanh cong"
+                FileName = $"{reportCode}_{request.FromDate:yyyyMMdd}_{request.ToDate:yyyyMMdd}.{file.Extension}",
+                ContentType = format == "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                FileContent = file.Content,
+                Message = "Xuất báo cáo thành công"
             };
         }
         catch (Exception ex)
@@ -555,8 +538,11 @@ h1 {{ text-align: center; font-size: 16px; }}
                 .ToList();
             var attachmentName = $"{dto.ReportCode}_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.{file.Extension}";
             var failed = new List<string>();
+            // QA-R11: without SMTP the e-mail service only logs and answers true — history said "Gửi 1/1 email" and the
+            // page "đã gửi" while nobody received anything. Nothing is sent → every recipient counts as failed.
+            var smtpReady = _email.IsSmtpConfigured;
             foreach (var to in recipients)
-                if (!await _email.SendReportAsync(to, table.Title, file.Content, attachmentName))
+                if (!smtpReady || !await _email.SendReportAsync(to, table.Title, file.Content, attachmentName))
                     failed.Add(to);
 
             dto.LastRunTime = DateTime.Now;
@@ -566,10 +552,13 @@ h1 {{ text-align: center; font-size: 16px; }}
 
             await SaveReportHistoryAsync(dto.ReportCode, table.Title, file, fromDate, toDate,
                 recipients.Count == 0 ? "Chạy thủ công — không có người nhận"
+                    : !smtpReady ? "Chưa cấu hình SMTP — KHÔNG gửi email"
                     : $"Gửi {recipients.Count - failed.Count}/{recipients.Count} email" + (failed.Count > 0 ? $" (lỗi: {string.Join(", ", failed)})" : ""));
 
             _logger.LogInformation("Scheduled report {ReportCode} run manually: {Rows} rows, {Sent}/{Total} emails",
                 dto.ReportCode, table.Rows.Count, recipients.Count - failed.Count, recipients.Count);
+            if (failed.Count > 0 && !smtpReady)
+                throw new InvalidOperationException("Đã tạo báo cáo (xem lịch sử) nhưng máy chủ chưa cấu hình SMTP — email KHÔNG được gửi.");
             if (failed.Count > 0)
                 throw new InvalidOperationException($"Đã tạo báo cáo nhưng gửi email thất bại tới: {string.Join(", ", failed)}");
             return true;
@@ -636,6 +625,13 @@ h1 {{ text-align: center; font-size: 16px; }}
             labQuery = labQuery.Where(d => d.ServiceRequest.DepartmentId == departmentId.Value);
         var labTests = await labQuery.CountAsync();
 
+        // QA-R11: TotalRadiologyExams was a hard-coded 0 — same rule as the lab count, RequestType 2 = CĐHA.
+        var radiologyQuery = _context.ServiceRequestDetails.Where(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
+            && d.ServiceRequest.RequestType == 2 && d.Status != 3);
+        if (departmentId.HasValue)
+            radiologyQuery = radiologyQuery.Where(d => d.ServiceRequest.DepartmentId == departmentId.Value);
+        var radiologyExams = await radiologyQuery.CountAsync();
+
         // SurgeryRequest.Status 4 = cancelled
         var surgeryQuery = _context.SurgeryRequests.Where(s => s.RequestDate >= from && s.RequestDate < to && s.Status != 4 && !s.IsDeleted);
         if (departmentId.HasValue)
@@ -663,7 +659,7 @@ h1 {{ text-align: center; font-size: 16px; }}
             PatientRevenue = totalRevenue - insuranceRevenue,
             TotalExaminations = totalExams,
             TotalLabTests = labTests,
-            TotalRadiologyExams = 0,
+            TotalRadiologyExams = radiologyExams,
             TotalSurgeries = surgeries,
             OccupancyRate = occupancyRate,
             AvailableBeds = availableBeds

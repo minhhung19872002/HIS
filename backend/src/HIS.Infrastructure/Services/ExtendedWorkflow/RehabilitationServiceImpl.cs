@@ -29,7 +29,10 @@ public class RehabilitationServiceImpl : IRehabilitationService
                 .Include(x => x.Patient)
                 .Include(x => x.ReferredBy)
                 .Include(x => x.Admission).ThenInclude(a => a!.Department)
-                .Where(x => x.Status == "Pending" || x.Status == "Accepted")
+                // QA-R11: this also backs GET /referrals (the v2 list with tabs Chờ / Chấp nhận / Đang điều trị /
+                // Hoàn tất / Hủy-Từ chối) — filtering to Pending+Accepted here left three tabs permanently at 0 and a
+                // declined or finished referral vanished. The Pending/Accepted worklist filter now lives on the
+                // /referrals/pending route (controller).
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(200)
                 .ToListAsync();
@@ -84,6 +87,12 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabReferralDto> CreateReferralAsync(CreateRehabReferralDto dto)
     {
+        // QA-R11: an unknown PatientId was stored (no FK) and the referral was then hidden by the required Patient join;
+        // "Lưu ý / chống chỉ định" (Precautions) was accepted and dropped.
+        if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
+        if (string.IsNullOrWhiteSpace(dto.PrimaryDiagnosis))
+            throw new ArgumentException("Phải nhập chẩn đoán chính", nameof(dto.PrimaryDiagnosis));
         var entity = new RehabReferral { Id = Guid.NewGuid(), ReferralCode = CodeGenerator.Timestamp("REH"), PatientId = dto.PatientId, RehabType = dto.RehabType ?? "PT", Diagnosis = dto.PrimaryDiagnosis ?? "", Reason = dto.RehabGoals ?? "", Status = "Pending", CreatedAt = DateTime.Now };
         // QA0915: ReferredById stayed Guid.Empty → the required ReferredBy include turned into an INNER JOIN,
         // so the saved referral was invisible to every read (POST returned 204, list never showed it).
@@ -93,6 +102,8 @@ public class RehabilitationServiceImpl : IRehabilitationService
         entity.AdmissionId = dto.AdmissionId;
         entity.ExaminationId = dto.VisitId;
         entity.IcdCode = dto.DiagnosisICD;
+        entity.Precautions = string.IsNullOrWhiteSpace(dto.Precautions) ? null : dto.Precautions.Trim();
+        entity.Goals = string.IsNullOrWhiteSpace(dto.RehabGoals) ? null : dto.RehabGoals.Trim();
         _context.RehabReferrals.Add(entity);
         await _context.SaveChangesAsync();
         return await GetReferralAsync(entity.Id);
@@ -192,6 +203,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
         var entity = new RehabTreatmentPlan { Id = Guid.NewGuid(), PlanCode = CodeGenerator.Timestamp("RTP"), ReferralId = dto.ReferralId, RehabType = string.IsNullOrWhiteSpace(referral.RehabType) ? "PT" : referral.RehabType, PlannedSessions = dto.PlannedTotalSessions, Frequency = $"{dto.SessionsPerWeek}x/week", DurationMinutesPerSession = dto.MinutesPerSession, StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now };
         entity.CreatedById = _currentUser?.UserGuid ?? Guid.Empty;
         _context.RehabTreatmentPlans.Add(entity);
+        referral.Status = "InProgress"; // QA-R11: the referral never left "Accepted" (tab "Đang điều trị" always 0)
         await _context.SaveChangesAsync();
         return await GetTreatmentPlanAsync(entity.Id);
     }
@@ -487,6 +499,14 @@ public class RehabilitationServiceImpl : IRehabilitationService
         if (e.Status != "Active" && e.Status != "OnHold")
             throw new InvalidOperationException($"Kế hoạch đã ở trạng thái {e.Status}");
         e.Status = "Completed"; e.ActualEndDate = DateTime.Now; e.DischargeSummary = outcomeData.FunctionalStatus;
+        // QA-R11: sessions still "Scheduled" on a finished plan stayed on the therapists' schedule forever (they can no
+        // longer be documented — the plan is not Active), and the referral stayed "Accepted".
+        var openSessions = await _context.RehabSessions
+            .Where(x => x.TreatmentPlanId == planId && (x.Status == "Scheduled" || x.Status == "InProgress"))
+            .ToListAsync();
+        foreach (var s in openSessions) { s.Status = "Cancelled"; s.CancellationReason = "Kết thúc kế hoạch điều trị"; }
+        var referral = await _context.RehabReferrals.FindAsync(e.ReferralId);
+        if (referral != null && referral.Status is "Accepted" or "InProgress") referral.Status = "Completed";
         await _context.SaveChangesAsync();
         return await GetOutcomeAsync(planId);
     }

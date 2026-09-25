@@ -11,6 +11,12 @@ public class TbHivManagementService : ITbHivManagementService
 {
     private readonly HISDbContext _context;
 
+    // QA-R11: the record-type / category / outcome values the FE adapter (tbHivManagement.ts) sends.
+    private static readonly HashSet<string> RecordTypes = new() { "TB", "HIV", "TB_HIV" };
+    private static readonly HashSet<string> Categories = new() { "New", "Relapse", "FailedTreatment", "ReturnAfterDefault", "Other" };
+    private static readonly HashSet<string> Outcomes = new() { "Completed", "Failed", "DefaultedLostToFollowUp", "Died", "TransferredOut" };
+    private const string OnTreatment = "OnTreatment";
+
     public TbHivManagementService(HISDbContext context)
     {
         _context = context;
@@ -46,15 +52,21 @@ public class TbHivManagementService : ITbHivManagementService
                 query = query.Where(r => r.DoctorId == filter.DoctorId.Value);
             if (filter.DepartmentId.HasValue)
                 query = query.Where(r => r.DepartmentId == filter.DepartmentId.Value);
+            // QA-R11: the page labels this range "Bắt đầu ĐT" and shows TreatmentStartDate (fallback
+            // RegistrationDate), and the end day must be inclusive without leaking the next midnight.
             if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                query = query.Where(r => r.RegistrationDate >= from);
+                query = query.Where(r => (r.TreatmentStartDate ?? r.RegistrationDate) >= from.Date);
             if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(r => r.RegistrationDate <= to.AddDays(1));
+            {
+                var toExclusive = to.Date.AddDays(1);
+                query = query.Where(r => (r.TreatmentStartDate ?? r.RegistrationDate) < toExclusive);
+            }
 
             var skip = filter.PageIndex * filter.PageSize;
 
             return await query
                 .OrderByDescending(r => r.RegistrationDate)
+                .ThenBy(r => r.Id) // QA-R11: stable paging (pagescan)
                 .Skip(skip)
                 .Take(filter.PageSize)
                 .Select(r => new TbHivRecordListDto
@@ -166,6 +178,14 @@ public class TbHivManagementService : ITbHivManagementService
         // QA-R2: an unknown PatientId was saved as an orphan and the create returned 204 (no body).
         if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
             throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (!RecordTypes.Contains(dto.RecordType ?? ""))
+            throw new ArgumentException("Loại hồ sơ không hợp lệ (TB / HIV / TB_HIV).", nameof(dto.RecordType));
+        if (!Categories.Contains(dto.TreatmentCategory ?? ""))
+            throw new ArgumentException("Phân loại điều trị không hợp lệ.", nameof(dto.TreatmentCategory));
+        // QA-R11: the same patient could be enrolled twice in the same program while still on treatment.
+        if (await _context.TbHivRecords.AnyAsync(r => r.PatientId == dto.PatientId && r.RecordType == dto.RecordType
+                && r.Status == OnTreatment && !r.IsDeleted))
+            throw new InvalidOperationException("Bệnh nhân đang có hồ sơ cùng loại đang điều trị — không tạo trùng.");
         // Auto-generate registration code: TB-YYYY-NNNN or HIV-YYYY-NNNN
         var prefix = dto.RecordType == "HIV" ? "HIV" : "TB";
         var yearStr = DateTime.UtcNow.Year.ToString();
@@ -211,8 +231,11 @@ public class TbHivManagementService : ITbHivManagementService
 
     public async Task<TbHivRecordDetailDto> UpdateRecordAsync(Guid id, UpdateTbHivRecordDto dto)
     {
-        var record = await _context.TbHivRecords.FindAsync(id)
-            ?? throw new InvalidOperationException("Record not found");
+        var record = await _context.TbHivRecords.FindAsync(id);
+        if (record == null || record.IsDeleted) throw new KeyNotFoundException("Không tìm thấy hồ sơ Lao/HIV.");
+        // QA-R11: a closed case (completed/died/transferred…) was still editable through the API.
+        if (record.Status != OnTreatment)
+            throw new InvalidOperationException("Hồ sơ đã kết thúc điều trị — không sửa được.");
 
         if (dto.TreatmentRegimen != null) record.TreatmentRegimen = dto.TreatmentRegimen;
         if (dto.TreatmentStartDate != null && DateTime.TryParse(dto.TreatmentStartDate, out var tsd)) record.TreatmentStartDate = tsd;
@@ -241,6 +264,12 @@ public class TbHivManagementService : ITbHivManagementService
     {
         var record = await _context.TbHivRecords.FindAsync(id);
         if (record == null || record.IsDeleted) return false;
+        // QA-R11: any string (even "OnTreatment" = silent reopen, or garbage) was accepted, and a closed
+        // case could be closed again with a different outcome.
+        if (!Outcomes.Contains(dto.Status ?? ""))
+            throw new ArgumentException("Kết quả điều trị không hợp lệ.", nameof(dto.Status));
+        if (record.Status != OnTreatment)
+            throw new InvalidOperationException("Hồ sơ đã kết thúc điều trị trước đó.");
 
         record.Status = dto.Status;
         record.OutcomeDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
@@ -286,8 +315,11 @@ public class TbHivManagementService : ITbHivManagementService
 
     public async Task<TbHivFollowUpDto> CreateFollowUpAsync(Guid recordId, CreateTbHivFollowUpDto dto)
     {
-        _ = await _context.TbHivRecords.FindAsync(recordId)
-            ?? throw new InvalidOperationException("Record not found");
+        var record = await _context.TbHivRecords.FindAsync(recordId);
+        if (record == null || record.IsDeleted) throw new KeyNotFoundException("Không tìm thấy hồ sơ Lao/HIV.");
+        // QA-R11: visits were recorded on transferred-out / died / completed cases.
+        if (record.Status != OnTreatment)
+            throw new InvalidOperationException("Hồ sơ đã kết thúc điều trị — không ghi nhận thêm lần điều trị.");
 
         var followUp = new TbHivFollowUp
         {

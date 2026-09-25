@@ -27,9 +27,12 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         try
         {
             var totalSurveys = await _db.Set<SatisfactionSurveyResult>().CountAsync();
-            var thisMonth = DateTime.Today.AddDays(-30);
+            // QA-R11: CreatedAt is UTC (audit) and DischargeDate is VN local — DateTime.Today (server clock) matched
+            // neither, so the 30-day window drifted by the server/VN offset.
+            var sinceUtc = DateTime.UtcNow.AddDays(-30);
+            var sinceVn = HIS.Core.Common.VnTime.NowVn.AddDays(-30);
             var recentSurveys = await _db.Set<SatisfactionSurveyResult>()
-                .Where(s => s.CreatedAt >= thisMonth)
+                .Where(s => s.CreatedAt >= sinceUtc)
                 .ToListAsync();
 
             var avgScore = recentSurveys.Any() ? recentSurveys.Average(s => s.OverallScore) : 0;
@@ -39,7 +42,7 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
             // F10 (audit FLOW-FINAL 2026-06-06): tỷ lệ phản hồi THẬT = số khảo sát / số BN ra viện
             // trong tháng (thay placeholder hardcode 68.5).
             var dischargedThisMonth = await _db.Set<HIS.Core.Entities.Discharge>()
-                .CountAsync(d => d.DischargeDate >= thisMonth && !d.IsDeleted);
+                .CountAsync(d => d.DischargeDate >= sinceVn && !d.IsDeleted);
             var responseRate = dischargedThisMonth > 0
                 ? Math.Round((double)recentSurveys.Count / dischargedThisMonth * 100, 1) : 0;
 
@@ -137,7 +140,7 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
                 .Select(r => new
                 {
                     r.Id, r.PatientName, r.PatientCode, r.DepartmentName,
-                    r.OverallScore, r.Comment, r.TemplateName, r.CreatedAt, r.CampaignId
+                    r.OverallScore, r.Comment, r.TemplateName, r.CreatedAt, r.CampaignId, r.Answers
                 })
                 .ToListAsync();
             return ServiceOutcome.Ok(results);
@@ -169,6 +172,13 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
                 ?? throw new KeyNotFoundException("Không tìm thấy chiến dịch khảo sát");
             if (campaign.Status is 2 or 3)
                 throw new InvalidOperationException("Chiến dịch khảo sát đã đóng — không ghi nhận thêm phiếu");
+            // QA-R11: a Draft campaign (never launched) and a campaign outside its [StartDate, EndDate] window both
+            // accepted phiếu and counted them toward ActualCount.
+            if (campaign.Status != 1)
+                throw new InvalidOperationException("Chiến dịch khảo sát chưa kích hoạt — không ghi nhận phiếu");
+            var todayVn = HIS.Core.Common.VnTime.TodayVn;
+            if (todayVn < campaign.StartDate.Date || todayVn > campaign.EndDate.Date)
+                throw new InvalidOperationException($"Ngoài thời gian chiến dịch ({campaign.StartDate:dd/MM/yyyy} – {campaign.EndDate:dd/MM/yyyy}) — không ghi nhận phiếu");
         }
 
         var templateId = dto.TemplateId ?? campaign?.TemplateId;
@@ -176,9 +186,10 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         if (templateId.HasValue)
         {
             var tpl = await _db.Set<SatisfactionSurveyTemplate>().AsNoTracking()
-                .Where(t => t.Id == templateId.Value && !t.IsDeleted).Select(t => new { t.Name }).FirstOrDefaultAsync()
+                .Where(t => t.Id == templateId.Value && !t.IsDeleted).Select(t => new { t.Name, t.Questions }).FirstOrDefaultAsync()
                 ?? throw new KeyNotFoundException("Không tìm thấy mẫu khảo sát");
             templateName = tpl.Name;
+            ValidateAnswersAgainstTemplate(tpl.Questions, dto.Answers);
         }
 
         Guid? patientId = dto.PatientId;
@@ -222,22 +233,78 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         return ServiceOutcome.Ok(new { result.Id, result.CampaignId, result.OverallScore, result.CreatedAt });
     }
 
+    /// <summary>
+    /// QA-R11: answers were only checked to be JSON — keys for questions the template does not have, a rating of 99 and
+    /// unanswered required questions were all stored. Template questions: [{id,text,type,required,options}].
+    /// </summary>
+    private static void ValidateAnswersAgainstTemplate(string? questionsJson, string? answersJson)
+    {
+        if (string.IsNullOrWhiteSpace(questionsJson)) return;
+        System.Text.Json.JsonDocument qDoc;
+        try { qDoc = System.Text.Json.JsonDocument.Parse(questionsJson); }
+        catch (System.Text.Json.JsonException) { return; } // legacy non-JSON template → nothing to check against
+        using var qDisposer = qDoc;
+        if (qDoc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+
+        // answersJson was already parsed once by the caller (valid JSON guaranteed here).
+        using var aDoc = string.IsNullOrWhiteSpace(answersJson) ? null : System.Text.Json.JsonDocument.Parse(answersJson);
+        if (aDoc != null && aDoc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+            throw new ArgumentException("Câu trả lời (answers) phải là đối tượng JSON {mãCâuHỏi: trảLời}", "Answers");
+
+        var known = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var q in qDoc.RootElement.EnumerateArray())
+        {
+            if (q.ValueKind != System.Text.Json.JsonValueKind.Object
+                || !q.TryGetProperty("id", out var idEl) || idEl.ValueKind != System.Text.Json.JsonValueKind.String) continue;
+            var id = idEl.GetString()!;
+            var text = q.TryGetProperty("text", out var tEl) && tEl.ValueKind == System.Text.Json.JsonValueKind.String ? tEl.GetString() : id;
+            if (string.IsNullOrWhiteSpace(text)) continue; // blank builder rows are not shown to the respondent
+            known.Add(id);
+            var type = q.TryGetProperty("type", out var tyEl) && tyEl.ValueKind == System.Text.Json.JsonValueKind.String ? tyEl.GetString() : null;
+            var required = q.TryGetProperty("required", out var rEl) && rEl.ValueKind == System.Text.Json.JsonValueKind.True;
+            System.Text.Json.JsonElement a = default;
+            var has = aDoc != null && aDoc.RootElement.TryGetProperty(id, out a)
+                && a.ValueKind != System.Text.Json.JsonValueKind.Null
+                && !(a.ValueKind == System.Text.Json.JsonValueKind.String && string.IsNullOrWhiteSpace(a.GetString()))
+                && !(a.ValueKind == System.Text.Json.JsonValueKind.Array && a.GetArrayLength() == 0);
+            if (!has)
+            {
+                if (required) throw new ArgumentException($"Chưa trả lời câu bắt buộc: {text}", "Answers");
+                continue;
+            }
+            if (type == "rating")
+            {
+                double v = a.ValueKind == System.Text.Json.JsonValueKind.Number ? a.GetDouble()
+                    : a.ValueKind == System.Text.Json.JsonValueKind.String
+                      && double.TryParse(a.GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sv) ? sv : double.NaN;
+                if (double.IsNaN(v) || v < 1 || v > 5)
+                    throw new ArgumentException($"Câu \"{text}\": điểm đánh giá phải từ 1 đến 5", "Answers");
+            }
+        }
+        if (aDoc != null)
+            foreach (var p in aDoc.RootElement.EnumerateObject())
+                if (!known.Contains(p.Name))
+                    throw new ArgumentException($"Câu trả lời \"{p.Name}\" không thuộc mẫu khảo sát", "Answers");
+    }
+
     public async Task<ServiceOutcome> GetAnalysisAsync()
     {
         try
         {
             var results = await _db.Set<SatisfactionSurveyResult>()
-                .Where(r => r.CreatedAt >= DateTime.Today.AddDays(-90))
+                .Where(r => r.CreatedAt >= DateTime.UtcNow.AddDays(-90))
                 .ToListAsync();
 
+            // QA-R11: month buckets by VN calendar (CreatedAt is UTC — a survey at 01:00 VN on the 1st fell in the
+            // previous month).
             var byMonth = results
-                .GroupBy(r => r.CreatedAt.ToString("yyyy-MM"))
+                .GroupBy(r => HIS.Core.Common.VnTime.UtcToVn(r.CreatedAt).ToString("yyyy-MM"))
                 .Select(g => new { month = g.Key, avgScore = Math.Round(g.Average(r => r.OverallScore), 1), count = g.Count() })
                 .OrderBy(x => x.month)
                 .ToList();
 
             var byScore = Enumerable.Range(1, 5)
-                .Select(score => new { score, count = results.Count(r => (int)Math.Round(r.OverallScore) == score) })
+                .Select(score => new { score, count = results.Count(r => (int)Math.Round(r.OverallScore, MidpointRounding.AwayFromZero) == score) })
                 .ToList();
 
             return ServiceOutcome.Ok(new
@@ -434,6 +501,22 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
     /// </summary>
     public async Task<ServiceOutcome> ContactCallbackAsync(ContactCallbackDto dto, string? userId)
     {
+        // QA-R11: an empty body was stored as a "Đã liên hệ" callback with no patient, no survey and no issue
+        // (15 such blank rows on the callbacks list), and an unknown SurveyResultId was accepted as-is.
+        if (dto.SurveyResultId.HasValue)
+        {
+            var res = await _db.SatisfactionSurveyResults.AsNoTracking().Where(r => r.Id == dto.SurveyResultId.Value)
+                .Select(r => new { r.PatientName, r.PatientCode, r.CampaignId }).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu khảo sát");
+            dto.PatientName ??= res.PatientName;
+            dto.PatientCode ??= res.PatientCode;
+            dto.CampaignId ??= res.CampaignId;
+        }
+        else if (string.IsNullOrWhiteSpace(dto.PatientName) && string.IsNullOrWhiteSpace(dto.PatientCode) && string.IsNullOrWhiteSpace(dto.PatientPhone))
+            throw new ArgumentException("Phải chọn phiếu khảo sát hoặc nhập thông tin người bệnh cần liên hệ", nameof(dto.SurveyResultId));
+        if (string.IsNullOrWhiteSpace(dto.IssueDescription) && string.IsNullOrWhiteSpace(dto.Resolution))
+            throw new ArgumentException("Phải nhập vấn đề người bệnh phản ánh hoặc hướng xử lý", nameof(dto.IssueDescription));
+
         var now = DateTime.UtcNow;
 
         var cb = new SurveyFeedbackCallback
@@ -464,6 +547,9 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
     {
         var cb = await _db.SurveyFeedbackCallbacks.FindAsync(id);
         if (cb == null) return ServiceOutcome.NotFound();
+        // QA-R11: acknowledging an already Resolved/Closed callback overwrote the first note silently.
+        if (cb.Status is 2 or 3)
+            throw new InvalidOperationException("Phản hồi đã được xác nhận xử lý trước đó");
         cb.Status = 2; // Resolved
         cb.AcknowledgmentNote = dto.Note;
         cb.UpdatedAt = DateTime.UtcNow;

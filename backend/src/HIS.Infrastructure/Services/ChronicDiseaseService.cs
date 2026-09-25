@@ -48,12 +48,13 @@ public class ChronicDiseaseService : IChronicDiseaseService
             if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
                 query = query.Where(r => r.DiagnosisDate >= from);
             if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(r => r.DiagnosisDate <= to.AddDays(1));
+                query = query.Where(r => r.DiagnosisDate < to.Date.AddDays(1)); // QA-R11: inclusive end day, not next midnight
 
             var skip = filter.PageIndex * filter.PageSize;
 
             return await query
                 .OrderByDescending(r => r.CreatedAt)
+                .ThenBy(r => r.Id) // QA-R11: deterministic paging
                 .Skip(skip)
                 .Take(filter.PageSize)
                 .Select(r => new ChronicDiseaseListDto
@@ -192,6 +193,17 @@ public class ChronicDiseaseService : IChronicDiseaseService
     {
         var record = await _context.ChronicDiseaseRecords.FindAsync(id)
             ?? throw new InvalidOperationException("Record not found");
+        // QA-R11: a soft-deleted / closed / removed record could still be edited, and changing the ICD could
+        // create a 2nd open record for the same patient+ICD (the create path forbids that).
+        if (record.IsDeleted) throw new KeyNotFoundException("Không tìm thấy hồ sơ.");
+        if (record.Status == "Closed" || record.Status == "Removed")
+            throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ — mở lại hồ sơ trước khi sửa.");
+        if (dto.IcdCode != null && dto.IcdCode != record.IcdCode
+            && await _context.ChronicDiseaseRecords.AnyAsync(r => r.Id != id && r.PatientId == record.PatientId
+                && r.IcdCode == dto.IcdCode && !r.IsDeleted && (r.Status == "Active" || r.Status == "Remission")))
+            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ bệnh mạn tính {dto.IcdCode} đang theo dõi.");
+        if (dto.DoctorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == dto.DoctorId.Value))
+            throw new ArgumentException("Bác sĩ phụ trách không hợp lệ.");
 
         if (dto.IcdCode != null) record.IcdCode = dto.IcdCode;
         if (dto.IcdName != null) record.IcdName = dto.IcdName;
@@ -253,6 +265,17 @@ public class ChronicDiseaseService : IChronicDiseaseService
         record.RemovedReason = dto.Reason;
         record.UpdatedAt = DateTime.UtcNow;
 
+        // QA-R11: like Close, cancel pending appointments — they stayed "Scheduled" on a removed record, and a
+        // later reopen added another one (two pending follow-ups).
+        var pendingFollowUps = await _context.ChronicDiseaseFollowUps
+            .Where(f => f.ChronicDiseaseRecordId == id && f.Status == "Scheduled" && !f.IsDeleted)
+            .ToListAsync();
+        foreach (var f in pendingFollowUps)
+        {
+            f.Status = "Cancelled";
+            f.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -262,6 +285,10 @@ public class ChronicDiseaseService : IChronicDiseaseService
         var record = await _context.ChronicDiseaseRecords.FindAsync(id);
         if (record == null || record.IsDeleted) return false;
         if (record.Status != "Closed" && record.Status != "Removed") return false;
+        // QA-R11: reopening while a newer open record for the same patient+ICD exists produced two active records.
+        if (await _context.ChronicDiseaseRecords.AnyAsync(r => r.Id != id && r.PatientId == record.PatientId
+                && r.IcdCode == record.IcdCode && !r.IsDeleted && (r.Status == "Active" || r.Status == "Remission")))
+            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ {record.IcdCode} khác đang theo dõi — không mở lại hồ sơ cũ.");
 
         record.Status = "Active";
         record.ClosedDate = null;
@@ -321,6 +348,10 @@ public class ChronicDiseaseService : IChronicDiseaseService
             throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ — mở lại hồ sơ trước khi ghi nhận tái khám.");
 
         var followUpDate = DateTime.TryParse(dto.FollowUpDate, out var fd) ? fd : HIS.Core.Common.VnTime.NowVn;
+        // QA-R11: a visit dated in the future recorded as "Completed" pushed the next appointment out and hid
+        // the patient from the overdue list.
+        if ((dto.Status ?? "Completed") == "Completed" && followUpDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày tái khám đã thực hiện không được ở tương lai.");
 
         var followUp = new ChronicDiseaseFollowUp
         {

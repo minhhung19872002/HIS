@@ -74,6 +74,11 @@ namespace HIS.API.Controllers
             if (string.IsNullOrWhiteSpace(dto?.ToEmail))
                 return BadRequest(new { error = "VALIDATION_FAILED", message = "toEmail không được để trống" });
 
+            // QA-R11: without SMTP the e-mail service only logs and returns true → this answered "Đã gửi báo cáo … tới x"
+            // although nothing was sent.
+            if (!_emailService.IsSmtpConfigured)
+                return StatusCode(503, new { error = "SMTP_NOT_CONFIGURED", message = "Máy chủ chưa cấu hình SMTP — không gửi được email báo cáo." });
+
             var fromDate = dto.From.HasValue ? dto.From : from;
             var toDate = dto.To.HasValue ? dto.To : to;
 

@@ -264,6 +264,7 @@ public class SmsService : ISmsService
         var totalCount = await query.CountAsync();
         var items = await query
             .OrderByDescending(l => l.CreatedAt)
+            .ThenBy(l => l.Id) // QA-R11: deterministic paging
             .Skip(search.PageIndex * search.PageSize)
             .Take(search.PageSize)
             .Select(l => new SmsLogDto
@@ -318,7 +319,8 @@ public class SmsService : ISmsService
             Total = g.Count(),
         }).OrderByDescending(x => x.Total).ToList();
 
-        var byDay = logs.GroupBy(l => l.CreatedAt.Date).OrderBy(g => g.Key).Select(g => new SmsStatsByDay
+        // QA-R11: CreatedAt is UTC — group by the VN calendar day (00:00–07:00 VN used to land on the previous day).
+        var byDay = logs.GroupBy(l => HIS.Core.Common.VnTime.UtcToVn(l.CreatedAt).Date).OrderBy(g => g.Key).Select(g => new SmsStatsByDay
         {
             Date = g.Key.ToString("yyyy-MM-dd"),
             Sent = g.Count(l => l.Status == 0),
@@ -331,7 +333,9 @@ public class SmsService : ISmsService
             TotalSent = totalSent,
             TotalFailed = totalFailed,
             TotalDevMode = totalDevMode,
-            SuccessRate = total > 0 ? Math.Round((decimal)(totalSent + totalDevMode) / total * 100, 1) : 0,
+            // QA-R11: dev-mode messages were never delivered (gateway not configured) — counting them as successes
+            // showed 100 % while no SMS had left the building. Rate = delivered / attempted on a real gateway.
+            SuccessRate = totalSent + totalFailed > 0 ? Math.Round((decimal)totalSent / (totalSent + totalFailed) * 100, 1) : 0,
             ByType = byType,
             ByDay = byDay,
         };

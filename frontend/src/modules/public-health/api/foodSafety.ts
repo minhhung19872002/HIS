@@ -181,15 +181,53 @@ export const getIncidentStats = async (): Promise<FoodSafetyStats> => {
   }
 };
 
+// BE FoodSampleCreate/Update/ListDto: collectedAt / labResult / labResultDate / pathogensFound / isPositive.
+type SampleWire = Partial<FoodSafetySample> & {
+  collectedAt?: string; labSentAt?: string; labResult?: string; labResultDate?: string;
+  pathogensFound?: string; isPositive?: boolean | null;
+};
+const fromSampleWire = (s: SampleWire): FoodSafetySample => ({
+  id: s.id || '',
+  incidentId: s.incidentId || '',
+  sampleCode: s.sampleCode || '',
+  sampleType: s.sampleType || '',
+  sampleDescription: s.sampleDescription || '',
+  collectedDate: s.collectedDate ?? s.collectedAt ?? '',
+  collectedBy: s.collectedBy || '',
+  sentToLabDate: s.sentToLabDate ?? s.labSentAt,
+  resultDate: s.resultDate ?? s.labResultDate,
+  result: s.result ?? (s.isPositive === true ? 'Positive' : s.isPositive === false ? 'Negative' : 'Pending'),
+  organism: s.organism ?? s.pathogensFound,
+  notes: s.notes ?? s.labResult,
+});
+
 export const addSample = async (data: Partial<FoodSafetySample>) => {
-  const response = await apiClient.post<FoodSafetySample>('/food-safety/samples', data);
-  return response.data;
+  const response = await apiClient.post<SampleWire>('/food-safety/samples', {
+    incidentId: data.incidentId,
+    sampleType: data.sampleType,
+    sampleCode: data.sampleCode || undefined,
+    collectedAt: data.collectedDate || undefined,
+    collectedBy: data.collectedBy,
+  });
+  return fromSampleWire(response.data);
+};
+
+// Ghi kết quả xét nghiệm mẫu (PUT /food-safety/samples/{id})
+export const updateSampleResult = async (id: string, data: Partial<FoodSafetySample>) => {
+  const response = await apiClient.put<SampleWire>(`/food-safety/samples/${id}`, {
+    labResult: data.notes,
+    labResultDate: data.resultDate || undefined,
+    labSentAt: data.sentToLabDate || undefined,
+    pathogensFound: data.organism,
+    isPositive: data.result === 'Positive' ? true : data.result === 'Negative' ? false : undefined,
+  });
+  return fromSampleWire(response.data);
 };
 
 export const getSamplesByIncident = async (incidentId: string) => {
   try {
-    const response = await apiClient.get<FoodSafetySample[]>(`/food-safety/incidents/${incidentId}/samples`);
-    return response.data || [];
+    const response = await apiClient.get<SampleWire[]>(`/food-safety/incidents/${incidentId}/samples`);
+    return (response.data || []).map(fromSampleWire);
   } catch {
     console.warn('Failed to fetch samples for incident');
     return [];

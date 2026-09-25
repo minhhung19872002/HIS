@@ -58,6 +58,23 @@ export interface SurveyConfig {
   reminderAfterHours: number;
 }
 
+/** SurveyFeedbackCallback row (GET /satisfaction-survey/callbacks). status: 0 Pending · 1 Contacted · 2 Resolved · 3 Closed */
+export interface FeedbackCallback {
+  id: string;
+  surveyResultId?: string;
+  campaignId?: string;
+  patientName?: string;
+  patientPhone?: string;
+  patientCode?: string;
+  issueDescription?: string;
+  status: number;
+  contactedByName?: string;
+  contactedAt?: string;
+  resolution?: string;
+  acknowledgmentNote?: string;
+  createdAt?: string;
+}
+
 export interface ContactCallbackDto {
   surveyResultId?: string;
   campaignId?: string;
@@ -172,7 +189,7 @@ export const updateConfig = (config: SurveyConfig) =>
 
 /** Danh sách phản hồi cần liên hệ lại. */
 export const getCallbacks = (status?: number) =>
-  apiClient.get('/satisfaction-survey/callbacks', { params: status != null ? { status } : undefined });
+  apiClient.get<FeedbackCallback[]>('/satisfaction-survey/callbacks', { params: status != null ? { status } : undefined });
 
 /** Ghi nhận liên hệ lại bệnh nhân (contactCallback). */
 export const contactCallback = (dto: ContactCallbackDto) =>

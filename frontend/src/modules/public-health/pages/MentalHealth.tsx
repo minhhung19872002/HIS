@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
-  searchCases, createCase, getAssessments, screenDepression, getStats,
+  searchCases, createCase, updateCase, addAssessment, getAssessments, screenDepression, getStats,
 } from '../api/mentalHealth';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import type { MentalHealthCase, MentalHealthAssessment, MentalHealthStats } from '../api/mentalHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -41,9 +43,8 @@ const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const CASE_TYPE_OPTIONS = Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }));
 
-const CREATE_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientName', label: 'Bệnh nhân', required: true },
-  { key: 'patientCode', label: 'Mã BN' },
+// Bệnh nhân = BN có trong HIS (ô chọn ghép trong component) — trước đây nhập tay họ tên, ca lưu PatientId rỗng.
+const CREATE_FIELDS_REST: CrudFieldCfg[] = [
   { key: 'caseType', label: 'Loại bệnh', type: 'select', required: true, options: CASE_TYPE_OPTIONS },
   { key: 'severity', label: 'Mức độ', type: 'select', options: [
     { value: 'mild', label: 'Nhẹ' },
@@ -71,8 +72,7 @@ const PHQ9_SCORE_OPTIONS = [
   { value: 2, label: '2 – Hơn nửa số ngày' },
   { value: 3, label: '3 – Gần như mỗi ngày' },
 ];
-const PHQ9_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientId', label: 'Mã bệnh nhân' },
+const PHQ9_QUESTION_FIELDS: CrudFieldCfg[] = [
   ...PHQ9_QUESTIONS.map((q, i) => ({
     key: `q${i + 1}`,
     label: `${i + 1}. ${q}`,
@@ -82,6 +82,36 @@ const PHQ9_FIELDS: CrudFieldCfg[] = [
 ];
 
 const PER = 20;
+
+// Cập nhật ca (PUT /mental-health/cases/{id}) — trạng thái / tuân thủ / hẹn tái khám trước đây không sửa được
+const UPDATE_FIELDS: CrudFieldCfg[] = [
+  { key: 'status', label: 'Trạng thái', type: 'select', required: true, options: [
+    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Ổn định' },
+    { value: 2, label: 'Thuyên giảm' }, { value: 3, label: 'Đã xuất viện' },
+  ] },
+  { key: 'severity', label: 'Mức độ', type: 'select', options: [
+    { value: 'mild', label: 'Nhẹ' }, { value: 'moderate', label: 'Trung bình' }, { value: 'severe', label: 'Nặng' },
+  ] },
+  { key: 'adherenceLevel', label: 'Tuân thủ điều trị', type: 'select', options: [
+    { value: 'good', label: 'Tốt' }, { value: 'moderate', label: 'Trung bình' }, { value: 'poor', label: 'Kém' },
+  ] },
+  { key: 'nextFollowUpDate', label: 'Hẹn tái khám', type: 'date' },
+  { key: 'psychiatristName', label: 'BS tâm thần' },
+  { key: 'medications', label: 'Thuốc điều trị', type: 'textarea' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+const ASSESS_FIELDS: CrudFieldCfg[] = [
+  { key: 'assessmentType', label: 'Thang đánh giá', type: 'select', required: true, options: [
+    { value: 'PHQ9', label: 'PHQ-9' }, { value: 'GAD7', label: 'GAD-7' }, { value: 'PANSS', label: 'PANSS' },
+    { value: 'HAM-D', label: 'HAM-D' }, { value: 'YMRS', label: 'YMRS' }, { value: 'general', label: 'Khám chung' },
+  ] },
+  { key: 'assessmentDate', label: 'Ngày đánh giá', type: 'date', required: true },
+  { key: 'totalScore', label: 'Tổng điểm', type: 'number', required: true },
+  { key: 'interpretation', label: 'Diễn giải' },
+  { key: 'findings', label: 'Phát hiện', type: 'textarea' },
+  { key: 'recommendations', label: 'Khuyến nghị', type: 'textarea' },
+  { key: 'assessorName', label: 'Người đánh giá' },
+];
 
 const MentalHealthV2: React.FC = () => {
   const [rows, setRows] = useState<MentalHealthCase[]>([]);
@@ -100,6 +130,27 @@ const MentalHealthV2: React.FC = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [phqOpen, setPhqOpen] = useState(false);
+  const [editCase, setEditCase] = useState<MentalHealthCase | null>(null);
+  const [assessOpen, setAssessOpen] = useState(false);
+
+  const [patientOpts, setPatientOpts] = useState<Array<{ id: string; patientCode: string; fullName: string }>>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const createFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
+        // QA-R11: the autocomplete also accepts free text → BE 400 INVALID_REFERENCE. Only a picked patient id passes.
+        rules: [{ required: true, message: 'Chọn bệnh nhân từ danh sách' }, {
+          validator: (_: unknown, v: unknown) => (!v || patientOpts.some((p) => p.id === v)
+            ? Promise.resolve() : Promise.reject(new Error('Chọn bệnh nhân từ danh sách'))),
+        }], },
+    ...CREATE_FIELDS_REST,
+  ], [patientOpts, searchPatients]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,6 +190,12 @@ const MentalHealthV2: React.FC = () => {
   };
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
+  // PHQ-9: chọn ca đang quản lý để lưu kết quả thành 1 lần đánh giá (trước đây chỉ tính điểm, không lưu)
+  const phqFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'caseId', label: 'Ca bệnh (lưu kết quả vào hồ sơ — bỏ trống = chỉ tính điểm)', type: 'select',
+      options: rows.filter((r) => r.status !== 3).map((r) => ({ value: r.id, label: `${r.caseCode} — ${r.patientName}` })) },
+    ...PHQ9_QUESTION_FIELDS,
+  ], [rows]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -176,6 +233,7 @@ const MentalHealthV2: React.FC = () => {
   const rowActions = (r: MentalHealthCase) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Xem chi tiết" onClick={() => openDetail(r)} />
+      <ActBtn ic="edit" title="Cập nhật ca" onClick={() => setEditCase(r)} />
     </div>
   );
 
@@ -247,7 +305,11 @@ const MentalHealthV2: React.FC = () => {
         size="lg"
         title={sel?.caseCode || ''}
         sub={sel ? `${sel.patientName} · ${TYPE_LABEL[sel.caseType] || sel.caseType}` : ''}
-        footer={<Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn variant="ghost" onClick={() => sel && setEditCase(sel)}><Ico name="edit" size={12} /> Cập nhật ca</Btn>
+          <Btn variant="primary" onClick={() => setAssessOpen(true)}><Ico name="plus" size={12} /> Thêm đánh giá</Btn>
+        </>}
       >
         {sel && (
           <>
@@ -328,7 +390,7 @@ const MentalHealthV2: React.FC = () => {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Tạo hồ sơ tâm thần"
-        fields={CREATE_FIELDS}
+        fields={createFields}
         initial={{ severity: 'moderate' }}
         onSubmit={async (v) => {
           await createCase(v as Parameters<typeof createCase>[0]);
@@ -341,20 +403,74 @@ const MentalHealthV2: React.FC = () => {
         open={phqOpen}
         onClose={() => setPhqOpen(false)}
         title="Sàng lọc trầm cảm PHQ-9"
-        fields={PHQ9_FIELDS}
-        initial={{ patientId: '', q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0, q7: 0, q8: 0, q9: 0 }}
+        fields={phqFields}
+        initial={{ q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0, q7: 0, q8: 0, q9: 0 }}
         size="lg"
         onSubmit={async (v) => {
           const answers = PHQ9_QUESTIONS.map((_, i) => Number(v[`q${i + 1}`] ?? 0));
           // BE is a stateless scorer (nothing is saved) — the old toast "done" hid the result entirely.
-          const res = await screenDepression({ patientId: String(v.patientId || ''), answers }) as
+          const res = await screenDepression({ patientId: String(v.caseId || ''), answers }) as
             { score?: number; interpretation?: string; recommendation?: string } | undefined;
           const total = answers.reduce((s, x) => s + x, 0);
+          const caseId = v.caseId ? String(v.caseId) : '';
+          if (caseId) {
+            await addAssessment(caseId, {
+              assessmentType: 'PHQ9', totalScore: res?.score ?? total,
+              interpretation: res?.interpretation ?? '', recommendations: res?.recommendation ?? '',
+              findings: answers[8] > 0 ? 'Câu 9 dương tính (ý nghĩ tự hại)' : '',
+            });
+            if (sel && sel.id === caseId) { try { setAssessments(await getAssessments(caseId)); } catch { /* giữ cũ */ } }
+            load();
+          }
           // PHQ-9 item 9 (self-harm thoughts) > 0 needs a suicide-risk assessment regardless of the total score.
           if (answers[8] > 0) {
             tw(`PHQ-9 = ${res?.score ?? total}: câu 9 dương tính — ĐÁNH GIÁ NGUY CƠ TỰ SÁT NGAY`);
           }
-          tk(`PHQ-9 = ${res?.score ?? total} · ${res?.interpretation ?? ''}${res?.recommendation ? ` · ${res.recommendation}` : ''} (kết quả không được lưu vào hồ sơ)`);
+          tk(`PHQ-9 = ${res?.score ?? total} · ${res?.interpretation ?? ''}${res?.recommendation ? ` · ${res.recommendation}` : ''}${caseId ? ' — đã lưu vào hồ sơ' : ' (chưa chọn ca — không lưu)'}`);
+        }}
+      />
+
+      {/* Cập nhật ca */}
+      <CrudModal
+        open={!!editCase}
+        onClose={() => setEditCase(null)}
+        title="Cập nhật ca tâm thần"
+        sub={editCase ? `${editCase.caseCode} · ${editCase.patientName}` : undefined}
+        fields={UPDATE_FIELDS}
+        initial={editCase ? {
+          id: editCase.id, status: editCase.status, severity: editCase.severity,
+          adherenceLevel: editCase.adherenceLevel || undefined, nextFollowUpDate: editCase.nextFollowUpDate,
+          psychiatristName: editCase.psychiatristName, medications: editCase.medications, notes: editCase.notes,
+        } : null}
+        onSubmit={async (v) => {
+          if (!editCase) return;
+          await updateCase(editCase.id, {
+            status: v.status != null ? Number(v.status) : undefined,
+            severity: v.severity, adherenceLevel: v.adherenceLevel,
+            nextFollowUpDate: v.nextFollowUpDate, psychiatristName: v.psychiatristName,
+            medications: v.medications, notes: v.notes,
+          } as Partial<MentalHealthCase>);
+          tk('Đã cập nhật ca');
+          if (sel && sel.id === editCase.id) setSel(null);
+          setEditCase(null);
+          load();
+        }}
+      />
+
+      {/* Thêm đánh giá */}
+      <CrudModal
+        open={assessOpen}
+        onClose={() => setAssessOpen(false)}
+        title="Thêm đánh giá tâm thần"
+        sub={sel ? `${sel.caseCode} · ${sel.patientName}` : undefined}
+        fields={ASSESS_FIELDS}
+        initial={{ assessmentType: 'general', assessmentDate: dayjs().format('YYYY-MM-DD') }}
+        onSubmit={async (v) => {
+          if (!sel) return;
+          await addAssessment(sel.id, { ...v, totalScore: Number(v.totalScore ?? 0) } as Partial<MentalHealthAssessment>);
+          tk('Đã lưu đánh giá');
+          try { setAssessments(await getAssessments(sel.id)); } catch { /* giữ cũ */ }
+          load();
         }}
       />
     </div>

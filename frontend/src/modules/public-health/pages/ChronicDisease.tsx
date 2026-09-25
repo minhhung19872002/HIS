@@ -28,8 +28,11 @@ const STATUS_TABS: StatusTab<TabKey>[] = [
   { v: 'followup', l: 'Cần tái khám', tone: 'warn' },
   { v: 'closed', l: 'Đã đóng', tone: 'info' },
 ];
-// Backend lọc theo status dạng chuỗi: Active / Remission / Closed (giữ nguyên mapping v1)
-const TAB_STATUS_PARAM: Record<TabKey, string> = { active: 'Active', followup: 'Remission', closed: 'Closed' };
+// Backend lọc theo status dạng chuỗi: Active / Closed. "Cần tái khám" = hồ sơ Active có hẹn quá hạn/≤7 ngày
+// (lọc client-side, BE chưa có filter hạn tái khám) — trước đây lọc status=Remission, không gì đặt được → luôn rỗng.
+const TAB_STATUS_PARAM: Record<TabKey, string> = { active: 'Active', followup: 'Active', closed: 'Closed' };
+const isDueSoon = (r: ChronicRecordDto) =>
+  !!r.nextFollowUpDate && dayjs(r.nextFollowUpDate).isBefore(dayjs().add(8, 'day').startOf('day'));
 
 const STATUS_META: Record<number, { l: string; tone: 'ok' | 'info' | 'warn' | 'crit' }> = {
   0: { l: 'Đang theo dõi', tone: 'ok' },
@@ -96,12 +99,14 @@ const ChronicDiseaseV2: React.FC = () => {
       .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
       .catch(() => { /* đang gõ dở — không toast */ });
   }, []);
+  // UpdateChronicDiseaseDto không nhận BN / ngày chẩn đoán (CrudModal không khoá được autocomplete/date)
+  // → ẩn khi sửa; trước đây đổi được, báo "Đã cập nhật" nhưng không lưu.
   const crudFields = useMemo<CrudFieldCfg[]>(() => [
-    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true, disabledOnEdit: true,
+    ...(editRec ? [] : [{ key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
       options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
-      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
-    ...CRUD_FIELDS_REST,
-  ], [patientOpts, searchPatients]);
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' } as CrudFieldCfg]),
+    ...CRUD_FIELDS_REST.filter((f) => !editRec || f.key !== 'diagnosisDate'),
+  ], [patientOpts, searchPatients, editRec]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,16 +118,23 @@ const ChronicDiseaseV2: React.FC = () => {
           icdCode: icd.trim() || undefined,
           fromDate: fromDate || undefined,
           toDate: toDate || undefined,
-          page: page + 1,
-          pageSize: PER,
+          page: tab === 'followup' ? 1 : page + 1,
+          pageSize: tab === 'followup' ? 500 : PER,
         }),
         getChronicStatistics(),
       ]);
       const items: ChronicRecordDto[] = Array.isArray(rec?.items)
         ? rec.items
         : Array.isArray(rec) ? (rec as unknown as ChronicRecordDto[]) : [];
-      setRows(items);
-      setTotal(typeof rec?.totalCount === 'number' ? rec.totalCount : items.length);
+      if (tab === 'followup') {
+        const due = items.filter(isDueSoon)
+          .sort((a, b) => String(a.nextFollowUpDate).localeCompare(String(b.nextFollowUpDate)));
+        setRows(due.slice(page * PER, (page + 1) * PER));
+        setTotal(due.length);
+      } else {
+        setRows(items);
+        setTotal(typeof rec?.totalCount === 'number' ? rec.totalCount : items.length);
+      }
       setStats({ ...EMPTY_STATS, ...(st || {}) });
     } catch {
       tw('Không thể tải dữ liệu bệnh mạn tính');
@@ -194,8 +206,8 @@ const ChronicDiseaseV2: React.FC = () => {
   const counts: Record<string, number> = {
     active: stats.totalActive,
     followup: stats.needFollowUp,
-    closed: stats.closedOrRemoved,
-    all: stats.totalActive + stats.needFollowUp + stats.closedOrRemoved,
+    closed: stats.totalClosed ?? stats.closedOrRemoved, // tab lọc status=Closed (hồ sơ "Đã loại" chỉ ở Tất cả)
+    all: stats.totalActive + (stats.totalRemission ?? 0) + stats.closedOrRemoved,
   };
   const totalPages = Math.max(1, Math.ceil(total / PER));
 
@@ -271,7 +283,7 @@ const ChronicDiseaseV2: React.FC = () => {
     <div className="ab">
       <KpiStrip items={[
         { lbl: 'Đang theo dõi', val: stats.totalActive, sub: 'hồ sơ', tone: 'info' },
-        { lbl: 'Cần tái khám', val: stats.needFollowUp, sub: 'sắp đến hẹn', tone: 'warn' },
+        { lbl: 'Cần tái khám', val: stats.needFollowUp, sub: 'quá hạn / ≤ 7 ngày', tone: 'warn' },
         { lbl: 'Mới trong tháng', val: stats.newThisMonth, sub: 'chẩn đoán mới', tone: 'ok' },
         { lbl: 'Đã đóng/loại', val: stats.closedOrRemoved, sub: 'kết thúc' },
       ]} />

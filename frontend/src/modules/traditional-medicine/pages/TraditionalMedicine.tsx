@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { message } from 'antd';
+import { Input, message } from 'antd';
 import {
   searchTreatments, createTreatment, updateTreatment,
-  createHerbalPrescription, getHerbalPrescriptions, getHerbs, completeTreatment,
+  createHerbalPrescription, getHerbalPrescriptions, getHerbs, completeTreatment, cancelTreatment,
 } from '../api/traditionalMedicine';
 import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { apiClient } from '../../../services/apiClient';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -15,21 +16,19 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 
-const TM_FIELDS: CrudFieldCfg[] = [
-  { key: 'treatmentCode', label: 'Mã phác đồ', required: true, disabledOnEdit: true },
-  { key: 'patientName', label: 'Họ tên BN', required: true },
-  { key: 'patientCode', label: 'Mã BN' },
+// QA-R11: the form asked for a "Mã phác đồ" (BE generates it — typed value discarded), a free-text patient name
+// (no patientId → herbal Rx never billed), "Mã BN" / "Kết thúc" / "Trạng thái" (not in the BE DTO — silently
+// ignored, e.g. choosing "Đã huỷ" changed nothing). Patient is now picked from the patient list; end/cancel are
+// row actions (Kết thúc ĐT / Hủy ĐT).
+const TM_FIELDS_COMMON: CrudFieldCfg[] = [
   { key: 'treatmentType', label: 'Phương pháp', type: 'select', required: true, options: [
     { value: 'acupuncture', label: 'Châm cứu' }, { value: 'herbal', label: 'Thuốc bắc' },
     { value: 'massage', label: 'Xoa bóp' }, { value: 'cupping', label: 'Giác hơi' },
     { value: 'moxibustion', label: 'Cứu ngải' }, { value: 'combined', label: 'Kết hợp' }] },
   { key: 'diagnosis', label: 'Chẩn đoán', required: true },
   { key: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
-  { key: 'endDate', label: 'Kết thúc', type: 'date' },
   { key: 'doctorName', label: 'BS điều trị' },
   { key: 'totalSessions', label: 'Tổng số buổi', type: 'number' },
-  { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Hoàn thành' }, { value: 2, label: 'Đã huỷ' }] },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
@@ -122,7 +121,44 @@ const TraditionalMedicineV2: React.FC = () => {
 
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
-  const openCreate = () => { setCrudInit({ status: 0, treatmentType: 'acupuncture' }); setCrudOpen(true); };
+  const [patientOpts, setPatientOpts] = useState<{ id: string; patientCode: string; fullName: string }[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const tmFields = useMemo<CrudFieldCfg[]>(() => [
+    crudInit?.id
+      ? { key: 'patientName', label: 'Bệnh nhân', disabledOnEdit: true }
+      : { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+          options: patientOpts.map((pt) => ({ value: pt.id, label: `${pt.patientCode} — ${pt.fullName}` })),
+          onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
+          // QA-R11: the autocomplete also accepts free text → BE 400 INVALID_REFERENCE. Only a picked patient id passes.
+          rules: [{ required: true, message: 'Chọn bệnh nhân từ danh sách' }, {
+            validator: (_: unknown, v: unknown) => (!v || patientOpts.some((pt) => pt.id === v)
+              ? Promise.resolve() : Promise.reject(new Error('Chọn bệnh nhân từ danh sách'))),
+          }], },
+    ...TM_FIELDS_COMMON,
+  ], [crudInit, patientOpts, searchPatients]);
+  const openCreate = () => { setCrudInit({ treatmentType: 'acupuncture' }); setCrudOpen(true); };
+
+  // ── Hủy đợt điều trị (QA-R11) ──
+  const [cancelTarget, setCancelTarget] = useState<TraditionalTreatment | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const submitCancel = async () => {
+    if (!cancelTarget) return;
+    if (!cancelReason.trim()) { tw('Nhập lý do hủy'); return; }
+    setCancelBusy(true);
+    try {
+      await cancelTreatment(cancelTarget.id, cancelReason.trim());
+      tk('Đã hủy đợt điều trị');
+      setCancelTarget(null);
+      load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Hủy đợt điều trị thất bại')); }
+    finally { setCancelBusy(false); }
+  };
   const openEdit = (r: TraditionalTreatment) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
   // ── Đơn thuốc bắc ────────────────────────────────────────────────────────
@@ -193,7 +229,7 @@ const TraditionalMedicineV2: React.FC = () => {
       const rows = await getHerbalPrescriptions(rxTarget.id);
       setRxList(rows);
       load();
-    } catch { message.error('Tạo đơn thuốc bắc thất bại'); }
+    } catch (e) { message.error(friendlyErrorMessage(e, 'Tạo đơn thuốc bắc thất bại')); }
     finally { setRxSubmitting(false); }
   };
 
@@ -203,18 +239,21 @@ const TraditionalMedicineV2: React.FC = () => {
       await completeTreatment(r.id);
       tk('Đã kết thúc điều trị');
       load();
-    } catch { te('Kết thúc thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Kết thúc thất bại')); }
   };
 
   const actions = (r: TraditionalTreatment) => (
     <div className="ab-actions">
       <RowActions actions={[
         { key: 'view', icon: 'eye',  label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
-        { key: 'edit', icon: 'edit', label: 'Sửa',      primary: true, onClick: () => openEdit(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa',      primary: true, hidden: r.status !== 0, onClick: () => openEdit(r) },
         { key: 'done', icon: 'check', label: 'Kết thúc ĐT', tone: 'warn',
           hidden: r.status !== 0,
           confirm: `Kết thúc điều trị cho "${r.patientName}"?`,
           onClick: () => handleComplete(r) },
+        { key: 'cancel', icon: 'x', label: 'Hủy ĐT', tone: 'danger',
+          hidden: r.status !== 0,
+          onClick: () => { setCancelReason(''); setCancelTarget(r); } },
       ]} />
     </div>
   );
@@ -297,7 +336,7 @@ const TraditionalMedicineV2: React.FC = () => {
         open={crudOpen}
         onClose={() => setCrudOpen(false)}
         title={crudInit?.id ? 'Cập nhật phác đồ YHCT' : 'Phác đồ YHCT mới'}
-        fields={TM_FIELDS}
+        fields={tmFields}
         initial={crudInit}
         size="lg"
         onSubmit={async (v, editing) => {
@@ -307,6 +346,21 @@ const TraditionalMedicineV2: React.FC = () => {
           load();
         }}
       />
+
+      <ModalShell
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        size="md"
+        title={cancelTarget ? `Hủy đợt điều trị · ${cancelTarget.patientName}` : 'Hủy đợt điều trị'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setCancelTarget(null)}>Đóng</Btn>
+          <Btn variant="primary" disabled={cancelBusy} onClick={submitCancel}>{cancelBusy ? 'Đang hủy…' : 'Hủy đợt điều trị'}</Btn>
+        </>}
+      >
+        <div style={{ marginBottom: 'var(--space-6)', color: 'var(--t-1)' }}>Lý do hủy <span className="hui-req">*</span></div>
+        <Input.TextArea rows={3} value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)} placeholder="BN chuyển viện / không tiếp tục điều trị…" />
+      </ModalShell>
 
       {/* ── Drawer Đơn thuốc bắc ── */}
       <DrawerShell

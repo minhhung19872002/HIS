@@ -124,8 +124,16 @@ public partial class PatientPortalServiceImpl
 
     public async Task<HealthMetricDto> SaveHealthMetricAsync(SaveHealthMetricDto dto)
     {
+        // QA-R11: an existing id was updated without checking its owner — a portal patient could POST another
+        // account's metric id and overwrite it (the row even moved into the caller's account). Same rule as the
+        // reminder / family-member saves: the account must exist and an existing id must belong to it.
+        await EnsurePortalAccountExistsAsync(dto.AccountId);
+        if (dto.RecordedAt == default)
+            throw new ArgumentException("Thời điểm đo là bắt buộc", nameof(dto.RecordedAt));
         var entity = dto.Id.HasValue && dto.Id != Guid.Empty
             ? await _context.HealthMetrics.FindAsync(dto.Id.Value) : null;
+        if (dto.Id.HasValue && dto.Id != Guid.Empty && (entity == null || entity.AccountId != dto.AccountId))
+            throw new KeyNotFoundException("Không tìm thấy chỉ số sức khỏe");
         if (entity == null)
         {
             entity = new HealthMetric { Id = Guid.NewGuid(), CreatedAt = DateTime.Now };

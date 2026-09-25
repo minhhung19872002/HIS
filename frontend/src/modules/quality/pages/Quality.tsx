@@ -5,13 +5,14 @@ import { App as AntdApp, Input, Select, DatePicker, Checkbox, Rate, Progress } f
 import {
   getIncidents, getQualityIndicators, createIncident, investigateIncident, closeIncident,
   getAudits, createAudit, getDashboard, getCAPAs, getSatisfactionStatistics,
+  approveAudit, submitAuditResult,
 } from '../api/quality';
 import type {
   IncidentReportDto, QualityIndicatorDto, InternalAuditDto, QualityDashboardDto,
   CAPADto, SatisfactionStatisticsDto, DepartmentSatisfactionDto, CorrectiveActionDto,
 } from '../api/quality';
-import { catalogApi } from '../../system/api/system';
-import type { DepartmentCatalogDto } from '../../system/api/system';
+import { catalogApi, adminApi } from '../../system/api/system';
+import type { DepartmentCatalogDto, SystemUserDto } from '../../system/api/system';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useTabCounts, tk, tw,
@@ -102,6 +103,7 @@ const CARD_TITLE_STYLE: React.CSSProperties = { fontWeight: 600, fontSize: 'var(
 const QualityV2: React.FC = () => {
   const [tab, setTab] = useTabState<TopKey>('kpi', 'tab');
   const [incidents, setIncidents] = useState<IncidentReportDto[]>([]);
+  const [incidentTotal, setIncidentTotal] = useState(0);
   const [indicators, setIndicators] = useState<QualityIndicatorDto[]>([]);
   const [audits, setAudits] = useState<InternalAuditDto[]>([]);
   const [dashboard, setDashboard] = useState<QualityDashboardDto | null>(null);
@@ -116,6 +118,23 @@ const QualityV2: React.FC = () => {
   const [capaDetail, setCapaDetail] = useState<CAPADto | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
+  // QA-R11: approve plan (Planned → Approved) + record result (Approved → Completed) — BE routes existed, no UI.
+  const [auditResultFor, setAuditResultFor] = useState<InternalAuditDto | null>(null);
+  const [approvingAudit, setApprovingAudit] = useState<string | null>(null);
+  const doApproveAudit = async (a: InternalAuditDto) => {
+    if (approvingAudit) return;
+    setApprovingAudit(a.id);
+    try {
+      await approveAudit(a.id);
+      tk(`Đã duyệt kế hoạch audit ${a.auditCode}`);
+      setAuditDetail(null);
+      reload();
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không duyệt được kế hoạch audit'));
+    } finally {
+      setApprovingAudit(null);
+    }
+  };
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -130,7 +149,11 @@ const QualityV2: React.FC = () => {
       getCAPAs(),
       getSatisfactionStatistics(monthStart, today),
     ]).then(([i, q, a, d, c, s]) => {
-      if (i.status === 'fulfilled') setIncidents(i.value.data?.items || []);
+      if (i.status === 'fulfilled') {
+        setIncidents(i.value.data?.items || []);
+        // KPI must count every incident, not just the 200 rows loaded for the list
+        setIncidentTotal(i.value.data?.totalCount ?? (i.value.data?.items || []).length);
+      }
       else tw('Không thể tải danh sách sự cố');
       if (q.status === 'fulfilled') setIndicators((q.value.data || []) as QualityIndicatorDto[]);
       else tw('Không thể tải chỉ số chất lượng');
@@ -177,11 +200,11 @@ const QualityV2: React.FC = () => {
     const investigating = incidents.filter((x) => incStatusKey(x.status) === 'investigation').length;
     return {
       onTarget, indicatorTotal: total,
-      incTotal: incidents.length,
+      incTotal: Math.max(incidentTotal, incidents.length),
       severe: severeIncidents,
       investigating,
     };
-  }, [indicators, incidents]);
+  }, [indicators, incidents, incidentTotal]);
 
   // Statistics from dashboard or computed from local data (v1 verbatim)
   const openIncidents = dashboard?.openIncidents ?? incidents.filter(
@@ -414,6 +437,13 @@ const QualityV2: React.FC = () => {
             actions={(r) => (
               <div className="ab-actions">
                 <ActBtn ic="eye" title="Chi tiết" onClick={() => setAuditDetail(r)} />
+                {r.statusCode === 'Planned' && (
+                  <ActBtn ic="check" title="Duyệt kế hoạch audit" loading={approvingAudit === r.id}
+                    onClick={() => { void doApproveAudit(r); }} />
+                )}
+                {(r.statusCode === 'Approved' || r.statusCode === 'InProgress') && (
+                  <ActBtn ic="edit" title="Nhập kết quả audit" onClick={() => setAuditResultFor(r)} />
+                )}
               </div>
             )}
             empty={loading ? 'Đang tải…' : (
@@ -523,6 +553,12 @@ const QualityV2: React.FC = () => {
         open={auditModalOpen}
         onClose={() => setAuditModalOpen(false)}
         onDone={() => { setAuditModalOpen(false); reload(); }}
+      />
+
+      <AuditResultModal
+        audit={auditResultFor}
+        onClose={() => setAuditResultFor(null)}
+        onDone={() => { setAuditResultFor(null); reload(); }}
       />
     </div>
   );
@@ -738,6 +774,7 @@ const AuditCreateModal: React.FC<{
   const [deptId, setDeptId] = useState<string | undefined>(undefined);
   const [scheduledDate, setScheduledDate] = useState(() => dayjs());
   const [leadAuditorId, setLeadAuditorId] = useState('');
+  const [users, setUsers] = useState<SystemUserDto[]>([]);
   const [scope, setScope] = useState('');
   const [objective, setObjective] = useState('');
   const [criteria, setCriteria] = useState('');
@@ -751,6 +788,10 @@ const AuditCreateModal: React.FC<{
       catalogApi.getDepartments(undefined, undefined, true)
         .then((r) => setDepts(r.data || []))
         .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng.')); setDepts([]); });
+      // QA-R11: lead auditor was a free-text "ID" box — BE requires a real user id, so every schedule failed.
+      adminApi.getUsers(undefined, undefined, true)
+        .then((r) => setUsers(Array.isArray(r.data) ? r.data : []))
+        .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách nhân viên.')); setUsers([]); });
     }
   }, [open]);
 
@@ -758,6 +799,7 @@ const AuditCreateModal: React.FC<{
     if (!title.trim()) { tw('Nhập tên audit'); return; }
     if (!auditType) { tw('Chọn loại audit'); return; }
     if (!deptId) { tw('Chọn khoa/phòng'); return; }
+    if (!leadAuditorId) { tw('Chọn trưởng đoàn audit'); return; }
     setBusy(true);
     try {
       await createAudit({
@@ -818,7 +860,13 @@ const AuditCreateModal: React.FC<{
           <DatePicker value={scheduledDate} onChange={(v) => v && setScheduledDate(v)} format="DD/MM/YYYY" style={{ width: '100%' }} />
         </Fld>
         <Fld label="Trưởng đoàn audit">
-          <Input value={leadAuditorId} onChange={(e) => setLeadAuditorId(e.target.value)} placeholder="ID người thực hiện" />
+          <Select
+            value={leadAuditorId || undefined} onChange={(v) => setLeadAuditorId(v ?? '')} showSearch allowClear
+            optionFilterProp="label" placeholder="Chọn nhân viên" style={{ width: '100%' }}
+            options={users.filter((u) => u.id).map((u) => ({
+              value: u.id!, label: `${u.fullName || u.username}${u.departmentName ? ` · ${u.departmentName}` : ''}`,
+            }))}
+          />
         </Fld>
         <Fld label="Phạm vi" full>
           <Input.TextArea value={scope} onChange={(e) => setScope(e.target.value)} rows={2} placeholder="Phạm vi audit…" />
@@ -831,6 +879,109 @@ const AuditCreateModal: React.FC<{
         </Fld>
         <Fld label="Ghi chú" full>
           <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        </Fld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   QA-R11: Nhập kết quả audit — BE POST /quality/audits/{id}/result (SubmitAuditResultRequest),
+   chuyển audit đã duyệt → Hoàn thành, lưu số phát hiện + tóm tắt vào kế hoạch.
+   ────────────────────────────────────────────────────────── */
+
+const AuditResultModal: React.FC<{
+  audit: InternalAuditDto | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ audit, onClose, onDone }) => {
+  const [auditDate, setAuditDate] = useState(() => dayjs());
+  const [major, setMajor] = useState(0);
+  const [minor, setMinor] = useState(0);
+  const [observations, setObservations] = useState(0);
+  const [opportunities, setOpportunities] = useState(0);
+  const [summary, setSummary] = useState('');
+  const [strengths, setStrengths] = useState('');
+  const [improve, setImprove] = useState('');
+  const [rating, setRating] = useState<string | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (audit) {
+      setAuditDate(dayjs()); setMajor(0); setMinor(0); setObservations(0); setOpportunities(0);
+      setSummary(''); setStrengths(''); setImprove(''); setRating(undefined);
+    }
+  }, [audit]);
+
+  const num = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
+
+  const submit = async () => {
+    if (!audit) return;
+    if (!summary.trim()) { tw('Nhập tóm tắt kết quả audit'); return; }
+    if (auditDate.isAfter(dayjs(), 'day')) { tw('Ngày audit không được ở tương lai'); return; }
+    setBusy(true);
+    try {
+      await submitAuditResult(audit.id, {
+        auditDate: auditDate.format('YYYY-MM-DD'),
+        majorNonConformities: major, minorNonConformities: minor, observations, opportunities,
+        executiveSummary: summary.trim(),
+        strengths: strengths.trim() || undefined,
+        areasForImprovement: improve.trim() || undefined,
+        overallRating: rating,
+      });
+      tk(`Đã ghi kết quả audit ${audit.auditCode}`);
+      onDone();
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không ghi được kết quả audit'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={!!audit}
+      onClose={onClose}
+      size="md"
+      title={audit ? `Nhập kết quả audit ${audit.auditCode}` : 'Nhập kết quả audit'}
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Lưu kết quả & hoàn thành'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <Fld label="Ngày thực hiện">
+          <DatePicker value={auditDate} onChange={(v) => v && setAuditDate(v)} format="DD/MM/YYYY" style={{ width: '100%' }}
+            disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
+        </Fld>
+        <Fld label="Đánh giá chung">
+          <Select value={rating} onChange={setRating} allowClear placeholder="Chọn mức" style={{ width: '100%' }}
+            options={['Tốt', 'Đạt', 'Cần cải tiến', 'Không đạt'].map((v) => ({ value: v, label: v }))} />
+        </Fld>
+        <Fld label="Không phù hợp nặng">
+          <Input type="number" min={0} value={major} onChange={(e) => setMajor(num(e.target.value))} />
+        </Fld>
+        <Fld label="Không phù hợp nhẹ">
+          <Input type="number" min={0} value={minor} onChange={(e) => setMinor(num(e.target.value))} />
+        </Fld>
+        <Fld label="Quan sát">
+          <Input type="number" min={0} value={observations} onChange={(e) => setObservations(num(e.target.value))} />
+        </Fld>
+        <Fld label="Cơ hội cải tiến">
+          <Input type="number" min={0} value={opportunities} onChange={(e) => setOpportunities(num(e.target.value))} />
+        </Fld>
+        <Fld label="Tóm tắt kết quả *" full>
+          <Input.TextArea value={summary} onChange={(e) => setSummary(e.target.value)} rows={3} placeholder="Kết luận chính của đoàn audit…" />
+        </Fld>
+        <Fld label="Điểm mạnh" full>
+          <Input.TextArea value={strengths} onChange={(e) => setStrengths(e.target.value)} rows={2} />
+        </Fld>
+        <Fld label="Cần cải tiến" full>
+          <Input.TextArea value={improve} onChange={(e) => setImprove(e.target.value)} rows={2} />
         </Fld>
       </div>
     </ModalShell>

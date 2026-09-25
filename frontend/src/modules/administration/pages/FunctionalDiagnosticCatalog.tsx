@@ -20,6 +20,7 @@ import {
 } from '@/_v2kit';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'testType' | 'template';
 
@@ -145,7 +146,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       tk(editType.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setEditType(null);
       void reloadTypes();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -159,7 +160,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       tk(editTmpl.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setEditTmpl(null);
       void reloadTemplates();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 

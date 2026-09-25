@@ -30,7 +30,11 @@ const NUTRITION_TONE: Record<string, 'ok' | 'warn' | 'crit'> = {
 };
 
 const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Lớp ${i + 1}` }));
-const YEAR_OPTIONS = ['2025-2026', '2024-2025', '2023-2024'];
+// Năm học VN bắt đầu tháng 9 → tính động (trước đây mảng cứng '2025-2026…' và lọc mặc định 2025-2026:
+// sang năm học 2026-2027 danh sách rỗng dù DB có phiếu khám).
+const CUR_YEAR_START = (() => { const d = new Date(); return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; })();
+const YEAR_OPTIONS = [0, 1, 2].map((i) => `${CUR_YEAR_START - i}-${CUR_YEAR_START - i + 1}`);
+const CUR_ACADEMIC_YEAR = YEAR_OPTIONS[0];
 const FLAG_OPTIONS = [{ value: false, label: 'Bình thường' }, { value: true, label: 'Cần theo dõi' }];
 
 const EXAM_FIELDS: CrudFieldCfg[] = [
@@ -41,7 +45,7 @@ const EXAM_FIELDS: CrudFieldCfg[] = [
   { key: 'schoolName', label: 'Trường', required: true, placeholder: 'Tên trường' },
   { key: 'grade', label: 'Khối', type: 'select', required: true, options: GRADE_OPTIONS },
   { key: 'className', label: 'Lớp', placeholder: 'A1' },
-  { key: 'academicYear', label: 'Năm học', placeholder: '2025-2026' },
+  { key: 'academicYear', label: 'Năm học', placeholder: CUR_ACADEMIC_YEAR },
   { key: 'height', label: 'Chiều cao (cm)', type: 'number', placeholder: 'cm' },
   { key: 'weight', label: 'Cân nặng (kg)', type: 'number', placeholder: 'kg' },
   { key: 'visionLeft', label: 'Thị lực trái', placeholder: '10/10' },
@@ -82,7 +86,7 @@ const SchoolHealthV2: React.FC = () => {
 
   // Bộ lọc server-side (giống v1: trường / năm học / khối)
   const [schoolFilter, setSchoolFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('2025-2026');
+  const [yearFilter, setYearFilter] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
 
   // Bộ lọc client-side
@@ -184,11 +188,13 @@ const SchoolHealthV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip items={[
-        // BE statistics returns totalSchools/totalStudents/referralCount — fall back so KPIs are not blank
-        { lbl: 'Trường đã khám', val: stats.schoolsExamined ?? beStats.totalSchools ?? 0 },
-        { lbl: 'HS đã khám', val: stats.studentsExamined ?? beStats.totalStudents ?? 0, tone: 'info' },
-        { lbl: 'Tỷ lệ hoàn thành', val: stats.completionRate ?? '—', unit: stats.completionRate != null ? '%' : undefined, tone: 'ok' },
-        { lbl: 'Cần theo dõi', val: stats.needsFollowUp ?? beStats.referralCount ?? 0, tone: 'warn' },
+        // BE statistics returns totalSchools/totalStudents/referralCount. stats is merged over EMPTY_STATS (all 0),
+        // so the old `stats.x ?? beStats.y` never reached the BE value → KPIs were always 0. BE keys first now;
+        // "Tỷ lệ hoàn thành" has no BE source → phiếu hoàn thành / tổng phiếu đang hiển thị.
+        { lbl: 'Trường đã khám', val: beStats.totalSchools ?? stats.schoolsExamined ?? 0 },
+        { lbl: 'HS đã khám', val: beStats.totalStudents ?? stats.studentsExamined ?? 0, tone: 'info' },
+        { lbl: 'Tỷ lệ hoàn thành', val: rows.length ? Math.round(((counts.completed || 0) * 100) / rows.length) : 0, unit: '%', tone: 'ok' },
+        { lbl: 'Cần theo dõi', val: beStats.referralCount ?? stats.needsFollowUp ?? 0, tone: 'warn' },
         { lbl: 'Có cờ cảnh báo', val: flagged, sub: 'mắt/tai/răng/CS', tone: 'warn' },
         { lbl: 'DD bất thường', val: malnutrition, sub: 'trong danh sách', tone: 'warn' },
       ]} />
@@ -210,6 +216,7 @@ const SchoolHealthV2: React.FC = () => {
           })}
         </select>
         <select style={SEL} value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(0); }}>
+          <option value="">Tất cả năm học</option>
           {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <select style={SEL} value={gradeFilter} onChange={(e) => { setGradeFilter(e.target.value); setPage(0); }}>
@@ -317,7 +324,7 @@ const SchoolHealthV2: React.FC = () => {
         title={editRow ? 'Sửa phiếu khám' : 'Tạo phiếu khám sức khỏe học sinh'}
         sub={editRow ? `${editRow.studentName} · ${editRow.schoolName}` : undefined}
         fields={EXAM_FIELDS}
-        initial={editRow ? { ...editRow } : { academicYear: yearFilter }}
+        initial={editRow ? { ...editRow } : { academicYear: yearFilter || CUR_ACADEMIC_YEAR }}
         size="lg"
         onSubmit={async (v, isEdit) => {
           const payload = v as Partial<SchoolExam>;

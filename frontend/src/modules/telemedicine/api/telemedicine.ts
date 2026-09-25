@@ -33,6 +33,8 @@ export interface TelemedicineAppointmentDto {
   chiefComplaint?: string;
   status: number;
   statusName: string;
+  /** Raw BE status string (Pending/Confirmed/InProgress/Completed/Cancelled/Aborted). */
+  beStatus?: string;
   videoRoomUrl?: string;
   sessionId?: string;
   consultationId?: string;
@@ -361,7 +363,9 @@ interface BeTeleAppointment {
   sessionId?: string; videoRoomUrl?: string;
 }
 
-const TELE_STATUS: Record<string, number> = { Pending: 0, Confirmed: 1, InProgress: 2, Completed: 3, Cancelled: 4, NoShow: 5 };
+// QA-R11: BE EndSessionAsync closes a call without a diagnosis as "Aborted" — unmapped, it fell back to 0 "Đã đặt" and
+// offered "Xác nhận" (BE 400). It belongs with "Không tham gia" (5); the page lets the doctor restart the session.
+const TELE_STATUS: Record<string, number> = { Pending: 0, Confirmed: 1, InProgress: 2, Completed: 3, Cancelled: 4, NoShow: 5, Aborted: 5 };
 const TELE_STATUS_NAME: Record<number, string> = { 0: 'Đã đặt', 1: 'Đã xác nhận', 2: 'Đang khám', 3: 'Hoàn tất', 4: 'Đã huỷ', 5: 'Không tham gia' };
 
 const minutesBetween = (start?: string, end?: string) => {
@@ -380,7 +384,8 @@ const mapTeleAppointment = (a: BeTeleAppointment): TelemedicineAppointmentDto =>
     appointmentType: 1, appointmentTypeName: a.appointmentType || '',
     scheduledDate: time ? `${(a.appointmentDate || '').slice(0, 10)}T${time}:00` : a.appointmentDate,
     scheduledTime: time, durationMinutes: minutesBetween(a.startTime, a.endTime),
-    chiefComplaint: a.chiefComplaint, status, statusName: TELE_STATUS_NAME[status],
+    chiefComplaint: a.chiefComplaint, status, beStatus: a.status,
+    statusName: a.status === 'Aborted' ? 'Gián đoạn (chưa chẩn đoán)' : TELE_STATUS_NAME[status],
     videoRoomUrl: a.videoRoomUrl || undefined, sessionId: a.sessionId || undefined,
     fee: a.fee || 0, paymentStatus: a.paymentStatus === 'Paid' ? 1 : 0, paymentStatusName: '',
     createdAt: a.createdAt,

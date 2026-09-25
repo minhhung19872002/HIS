@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Infrastructure.Services;
 using HIS.API.Dtos.Sms;
+using HIS.API.Authorization;
+using HIS.Core.Constants;
 
 namespace HIS.API.Controllers;
 
@@ -17,7 +19,11 @@ public class SmsController : ControllerBase
         _smsService = smsService;
     }
 
+    // QA-R11: the reads were open to any logged-in role (Integration.Read is seeded to every role) — the log holds
+    // patient names, phone numbers and result texts (and would hold OTP codes). Same permission as the
+    // /v2/sms-management page (System.Configure); the writes keep the WritePermissionMap rule.
     [HttpGet("balance")]
+    [RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<IActionResult> GetBalance()
     {
         var result = await _smsService.GetBalanceAsync();
@@ -45,6 +51,7 @@ public class SmsController : ControllerBase
     }
 
     [HttpGet("logs")]
+    [RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<IActionResult> GetLogs([FromQuery] SmsLogSearchDto search)
     {
         var result = await _smsService.GetSmsLogsAsync(search);
@@ -52,6 +59,7 @@ public class SmsController : ControllerBase
     }
 
     [HttpGet("stats")]
+    [RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<IActionResult> GetStats([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
     {
         var result = await _smsService.GetSmsStatsAsync(fromDate, toDate);
