@@ -11,7 +11,7 @@ import collections
 import concurrent.futures
 import re
 from _common import load_swagger, login, req
-from writescan_risky import RISKY as BASE_RISKY
+from writescan_risky import RISKY as BASE_RISKY, is_forbidden
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="http://localhost:5107")
@@ -35,7 +35,7 @@ for path, ops in spec["paths"].items():
     if any(x in low for x in SKIP):
         continue
     segs = re.sub(r"\{[^}]+\}", "", low).replace("/api/", "/")
-    if any(re.search(r"(^|[/\-_])" + re.escape(x) + r"($|[/\-_s])", segs) for x in RISKY):
+    if is_forbidden(segs) or any(re.search(r"(^|[/\-_])" + re.escape(x) + r"($|[/\-_s])", segs) for x in RISKY):
         continue
     for verb in ("post", "put", "patch", "delete"):
         op = ops.get(verb)

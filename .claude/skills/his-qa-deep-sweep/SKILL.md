@@ -39,6 +39,17 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
      `[Authorize(Roles=…)]` actions bypass `WritePermissionMap`; before widening a role alias in `AuthService`,
      grep every `RoleNames.<alias>` gate.
    - `latscan.py` (round 6) — sequential GET timings + response sizes (unbounded lists, N+1).
+   - Round 11 (new classes, all found real bugs on first run):
+     `pagescan.py` — page 1 ∪ page 2 vs one big page → Skip/Take without a deterministic OrderBy (rows lost/duplicated);
+     `filterscan.py` — every declared query param whose name matches a response field is applied and rows checked
+     (IGNORED filter / EMPTY = enum-name vs number); `deletedscan.py --sql` → sqlcmd → `--deleted` = soft-deleted ids
+     from the DB replayed into {id} routes + lists (print endpoints returned documents for deleted records);
+     `getwrite.py` — run the API with `Logging__LogLevel__Microsoft.AspNetCore.Hosting.Diagnostics=Information` +
+     `…EntityFrameworkCore.Database.Command=Information`, `getscan.py --threads 1`, then correlate = GETs that
+     INSERT/UPDATE; `leakscan.py` — malformed input, grep bodies for stack traces / type names / SQL (whatever the
+     status); `txnscan.py` — static: methods with ≥2 SaveChanges and no transaction (partial writes);
+     `stubscan.py` — static FE+BE "pretend" code (toast-only handlers, `Task.FromResult(true)`, 501, random codes)
+     = the **unfinished-feature** lens; pair it with a real-browser click audit of every route (agents `ui-audit-*`).
    Then keep only hits whose function is actually called by a v2 page (`frontend/src/modules/*/pages/`).
    ⚠️ Write scans EXECUTE whatever accepts `{}` — keep the shared `writescan_risky.py` list, never a shorter copy,
    and clean rows created in the scan window afterwards (round 6 fired "activate code blue" locally).
@@ -59,6 +70,13 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
 - Scan scripts: [scripts/](scripts/) — `python scripts/<x>.py --help`
 
 ## Lưu ý / Pitfalls
+- **Unfinished-feature lens (round 11)**: the user's complaint "trên prod còn nhiều chức năng chưa hoàn chỉnh" is not
+  found by 5xx scans. Give every domain agent lens B = open every page in a private Vite (`VITE_API_URL=http://localhost:5107/api
+  npx vite --port 3107`), click everything, and COMPLETE stubs against existing tables (migration SQL proposed to
+  `<scratch>/migrations/`, numbered by the coordinator). A prod read-only crawl (block non-GET at `page.route`) shows
+  what users actually see. Low-privilege local accounts: copy admin's `PasswordHash` onto them in the local DB.
+- Forbidden zones must be stated in every brief (e.g. digital signature — user order 2026-09-25, see memory).
+- Bash env vars with dots need `env "Logging__LogLevel__Microsoft.X=Information" dotnet …`.
 - v2 pages live in `frontend/src/modules/<m>/pages/`, NOT `pages-v2/`; `src/pages/` is v1 (retiring, must still compile).
 - Git Bash: prefix `docker exec` with `MSYS_NO_PATHCONV=1`; Python on Windows writes CRLF — strip before `comm`.
 - Static name matching gives false positives (same function name in several api files) — verify live before fixing.

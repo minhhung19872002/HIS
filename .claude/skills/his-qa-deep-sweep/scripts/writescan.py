@@ -15,7 +15,7 @@ import json
 import re
 
 from _common import load_swagger, login, req
-from writescan_risky import RISKY
+from writescan_risky import RISKY, is_forbidden
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="http://localhost:5107")
@@ -83,6 +83,8 @@ for path, ops in spec["paths"].items():
     for verb in ("post", "put", "patch", "delete"):
         op = ops.get(verb)
         if not op:
+            continue
+        if is_forbidden(low):  # never, not even with --include-risky
             continue
         segs = re.sub(r"\{[^}]+\}", "", low).replace("/api/", "/")
         if not args.include_risky and any(re.search(r"(^|[/\-_])" + re.escape(x) + r"($|[/\-_s])", segs) for x in RISKY):

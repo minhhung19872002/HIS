@@ -19,6 +19,7 @@ ap.add_argument("--base", default="http://localhost:5107")
 ap.add_argument("--swagger")
 ap.add_argument("--ids")
 ap.add_argument("--min-status", type=int, default=500)
+ap.add_argument("--threads", type=int, default=8, help="1 = sequential (needed for getwrite.py log correlation)")
 args = ap.parse_args()
 
 token = login(args.base)
@@ -56,7 +57,7 @@ def run(t):
     return t[0], st, b[:300].decode("utf-8", "replace")
 
 
-with concurrent.futures.ThreadPoolExecutor(8) as ex:
+with concurrent.futures.ThreadPoolExecutor(args.threads) as ex:
     res = list(ex.map(run, targets))
 print("total", len(res), collections.Counter(r[1] for r in res).most_common())
 for p, st, b in res:

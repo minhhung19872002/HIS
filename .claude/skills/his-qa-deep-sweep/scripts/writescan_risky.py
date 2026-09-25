@@ -7,3 +7,13 @@ RISKY = ["seed", "populate", "dev", "reset", "purge", "wipe", "truncate", "clear
          # round 6/7: these acted on an empty body (code blue, auto-archive, EMR close, emergency register, ...)
          "activate", "code-blue", "archive", "close", "acquire", "generate", "submit", "expire", "retry",
          "call-next", "issue", "register", "collect", "unlock"]
+
+# Round 11: substring deny-list that NO write-capable scan may ever call, whatever the flags. The token regex
+# above missed "central-signing" / "signing-roles" (sign+ing) and a scan overwrote the signature appearance config.
+# User order 2026-09-25: never touch digital signature (ký số) — keep this list broad.
+FORBIDDEN_SUBSTR = ["sign", "certificate", "webauthn", "biometric", "hsm", "pkcs", "vgca", "usb-token", "cert/"]
+
+
+def is_forbidden(path):
+    low = path.lower()
+    return any(s in low for s in FORBIDDEN_SUBSTR)
