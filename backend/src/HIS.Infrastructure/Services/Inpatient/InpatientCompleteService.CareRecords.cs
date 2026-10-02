@@ -536,6 +536,7 @@ public partial class InpatientCompleteService {
         // QA-R6: a 2027 birth date and an unknown mother stay were accepted.
         if (dto.BirthDate.Date > HIS.Core.Common.VnTime.TodayVn)
             throw new InvalidOperationException("Ngày sinh của trẻ không được ở tương lai.");
+        EnsureNewbornGender(dto.Gender);
         if (!await _context.Set<Admission>().AnyAsync(a => a.Id == motherAdmissionId && !a.IsDeleted))
             throw new KeyNotFoundException("Không tìm thấy lượt nội trú của mẹ.");
 
@@ -596,6 +597,7 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Can nang phai lon hon 0.");
         if (dto.BirthDate.Date > HIS.Core.Common.VnTime.TodayVn)
             throw new InvalidOperationException("Ngày sinh của trẻ không được ở tương lai.");
+        if (dto.Gender != entity.Gender) EnsureNewbornGender(dto.Gender); // legacy rows stay editable
 
         entity.BirthDate           = dto.BirthDate;
         entity.BirthTime           = dto.BirthTime;
@@ -635,6 +637,13 @@ public partial class InpatientCompleteService {
 
         await _context.SaveChangesAsync();
         return MapNewbornDto(entity);
+    }
+
+    /// <summary>QA-R13: gender 99 was stored (birth certificate / list then showed "-"). 1 Nam · 2 Nữ · 3 Chưa xác định.</summary>
+    private static void EnsureNewbornGender(int gender)
+    {
+        if (gender < 1 || gender > 3)
+            throw new InvalidOperationException("Giới tính của trẻ không hợp lệ (1 Nam · 2 Nữ · 3 Chưa xác định).");
     }
 
     private static NewbornRecordDto MapNewbornDto(NewbornRecord e) => new NewbornRecordDto
@@ -767,6 +776,11 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Mach / nhip tho khong duoc am.");
         if (dto.BloodFlowRate < 0)
             throw new InvalidOperationException("Toc do mau khong duoc am.");
+        // QA-R13: session number −3 and a session dated 2030 were stored (the list sorts/numbers by them).
+        if (dto.SessionNumber < 1)
+            throw new InvalidOperationException("Số thứ tự buổi lọc phải từ 1 trở lên.");
+        if (dto.SessionDate == default || dto.SessionDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException("Ngày lọc máu không được để trống hoặc ở tương lai.");
     }
 
     private static HemodialysisSessionDto MapHemodialysisDto(HemodialysisSession e) => new HemodialysisSessionDto

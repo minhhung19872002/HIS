@@ -608,6 +608,9 @@ public partial class InpatientCompleteService {
             ?? throw new KeyNotFoundException("Không tìm thấy phiếu chỉ định."); // QA-R4: was a silent 200
         if (request.Status != 0) // chỉ huỷ phiếu chưa thực hiện
             throw new InvalidOperationException("Phiếu chỉ định đã thực hiện hoặc đã hủy — không hủy được nữa.");
+        // QA-R13: legacy orders whose header never left 0 although a line already has a result/approval.
+        if (request.Details.Any(d => !d.IsDeleted && d.Status != 3 && (d.ReviewedAt != null || !string.IsNullOrEmpty(d.Result))))
+            throw new InvalidOperationException("Chỉ định đã có kết quả — không hủy được. Nhờ phòng thực hiện hủy kết quả trước.");
         // QA-R6 (MONEY): same rule as the OPD cancel — a paid order cancelled here dropped out of the bill with no refund.
         if (request.IsPaid)
             throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy chỉ định trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");

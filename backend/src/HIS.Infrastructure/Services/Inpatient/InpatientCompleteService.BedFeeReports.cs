@@ -591,10 +591,15 @@ public partial class InpatientCompleteService {
     // Persisted to InpatientDepositRequests — NOT to Deposits, whose rows are collected money read by
     // billing reports. "Collected" (1) is derived from a non-cancelled Deposit on the same medical record
     // received at/after the request time.
+    private const decimal MaxDepositRequestAmount = 10_000_000_000m; // 10 tỷ đ
+
     public async Task<DepositRequestDto> CreateDepositRequestAsync(CreateDepositRequestDto dto, Guid userId)
     {
         if (dto.RequestedAmount <= 0)
             throw new InvalidOperationException("Số tiền tạm ứng yêu cầu phải lớn hơn 0.");
+        // QA-R13: 1e15 (a nghìn-tỷ request) was stored and shown to the cashier as "Chờ thu".
+        if (dto.RequestedAmount > MaxDepositRequestAmount)
+            throw new InvalidOperationException($"Số tiền tạm ứng yêu cầu vượt mức cho phép ({MaxDepositRequestAmount:N0}đ).");
         var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
             ?? throw new KeyNotFoundException("Admission not found");
         if (!AdmissionStatus.IsActive(admission.Status))

@@ -317,6 +317,14 @@ public partial class InpatientCompleteService {
         if (hasActiveAdmission)
             throw new InvalidOperationException("Hồ sơ này đã có lượt nội trú đang điều trị, không nhập viện lần nữa được.");
 
+        // QA-R13: re-admitting from a record whose stay already ended opened a 2nd stay on the SAME record — the record
+        // kept Status/DischargeDate "đã ra viện", and both stays shared one ledger (deposit + charges counted twice).
+        if (await _context.Set<Admission>().AnyAsync(a => a.MedicalRecordId == dto.MedicalRecordId && !a.IsDeleted
+                && (a.Status == AdmissionStatus.Discharged || a.Status == AdmissionStatus.TransferredOut
+                    || a.Status == AdmissionStatus.Died || a.Status == AdmissionStatus.LeftAgainstAdvice)))
+            throw new InvalidOperationException(
+                "Hồ sơ này đã kết thúc một đợt nội trú — tiếp đón lượt khám/hồ sơ mới để nhập viện lại, hoặc Hủy ra viện nếu ra viện nhầm.");
+
         // QA-R4: the guard above is per medical record — the same PATIENT with an open stay on another
         // record (R1 found 3-4 parallel admissions per patient) was still admitted again. One person
         // cannot occupy two inpatient stays at once; the open one must be discharged / transferred first.
@@ -339,6 +347,16 @@ public partial class InpatientCompleteService {
                 throw new InvalidOperationException(
                     $"Bệnh nhân vừa được nhập viện ở hồ sơ {otherOpenStay} (trong 24 giờ qua) — phải ra viện/chuyển viện lượt đó trước.");
         }
+
+        // QA-R13: the room was never checked — a room of another department was stored next to a bed of a third
+        // room (Admission.DepartmentId/RoomId/BedId pointed at three different places). Bed must sit in the room;
+        // room must belong to the department once that department has beds (same relaxation as EnsureBedUsable).
+        var admitRoom = await _context.Rooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == dto.RoomId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phòng.");
+        if (admitRoom.DepartmentId != dto.DepartmentId && await DepartmentOwnsBedsAsync(dto.DepartmentId))
+            throw new InvalidOperationException("Phòng được chọn không thuộc khoa nhập viện.");
+        if (dto.BedId.HasValue && !await _context.Beds.AnyAsync(b => b.Id == dto.BedId.Value && b.RoomId == dto.RoomId))
+            throw new InvalidOperationException("Giường được chọn không thuộc phòng đã chọn.");
 
         // QA0915: target bed must exist and be free (same rule as TransferBedAsync).
         if (dto.BedId.HasValue)

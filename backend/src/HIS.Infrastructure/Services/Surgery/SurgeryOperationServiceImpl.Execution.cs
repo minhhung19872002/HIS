@@ -39,6 +39,12 @@ public partial class SurgeryOperationServiceImpl
         SurgeryStatus.EnsureCanStart(request?.Status ?? SurgeryStatus.RequestScheduled, schedule.Status);
         await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, dto.SurgeryId); // QA-R4: TT46
 
+        // QA-R13: a start time of 9999-12-31 was stored — every later "complete" was then refused (end < start) and
+        // the case stayed "Đang mổ" for good. The actual start cannot be missing or in the future.
+        if (dto.StartTime.Kind == DateTimeKind.Utc) dto.StartTime = HIS.Core.Common.VnTime.UtcToVn(dto.StartTime);
+        if (dto.StartTime == default || dto.StartTime > HIS.Core.Common.VnTime.NowVn.AddMinutes(10))
+            throw new InvalidOperationException("Giờ bắt đầu ca mổ không được để trống hoặc ở tương lai.");
+
         schedule.Status = SurgeryStatus.ScheduleInProgress;
         schedule.UpdatedAt = DateTime.Now;
         schedule.UpdatedBy = userId.ToString();
@@ -180,6 +186,13 @@ public partial class SurgeryOperationServiceImpl
         if (dto.StartTime != default) rec.ActualStartTime = dto.StartTime;
         if (dto.EndTime.HasValue) rec.ActualEndTime = dto.EndTime;
         if (dto.DurationMinutes.HasValue) rec.ActualDuration = dto.DurationMinutes;
+        // QA-R13: CompleteSurgeryAsync refuses end < start, but this editor stored end 07:00 / start 08:00 and a
+        // duration of −60 minutes on the surgery record.
+        if (rec.ActualDuration < 0)
+            throw new InvalidOperationException("Thời gian mổ (phút) không được âm.");
+        if (rec.ActualStartTime.HasValue && rec.ActualEndTime.HasValue && rec.ActualEndTime < rec.ActualStartTime)
+            throw new InvalidOperationException(
+                $"Giờ kết thúc ({rec.ActualEndTime:HH:mm dd/MM}) không được trước giờ bắt đầu ca mổ ({rec.ActualStartTime:HH:mm dd/MM}).");
         rec.UpdatedAt = DateTime.Now;
         rec.UpdatedBy = userId.ToString();
 

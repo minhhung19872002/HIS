@@ -231,6 +231,10 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
         // MealPlanItems.PatientId FK. Texture/allergies/instructions were silently dropped; no admission check.
         var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
             ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ nhập viện");
+        // QA-R13: a diet order on a discharged stay was accepted (Active) — meal plans and their charges then kept
+        // being generated for a patient who had left.
+        if (!HIS.Core.Constants.AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException($"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(admission.Status)}), không chỉ định chế độ ăn được.");
         await ValidateDietOrderAsync(dto);
         // A second Active order for the same admission would double every generated meal (and its charge).
         if (await _context.DietOrders.AnyAsync(o => o.AdmissionId == dto.AdmissionId && o.Status == "Active"))

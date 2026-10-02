@@ -173,6 +173,11 @@ public partial class InpatientCompleteService {
         if (admission.Status != 0)
             // Business guard → InvalidOperationException để DomainExceptionFilter trả 400 (INVALID_STATE) thay vì 500.
             throw new InvalidOperationException("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
+        // QA-R13: type/condition 99 were stored as-is (admission closed as "Khác", 6556/discharge letter printed blank).
+        if (dto.DischargeType < 1 || dto.DischargeType > 4)
+            throw new InvalidOperationException("Loại ra viện không hợp lệ (1 Ra viện · 2 Chuyển viện · 3 Bỏ về · 4 Tử vong).");
+        if (dto.DischargeCondition < 1 || dto.DischargeCondition > 5)
+            throw new InvalidOperationException("Tình trạng ra viện không hợp lệ (1 Khỏi · 2 Đỡ · 3 Không đổi · 4 Nặng hơn · 5 Tử vong).");
 
         // QA0915: a discharge date before the admission date was accepted (negative length of stay on
         // the 6556 statement). Business timestamps are VN local: a client ISO value with "Z" (toISOString)
@@ -258,6 +263,29 @@ public partial class InpatientCompleteService {
             // which no discharge ever filled (every discharged record had it NULL).
             medRecord.DischargeDate = dto.DischargeDate;
         }
+
+        // QA-R13 (L5): the request-level audit row of POST /discharge carries no entity id (the id is in the body),
+        // so "who discharged this stay" could not be traced. Same pattern as CancelDischargeAsync.
+        _context.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            TableName = "Discharges",
+            RecordId = discharge.Id,
+            EntityType = "Discharge",
+            EntityId = discharge.Id.ToString(),
+            Action = "Discharge",
+            Module = "Inpatient",
+            UserId = userId,
+            Timestamp = DateTime.UtcNow,
+            Details = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                admissionId = dto.AdmissionId,
+                dischargeType = dto.DischargeType,
+                dischargeDate = dto.DischargeDate,
+                dischargeCondition = dto.DischargeCondition,
+            }),
+            CreatedAt = DateTime.UtcNow,
+        });
 
         await _context.SaveChangesAsync();
 
