@@ -141,7 +141,9 @@ public partial class ExaminationCompleteService
             && (!string.IsNullOrWhiteSpace(examination.MainIcdCode) || !string.IsNullOrWhiteSpace(examination.SubIcdCodes));
         if (!looksUnloaded)
         {
-            examination.MainIcdCode = dto.PrimaryIcdCode;
+            // QA-R13: "   " was stored as the primary ICD — it passed the completion check (IsNullOrEmpty) and the
+            // visit concluded with a blank diagnosis. Store trimmed codes, whitespace = none.
+            examination.MainIcdCode = string.IsNullOrWhiteSpace(dto.PrimaryIcdCode) ? null : dto.PrimaryIcdCode.Trim();
             examination.MainDiagnosis = dto.PrimaryDiagnosis;
             examination.SubIcdCodes = secondaries.Count > 0 ? string.Join(",", secondaries.Select(d => d.IcdCode.Trim())) : null;
             examination.SubDiagnosis = secondaries.Count > 0 ? string.Join("; ", secondaries.Select(d => d.DiagnosisName)) : null;

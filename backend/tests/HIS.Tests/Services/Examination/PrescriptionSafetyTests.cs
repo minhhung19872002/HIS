@@ -142,6 +142,9 @@ public class PrescriptionSafetyTests
         using var ctx = TestDb.NewInMemory();
         var (examId, medId) = SeedScenario(ctx, withSevereAllergy: false);
         var warehouseId = Guid.NewGuid();
+        // QA-R13: the issuing store must exist (WarehouseId has no FK; an unknown GUID is now rejected).
+        ctx.Warehouses.Add(new HIS.Core.Entities.Warehouse { Id = warehouseId, WarehouseCode = "KT", WarehouseName = "Kho thuoc", WarehouseType = 1, IsActive = true });
+        ctx.SaveChanges();
         var svc = NewService(ctx);
         var dto = Dto(examId, medId);
         dto.WarehouseId = warehouseId;

@@ -61,6 +61,7 @@ public partial class ExaminationCompleteService
             dto.ConclusionType = hasPrescription ? 2 : 1;
         }
 
+        EnsureFollowUpDateSane(dto.NextAppointmentDate, examination.FollowUpDate); // QA-R13
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
         examination.FollowUpDate = dto.NextAppointmentDate;
@@ -123,6 +124,20 @@ public partial class ExaminationCompleteService
         }
     }
 
+    /// <summary>
+    /// QA-R13: a follow-up date of 0001-01-01 (or 9999-12-31) was stored and printed as "Hẹn tái khám 01/01/0001".
+    /// Same past rule (1-day timezone margin) as CreateAppointmentAsync, plus a 5-year ceiling. A date that is
+    /// already stored is accepted unchanged, so re-saving an old conclusion never fails.
+    /// </summary>
+    private static void EnsureFollowUpDateSane(DateTime? requested, DateTime? stored)
+    {
+        if (!requested.HasValue || (stored.HasValue && requested.Value.Date == stored.Value.Date)) return;
+        if (requested.Value.ToUniversalTime() < DateTime.UtcNow.AddDays(-1))
+            throw new ArgumentException("Ngày hẹn tái khám không được ở quá khứ", "NextAppointmentDate");
+        if (requested.Value > DateTime.Now.AddYears(5))
+            throw new ArgumentException("Ngày hẹn tái khám quá xa (tối đa 5 năm)", "NextAppointmentDate");
+    }
+
     private static void EnsureCanConclude(Examination examination)
     {
         if (examination.Status == ExaminationStatus.Cancelled)
@@ -142,6 +157,7 @@ public partial class ExaminationCompleteService
             throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
         if (examination.Status == 5) throw new InvalidOperationException("Phiếu khám đã hủy, không thể sửa kết luận");
         if (examination.Status < 4) throw new InvalidOperationException("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
+        EnsureFollowUpDateSane(dto.NextAppointmentDate, examination.FollowUpDate); // QA-R13
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
@@ -228,6 +244,18 @@ public partial class ExaminationCompleteService
         examination.EndTime = DateTime.Now;
         await CloseQueueTicketsAsync(examination);
 
+        // QA-R13: the record stayed "Đang khám" (1) — reception treats an outpatient record with Status < 3 as an open
+        // visit, so a transferred patient could never be registered again ("đã có hồ sơ khám đang hoạt động").
+        // Same close as CompleteExaminationAsync (hospitalisation keeps the record open: the admission reuses it).
+        if (examination.MedicalRecord != null && examination.MedicalRecord.TreatmentType == 1
+            && examination.MedicalRecord.Status is MedicalRecordStatus.WaitingExam or MedicalRecordStatus.InProgress
+                or MedicalRecordStatus.WaitingConclusion or MedicalRecordStatus.PendingCLS)
+        {
+            examination.MedicalRecord.MainIcdCode = examination.MainIcdCode;
+            examination.MedicalRecord.MainDiagnosis = examination.MainDiagnosis;
+            examination.MedicalRecord.Status = MedicalRecordStatus.Completed;
+        }
+
         await _unitOfWork.SaveChangesAsync();
 
         return MapToExaminationDto(examination);
@@ -245,6 +273,8 @@ public partial class ExaminationCompleteService
         // of the previous day), so a same-day follow-up must not be rejected by a timezone shift.
         if (dto.AppointmentDate.ToUniversalTime() < DateTime.UtcNow.AddDays(-1))
             throw new ArgumentException("Ngày hẹn tái khám không được ở quá khứ", nameof(dto.AppointmentDate));
+        if (dto.AppointmentDate > DateTime.Now.AddYears(5)) // QA-R13: 9999-12-31 was booked and listed as a real follow-up
+            throw new ArgumentException("Ngày hẹn tái khám quá xa (tối đa 5 năm)", nameof(dto.AppointmentDate));
 
         var roomId = dto.RoomId ?? examination.RoomId;
         var departmentId = await _context.Rooms.Where(r => r.Id == roomId)
@@ -542,6 +572,11 @@ public partial class ExaminationCompleteService
         if (toDate.Date < fromDate.Date)
             throw new InvalidOperationException(
                 $"Ngày kết thúc ({toDate:dd/MM/yyyy}) sớm hơn ngày bắt đầu ({fromDate:dd/MM/yyyy}).");
+        // QA-R13: a certificate dated 30-31/12/9999 was issued (and numbered). A sick-leave certificate covers the
+        // period around the visit — refuse a start more than a year away from today.
+        if (Math.Abs((fromDate.Date - DateTime.Today).TotalDays) > 366)
+            throw new InvalidOperationException(
+                $"Ngày bắt đầu nghỉ ({fromDate:dd/MM/yyyy}) cách ngày khám quá xa — kiểm tra lại ngày.");
         var span = (toDate.Date - fromDate.Date).Days + 1;
         if (days <= 0) days = span;
         if (days != span)
@@ -725,13 +760,13 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return false;
 
-        // Lock by setting status to completed (4)
-        if (examination.Status < 4)
-        {
-            examination.Status = 4;
-            // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
-            await _unitOfWork.SaveChangesAsync();
-        }
+        // QA-R13: this set Status = 4 on ANY open exam — a never-started visit with no doctor, diagnosis or conclusion
+        // became "Hoàn thành" (closed for billing), bypassing every rule of CompleteExaminationAsync. Locking is only
+        // meaningful for an exam that was already concluded; that one is a no-op as before.
+        if (examination.Status == ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã hủy, không khóa được.");
+        if (examination.Status != ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám chưa kết luận — hãy hoàn tất khám (kết luận) thay vì khóa.");
         return true;
     }
 
@@ -759,7 +794,7 @@ public partial class ExaminationCompleteService
         var errors = new List<string>();
         var warnings = new List<string>();
 
-        if (string.IsNullOrEmpty(examination.MainIcdCode))
+        if (string.IsNullOrWhiteSpace(examination.MainIcdCode)) // QA-R13: whitespace-only ICD is no diagnosis
             errors.Add("Chua co chan doan chinh");
 
         if (!examination.ConclusionType.HasValue)

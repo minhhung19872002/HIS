@@ -24,6 +24,18 @@ public partial class ExaminationCompleteService
 {
     #region 2.6 Service Orders
 
+    /// <summary>QA-R13: sanity ceiling for one order line (a paraclinical service is never ordered thousands of times).</summary>
+    private const int MaxServiceOrderQuantity = 1000;
+
+    private async Task EnsureRoomsExistAsync(IEnumerable<Guid> roomIds)
+    {
+        var ids = roomIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0) return;
+        var found = await _context.Rooms.CountAsync(r => ids.Contains(r.Id) && !r.IsDeleted);
+        if (found != ids.Count)
+            throw new KeyNotFoundException("Không tìm thấy phòng thực hiện dịch vụ.");
+    }
+
     public async Task<List<ServiceOrderFullDto>> GetServiceOrdersAsync(Guid examinationId)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
@@ -76,6 +88,13 @@ public partial class ExaminationCompleteService
             throw new ArgumentException("Chưa chọn dịch vụ nào", nameof(dto.Services));
         if (dto.Services.Any(s => s.Quantity <= 0))
             throw new ArgumentException("Số lượng dịch vụ phải lớn hơn 0", nameof(dto.Services));
+        // QA-R13 (MONEY): quantity 2,000,000,000 was stored as an 80,000,000,000,000đ charge; paymentType 99 went to the
+        // billed line's PatientType; RoomId has no FK, so any GUID (a medicine id) became the performing room.
+        if (dto.Services.Any(s => s.Quantity > MaxServiceOrderQuantity))
+            throw new ArgumentException($"Số lượng dịch vụ tối đa {MaxServiceOrderQuantity}", nameof(dto.Services));
+        if (dto.Services.Any(s => s.PaymentType is < 0 or > 4))
+            throw new ArgumentException("Đối tượng thanh toán của dịch vụ không hợp lệ", nameof(dto.Services));
+        await EnsureRoomsExistAsync(dto.Services.Where(s => s.RoomId.HasValue).Select(s => s.RoomId!.Value));
         var effectiveDoctorId = examination.DoctorId ?? GetCurrentUserId();
         if (!effectiveDoctorId.HasValue)
         {
@@ -209,6 +228,9 @@ public partial class ExaminationCompleteService
             throw new InvalidOperationException("Chỉ định đã thực hiện, đã hủy hoặc đã thu tiền — không sửa được.");
         if (dto.Quantity <= 0)
             throw new ArgumentException("Số lượng dịch vụ phải lớn hơn 0", nameof(dto.Quantity));
+        if (dto.Quantity > MaxServiceOrderQuantity) // QA-R13
+            throw new ArgumentException($"Số lượng dịch vụ tối đa {MaxServiceOrderQuantity}", nameof(dto.Quantity));
+        if (dto.RoomId.HasValue) await EnsureRoomsExistAsync(new[] { dto.RoomId.Value }); // QA-R13
 
         request.Quantity = dto.Quantity;
         request.TotalPrice = request.UnitPrice * dto.Quantity;
@@ -254,6 +276,11 @@ public partial class ExaminationCompleteService
         if (request.Status != 0)
             throw new InvalidOperationException(
                 "Chỉ định đã được thực hiện / có kết quả — không hủy được. Nhờ phòng thực hiện hủy kết quả/lấy mẫu trước.");
+        // QA-R13: legacy orders whose header never left 0 although a line already has a result/approval.
+        if (await _context.ServiceRequestDetails.AnyAsync(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3
+                && (d.ReviewedAt != null || (d.Result != null && d.Result != ""))))
+            throw new InvalidOperationException(
+                "Chỉ định đã có kết quả — không hủy được. Nhờ phòng thực hiện hủy kết quả trước.");
         // MONEY: cancelling (Status 4) drops the line from every statement/invoice (they filter Status != 4) and from
         // GetRefundableItemsAsync — a paid order cancelled here vanished with no refund voucher. Paid → cashier refund.
         if (request.IsPaid)

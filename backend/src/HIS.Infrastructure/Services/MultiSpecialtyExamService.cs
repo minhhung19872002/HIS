@@ -375,6 +375,33 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         if (hasChildren)
             throw new InvalidOperationException("Phiên khám có con (khám thêm CK khác). Xóa các phiên con trước.");
 
+        // QA-R13: Status 0 alone is not proof of "never examined" (an exam could be pushed back to 0 by skip). Deleting a
+        // visit that still has a prescription left it orphaned (issued, pending at the pharmacy) under a soft-deleted
+        // record. It must be cancelled first. (Orders are handled just below.)
+        if (await _db.Prescriptions.AnyAsync(p => p.ExaminationId == exam.Id && !p.IsDeleted
+                && p.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled))
+            throw new InvalidOperationException("Phiên khám đã có đơn thuốc — hủy đơn thuốc trước khi xóa đăng ký.");
+
+        // QA-R13: service orders made at reception for this visit stayed live (Status 0, priced) on a deleted
+        // record/exam — still on lab/imaging worklists and in the visit's money, but on no screen that can cancel
+        // them. Unpaid, not-started orders are cancelled with the registration; a paid or started one must go
+        // through refund / order cancellation first.
+        var visitWillBeDeleted = !await _db.Examinations
+            .AnyAsync(e => e.MedicalRecordId == exam.MedicalRecordId && !e.IsDeleted && e.Id != exam.Id);
+        var orders = await _db.ServiceRequests
+            .Where(sr => sr.MedicalRecordId == exam.MedicalRecordId && !sr.IsDeleted && sr.Status != 4
+                         && (sr.ExaminationId == exam.Id || (visitWillBeDeleted && sr.ExaminationId == null)))
+            .ToListAsync();
+        if (orders.Any(sr => sr.IsPaid || sr.Status != 0))
+            throw new InvalidOperationException(
+                "Lượt khám có chỉ định đã thu tiền hoặc đang thực hiện — hoàn tiền / hủy chỉ định trước khi xóa đăng ký.");
+        foreach (var sr in orders)
+        {
+            sr.Status = 4; // Đã hủy
+            sr.UpdatedAt = DateTime.UtcNow;
+            sr.UpdatedBy = userId.ToString();
+        }
+
         exam.IsDeleted = true;
         exam.UpdatedAt = DateTime.UtcNow;
         exam.UpdatedBy = userId.ToString();

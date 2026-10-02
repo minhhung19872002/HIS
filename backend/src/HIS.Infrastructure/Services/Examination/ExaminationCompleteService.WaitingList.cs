@@ -169,6 +169,17 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return false;
 
+        // QA-R13: skip reset ANY exam to "Chờ khám" (0) — even one already examined with orders/prescriptions, or a
+        // completed one. Status 0 is what delete-registration accepts, so the visit could then be soft-deleted with
+        // its live orders and issued prescription left orphaned. Skip = a called patient who did not show up.
+        if (examination.Status is not (HIS.Core.Constants.ExaminationStatus.Waiting or HIS.Core.Constants.ExaminationStatus.InProgress))
+            throw new InvalidOperationException(
+                $"Lượt khám đang ở trạng thái \"{HIS.Core.Constants.ExaminationStatus.GetName(examination.Status)}\" — không đưa về cuối hàng chờ được.");
+        if (await _context.ServiceRequests.AnyAsync(r => r.ExaminationId == examinationId && !r.IsDeleted && r.Status != 4)
+            || await _context.Prescriptions.AnyAsync(p => p.ExaminationId == examinationId && !p.IsDeleted
+                && p.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled))
+            throw new InvalidOperationException("Bệnh nhân đã được khám (có chỉ định/đơn thuốc) — không đưa về hàng chờ được.");
+
         // Move to end of queue
         var (skipFromUtc, skipToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var maxQueue = await _context.Examinations

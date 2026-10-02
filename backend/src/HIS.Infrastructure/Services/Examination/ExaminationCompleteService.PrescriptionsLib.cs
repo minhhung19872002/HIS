@@ -106,7 +106,8 @@ public partial class ExaminationCompleteService
                 patient.Address, patient.PhoneNumber, rx.MedicalRecord.InsuranceNumber,
                 rx.MedicalRecord.MedicalRecordCode, rx.Department?.DepartmentName));
 
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.Diagnosis)} ({Esc(rx.IcdCode)})</span></div>");
+            // QA-R13: OPD prescriptions store DiagnosisCode/DiagnosisName — the legacy Diagnosis/IcdCode printed "Chan doan: ()".
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
             body.AppendLine($@"<div class=""field""><span class=""field-label"">So ngay:</span><span class=""field-value"">{rx.TotalDays} ngay</span></div>");
 
             body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Ten thuoc</th><th>Ham luong</th><th>DVT</th><th>SL</th><th>Cach dung</th></tr></thead><tbody>");
@@ -116,6 +117,13 @@ public partial class ExaminationCompleteService
                 idx++;
                 var dosageText = new StringBuilder();
                 if (!string.IsNullOrEmpty(detail.Usage)) dosageText.Append(detail.Usage);
+                // QA-R13: the OPD editor saves the dose schedule in Dosage ("Sáng: 1, Tối: 1") — it was never printed,
+                // so the patient's copy had no dose at all (only frequency + route).
+                else if (!string.IsNullOrWhiteSpace(detail.Dosage))
+                {
+                    dosageText.Append(detail.Dosage);
+                    if (!string.IsNullOrEmpty(detail.Frequency)) dosageText.Append($" ({detail.Frequency})");
+                }
                 else
                 {
                     if (detail.MorningDose.HasValue) dosageText.Append($"Sang: {detail.MorningDose} ");
@@ -125,6 +133,7 @@ public partial class ExaminationCompleteService
                     if (!string.IsNullOrEmpty(detail.Frequency)) dosageText.Append($"({detail.Frequency})");
                 }
                 if (!string.IsNullOrEmpty(detail.Route)) dosageText.Append($" - {detail.Route}");
+                if (!string.IsNullOrWhiteSpace(detail.UsageInstructions)) dosageText.Append($". {detail.UsageInstructions}");
 
                 body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(detail.Medicine?.MedicineName)}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
             }
@@ -132,11 +141,13 @@ public partial class ExaminationCompleteService
 
             if (!string.IsNullOrEmpty(rx.Note))
                 body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Loi dan:</span><span class=""field-value"">{Esc(rx.Note)}</span></div>");
-            if (rx.MedicalRecord.Patient.DateOfBirth.HasValue)
-            {
-                var followUp = rx.MedicalRecord.DischargeDate ?? DateTime.Now.AddDays(rx.TotalDays);
+            // QA-R13: printed "Tai kham" was invented (today + TotalDays, and only when the DOB was known) instead of the
+            // follow-up date the doctor actually booked on the visit.
+            var followUp = rx.ExaminationId.HasValue
+                ? await _context.Examinations.Where(e => e.Id == rx.ExaminationId.Value).Select(e => e.FollowUpDate).FirstOrDefaultAsync()
+                : null;
+            if (followUp.HasValue)
                 body.AppendLine($@"<div class=""field""><span class=""field-label"">Tai kham:</span><span class=""field-value"">{followUp:dd/MM/yyyy}</span></div>");
-            }
 
             body.AppendLine(GetSignatureBlock(rx.Doctor?.FullName));
 
@@ -169,7 +180,8 @@ public partial class ExaminationCompleteService
                 patient.Address, patient.PhoneNumber, rx.MedicalRecord.InsuranceNumber,
                 rx.MedicalRecord.MedicalRecordCode, rx.Department?.DepartmentName));
 
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.Diagnosis)} ({Esc(rx.IcdCode)})</span></div>");
+            // QA-R13: OPD prescriptions store DiagnosisCode/DiagnosisName — the legacy Diagnosis/IcdCode printed "Chan doan: ()".
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
             body.AppendLine($@"<div class=""field""><span class=""field-label"">So ngay:</span><span class=""field-value"">{rx.TotalDays} ngay</span></div>");
 
             body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Ten thuoc</th><th>Ham luong</th><th>DVT</th><th>SL</th><th>Cach dung</th></tr></thead><tbody>");
@@ -179,6 +191,13 @@ public partial class ExaminationCompleteService
                 idx++;
                 var dosageText = new StringBuilder();
                 if (!string.IsNullOrEmpty(detail.Usage)) dosageText.Append(detail.Usage);
+                // QA-R13: the OPD editor saves the dose schedule in Dosage ("Sáng: 1, Tối: 1") — it was never printed,
+                // so the patient's copy had no dose at all (only frequency + route).
+                else if (!string.IsNullOrWhiteSpace(detail.Dosage))
+                {
+                    dosageText.Append(detail.Dosage);
+                    if (!string.IsNullOrEmpty(detail.Frequency)) dosageText.Append($" ({detail.Frequency})");
+                }
                 else
                 {
                     if (detail.MorningDose.HasValue) dosageText.Append($"Sang: {detail.MorningDose} ");
@@ -188,6 +207,7 @@ public partial class ExaminationCompleteService
                     if (!string.IsNullOrEmpty(detail.Frequency)) dosageText.Append($"({detail.Frequency})");
                 }
                 if (!string.IsNullOrEmpty(detail.Route)) dosageText.Append($" - {detail.Route}");
+                if (!string.IsNullOrWhiteSpace(detail.UsageInstructions)) dosageText.Append($". {detail.UsageInstructions}");
 
                 body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(detail.Medicine?.MedicineName)}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
             }
@@ -450,7 +470,9 @@ public partial class ExaminationCompleteService
             .Include(p => p.Doctor)
             .Include(p => p.Department)
             .Include(p => p.Details).ThenInclude(i => i.Medicine)
-            .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate);
+            .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate
+                // QA-R13: drafts (not yet issued, no legal value) were listed at the dispensing counter as "Không xác định".
+                && p.Status != HIS.Core.Constants.PrescriptionStatus.Draft);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword.Trim();

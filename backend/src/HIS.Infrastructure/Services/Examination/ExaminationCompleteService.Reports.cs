@@ -400,7 +400,11 @@ public partial class ExaminationCompleteService
             // Get prescriptions for this examination
             var prescriptions = await _context.Prescriptions.AsNoTracking()
                 .Include(p => p.Details).ThenInclude(d => d.Medicine)
-                .Where(p => p.ExaminationId == examinationId || p.MedicalRecordId == mr.Id)
+                .Where(p => (p.ExaminationId == examinationId || p.MedicalRecordId == mr.Id)
+                    // QA-R13: cancelled/replaced prescriptions and unissued drafts were printed in the record as if given.
+                    && !p.IsDeleted
+                    && p.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled
+                    && p.Status != HIS.Core.Constants.PrescriptionStatus.Draft)
                 .ToListAsync();
 
             // Get service requests
@@ -474,7 +478,7 @@ public partial class ExaminationCompleteService
                     foreach (var d in rx.Details)
                     {
                         mIdx++;
-                        body.AppendLine($@"<tr><td class=""text-center"">{mIdx}</td><td>{Esc(d.Medicine?.MedicineName)} {Esc(d.Medicine?.Concentration)}</td><td class=""text-center"">{d.Quantity:#,##0} {Esc(d.Unit)}</td><td>{Esc(d.Usage ?? d.UsageInstructions)}</td></tr>");
+                        body.AppendLine($@"<tr><td class=""text-center"">{mIdx}</td><td>{Esc(d.Medicine?.MedicineName)} {Esc(d.Medicine?.Concentration)}</td><td class=""text-center"">{d.Quantity:#,##0} {Esc(d.Unit)}</td><td>{Esc(d.Usage ?? string.Join(". ", new[] { d.Dosage, d.UsageInstructions }.Where(x => !string.IsNullOrWhiteSpace(x))))}</td></tr>"); // QA-R13: dose schedule lives in Dosage
                     }
                     body.AppendLine("</tbody></table>");
                 }
@@ -579,6 +583,15 @@ public partial class ExaminationCompleteService
             if (!string.IsNullOrEmpty(examination.SubDiagnosis))
                 body.AppendLine($@"<div class=""field""><span class=""field-label"">Benh kem theo:</span><span class=""field-value"">{Esc(examination.SubDiagnosis)}</span></div>");
 
+            // QA-R13: the slip only showed the OPD department (patient block) — the admitting department chosen by the
+            // doctor (persisted on the exam) was never printed.
+            if (examination.HospitalizationDepartmentId.HasValue)
+            {
+                var admitDept = await _context.Departments.AsNoTracking()
+                    .Where(d => d.Id == examination.HospitalizationDepartmentId.Value)
+                    .Select(d => d.DepartmentName).FirstOrDefaultAsync();
+                body.AppendLine($@"<div class=""field""><span class=""field-label"">Khoa nhap vien:</span><span class=""field-value text-bold"">{Esc(admitDept)}{(examination.HospitalizationIsEmergency ? " (CAP CUU)" : "")}</span></div>");
+            }
             body.AppendLine($@"<div class=""field""><span class=""field-label"">Ly do nhap vien:</span><span class=""field-value"">{Esc(examination.ConclusionNote)}</span></div>");
             body.AppendLine($@"<div class=""field""><span class=""field-label"">Huong dieu tri:</span><span class=""field-value"">{Esc(examination.TreatmentPlan)}</span></div>");
 
@@ -640,7 +653,9 @@ public partial class ExaminationCompleteService
             body.AppendLine($@"<div class=""field""><span class=""field-value"">{Esc(examination.TreatmentPlan ?? "...")}</span></div>");
 
             body.AppendLine(@"<h3 style=""margin-top:10px"">IV. Ly do chuyen vien</h3>");
-            body.AppendLine($@"<div class=""field""><span class=""field-value"">{Esc(examination.ConclusionNote ?? "Vuot kha nang dieu tri")}</span></div>");
+            // QA-R13: the transfer fields persisted by RequestTransferAsync were never printed — the reason showed the
+            // summary "Chuyển viện: X", the destination was a blank dotted line and transport a hard-coded ambulance.
+            body.AppendLine($@"<div class=""field""><span class=""field-value"">{Esc(examination.TransferReason ?? examination.ConclusionNote ?? "Vuot kha nang dieu tri")}</span></div>");
 
             body.AppendLine(@"<h3 style=""margin-top:10px"">V. Tinh trang nguoi benh luc chuyen</h3>");
             body.AppendLine($@"<div style=""margin-top:5px"">");
@@ -652,8 +667,8 @@ public partial class ExaminationCompleteService
 
             var patientTypeText = examination.MedicalRecord.PatientType switch { 1 => "BHYT", 2 => "Vien phi", 3 => "Dich vu", _ => "" };
             body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Doi tuong:</span><span class=""field-value"">{patientTypeText}</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Phuong tien van chuyen:</span><span class=""field-value"">Xe cap cuu cua benh vien</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chuyen den:</span><span class=""field-value"">.......................................................................</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Phuong tien van chuyen:</span><span class=""field-value"">{Esc(examination.TransferTransportMethod ?? "Xe cap cuu cua benh vien")}</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chuyen den:</span><span class=""field-value"">{Esc(examination.TransferToHospital ?? ".......................................................................")}</span></div>");
 
             body.AppendLine(GetSignatureBlock(examination.Doctor?.FullName));
 

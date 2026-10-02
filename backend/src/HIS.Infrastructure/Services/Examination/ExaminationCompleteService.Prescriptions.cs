@@ -107,7 +107,9 @@ public partial class ExaminationCompleteService
             ExaminationId = dto.ExaminationId, // Set ExaminationId
             DoctorId = doctorId.Value,
             DepartmentId = examination.DepartmentId,
-            PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
+            // QA-R13: second-resolution codes collided (DB: 130+ duplicated codes) and the dispensing counter looks
+            // a prescription up BY CODE (FirstOrDefault) — a scan could open another patient's prescription.
+            PrescriptionCode = $"DT{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}",
             PrescriptionDate = DateTime.Now,
             PrescriptionType = dto.PrescriptionType,
             PaymentCategory = dto.PaymentCategory > 0 ? dto.PaymentCategory : examination.MedicalRecord.PatientType,
@@ -279,8 +281,18 @@ public partial class ExaminationCompleteService
     {
         if (dto.Items.Count == 0)
             throw new InvalidOperationException("Đơn thuốc phải có ít nhất một thuốc.");
-        if (dto.Items.Any(i => i.MedicineId == Guid.Empty || i.Quantity <= 0 || i.Days <= 0))
+        // QA-R13: quantity 0.001 passed "> 0" and was stored as 0.00 (decimal(18,2)) — compare the stored value.
+        if (dto.Items.Any(i => i.MedicineId == Guid.Empty || Math.Round(i.Quantity, 2) <= 0 || i.Days <= 0))
             throw new InvalidOperationException("Mỗi thuốc phải có mã hợp lệ, số lượng và số ngày dùng lớn hơn 0.");
+        // QA-R13: out-of-vocabulary codes and a negative course length were stored as-is.
+        if (dto.TotalDays < 0)
+            throw new ArgumentException("Tổng số ngày dùng thuốc không được âm.", nameof(dto.TotalDays));
+        if (dto.PrescriptionType is < 0 or > 4 || dto.PaymentCategory is < 0 or > 3 || dto.Items.Any(i => i.PaymentType is < 0 or > 4))
+            throw new ArgumentException("Loại đơn / đối tượng thanh toán không hợp lệ.", nameof(dto.PaymentCategory));
+        // QA-R13: Prescriptions.WarehouseId has no FK — any GUID (e.g. a medicine id) was stored as the issuing store.
+        if (dto.WarehouseId.HasValue && dto.WarehouseId.Value != Guid.Empty
+            && !await _context.Warehouses.AnyAsync(w => w.Id == dto.WarehouseId.Value && !w.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy kho xuất thuốc.");
 
         var medicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
         var medicines = await _context.Medicines
@@ -387,7 +399,7 @@ public partial class ExaminationCompleteService
             ExaminationId = old.ExaminationId,
             DoctorId = old.DoctorId,
             DepartmentId = old.DepartmentId,
-            PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
+            PrescriptionCode = $"DT{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}", // QA-R13: unique
             PrescriptionDate = DateTime.Now,
             PrescriptionType = old.PrescriptionType,
             PaymentCategory = old.PaymentCategory,
@@ -836,6 +848,18 @@ public partial class ExaminationCompleteService
                 DiagnosisCode = t.DiagnosisCode,
                 DiagnosisName = t.DiagnosisName,
                 IsPublic = t.IsPublic,
+                // QA-R13: the v2 prescription editor reads `items` (the same shape it posts) — it was always empty,
+                // so applying any template answered "Đơn mẫu rỗng".
+                Items = t.Items.Select(i => new Application.DTOs.Examination.CreatePrescriptionItemDto
+                {
+                    MedicineId = i.MedicineId,
+                    Quantity = i.Quantity,
+                    Days = i.Days,
+                    Dosage = i.Dosage,
+                    Route = i.Route,
+                    Frequency = i.Frequency,
+                    UsageInstructions = i.UsageInstructions
+                }).ToList(),
                 TemplateItems = t.Items.Select(i => new ExaminationPrescriptionTemplateItemDto
                 {
                     MedicineId = i.MedicineId,
@@ -996,6 +1020,17 @@ public partial class ExaminationCompleteService
             DiagnosisCode = prescription.DiagnosisCode,
             DiagnosisName = prescription.DiagnosisName,
             IsPublic = false,
+            // QA-R13: CreatePrescriptionTemplateAsync saves `Items` — filling only TemplateItems saved an EMPTY template.
+            Items = prescription.Details.Select(d => new Application.DTOs.Examination.CreatePrescriptionItemDto
+            {
+                MedicineId = d.MedicineId,
+                Quantity = d.Quantity,
+                Days = d.Days,
+                Dosage = d.Dosage,
+                Route = d.Route,
+                Frequency = d.Frequency,
+                UsageInstructions = d.UsageInstructions
+            }).ToList(),
             TemplateItems = prescription.Details.Select(d => new ExaminationPrescriptionTemplateItemDto
             {
                 MedicineId = d.MedicineId,

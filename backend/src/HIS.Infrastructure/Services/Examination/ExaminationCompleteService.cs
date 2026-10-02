@@ -165,7 +165,14 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
     private int CalculateAge(DateTime? dateOfBirth, int? yearOfBirth)
     {
         if (dateOfBirth.HasValue)
-            return DateTime.Today.Year - dateOfBirth.Value.Year;
+        {
+            // QA-R13: year difference only — a child was shown one year older until the birthday (doctor's queue,
+            // exam register), e.g. 5 years 11 months displayed as 6.
+            var today = DateTime.Today;
+            var age = today.Year - dateOfBirth.Value.Year;
+            if (dateOfBirth.Value.Date > today.AddYears(-age)) age--;
+            return Math.Max(0, age);
+        }
         if (yearOfBirth.HasValue)
             return DateTime.Today.Year - yearOfBirth.Value;
         return 0;
