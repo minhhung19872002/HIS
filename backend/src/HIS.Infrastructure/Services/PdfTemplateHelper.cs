@@ -1,4 +1,6 @@
 using System.Text;
+using HIS.Infrastructure.Data;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HIS.Infrastructure.Services;
 
@@ -9,10 +11,49 @@ namespace HIS.Infrastructure.Services;
 /// </summary>
 public static partial class PdfTemplateHelper
 {
-    private const string HospitalName = "BENH VIEN DA KHOA ABC";
-    private const string HospitalNameVn = "BỆNH VIỆN ĐA KHOA ABC";
-    private const string HospitalAddress = "123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh";
-    private const string HospitalPhone = "(028) 1234 5678";
+    // QA-R15: every backend print (Rx, transfer, receipts, bảng kê, discharge…) carried the placeholder identity
+    // "BỆNH VIỆN ĐA KHOA ABC / 123 Đường ABC / (028) 1234 5678" — a legal document handed to the patient naming a
+    // hospital that does not exist. The identity now comes from SystemConfigs "Hospital.*" (Quản trị RIS → Cấu hình BV,
+    // the same keys /admin/hospital-config saves); not configured → blank, to be filled by hand (same policy as the FE
+    // forms, #421). Cached for a few minutes so a print does not hit the DB every time.
+    private static IServiceProvider? _services;
+    private static (string Name, string Address, string Phone) _hospital = ("", "", "");
+    private static DateTime _hospitalLoadedAt = DateTime.MinValue;
+    private static readonly object _hospitalLock = new();
+
+    /// <summary>Called once at startup (Program.cs) so the static helpers can read the hospital identity.</summary>
+    public static void UseServiceProvider(IServiceProvider services) => _services = services;
+
+    /// <summary>Hospital name configured in SystemConfigs "Hospital.HospitalName" (empty when not configured).</summary>
+    public static string HospitalNameText => GetHospitalIdentity().Name;
+    public static string HospitalAddressText => GetHospitalIdentity().Address;
+    public static string HospitalPhoneText => GetHospitalIdentity().Phone;
+
+    private static (string Name, string Address, string Phone) GetHospitalIdentity()
+    {
+        if (_services == null || DateTime.UtcNow - _hospitalLoadedAt < TimeSpan.FromMinutes(5)) return _hospital;
+        lock (_hospitalLock)
+        {
+            if (DateTime.UtcNow - _hospitalLoadedAt < TimeSpan.FromMinutes(5)) return _hospital;
+            try
+            {
+                using var scope = _services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
+                var keys = new[] { "Hospital.HospitalName", "Hospital.Address", "Hospital.Phone" };
+                var map = db.SystemConfigs.Where(c => keys.Contains(c.ConfigKey))
+                    .Select(c => new { c.ConfigKey, c.ConfigValue }).ToList()
+                    .GroupBy(c => c.ConfigKey).ToDictionary(g => g.Key, g => g.First().ConfigValue?.Trim() ?? "");
+                string Get(string k) => map.TryGetValue(k, out var v) ? v : "";
+                _hospital = (Get("Hospital.HospitalName"), Get("Hospital.Address"), Get("Hospital.Phone"));
+            }
+            catch
+            {
+                // Keep the last known identity; a print must never fail because of the header.
+            }
+            _hospitalLoadedAt = DateTime.UtcNow;
+            return _hospital;
+        }
+    }
 
     /// <summary>
     /// Wrap noi dung trong HTML page voi print CSS
@@ -275,13 +316,14 @@ public static partial class PdfTemplateHelper
     /// </summary>
     public static string GetHospitalHeader()
     {
+        var (hospitalName, hospitalAddress, hospitalPhone) = GetHospitalIdentity();
         return $@"
 <div class=""header"">
     <div class=""header-left"">
         <div class=""header-ministry"">BỘ Y TẾ</div>
-        <div class=""header-hospital"">{EscapeHtml(HospitalNameVn)}</div>
-        <div style=""font-size:11px"">{EscapeHtml(HospitalAddress)}</div>
-        <div style=""font-size:11px"">Tel: {EscapeHtml(HospitalPhone)}</div>
+        <div class=""header-hospital"">{(hospitalName.Length > 0 ? EscapeHtml(hospitalName.ToUpperInvariant()) : "....................................")}</div>
+        {(hospitalAddress.Length > 0 ? $@"<div style=""font-size:11px"">{EscapeHtml(hospitalAddress)}</div>" : "")}
+        {(hospitalPhone.Length > 0 ? $@"<div style=""font-size:11px"">ĐT: {EscapeHtml(hospitalPhone)}</div>" : "")}
     </div>
     <div class=""header-right"">
         <div class=""header-country"">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
@@ -336,8 +378,15 @@ public static partial class PdfTemplateHelper
 
         if (dateOfBirth.HasValue)
         {
-            var age = today.Year - dateOfBirth.Value.Year;
-            if (dateOfBirth.Value.Date > today.Date.AddYears(-age)) age--;
+            var dob = dateOfBirth.Value.Date;
+            if (dob > today.Date) return "";
+            // QA-R15: TT 26/2025 (đơn thuốc) & TT 32/2023 (HSBA) — a child under 72 months is written in MONTHS
+            // ("28 tháng"), under one month in days; a 2-year-old printed "Tuổi: 2" on the prescription.
+            var months = (today.Year - dob.Year) * 12 + today.Month - dob.Month - (today.Day < dob.Day ? 1 : 0);
+            if (months < 1) return $"{(today.Date - dob).Days} ngày";
+            if (months < 72) return $"{months} tháng";
+            var age = today.Year - dob.Year;
+            if (dob > today.Date.AddYears(-age)) age--;
             return age >= 0 ? age.ToString() : "";
         }
 

@@ -553,6 +553,9 @@ public partial class BillingCompleteService {
             itemRows = $"<tr><td class='text-center'>1</td><td>Dịch vụ y tế</td><td class='text-center'>Lần</td><td class='text-right'>1</td><td class='text-right'>{eInvoice.SubTotal:N0}</td><td class='text-right'>{eInvoice.SubTotal:N0}</td></tr>";
         }
 
+        // QA-R15: the seller block was a fake identity ("BENH VIEN DA KHOA ABC", MST 0100000000, 123 Nguyen Trai) on the
+        // printed copy of a VAT invoice. Seller name/address/phone now come from SystemConfigs "Hospital.*"; the tax code is
+        // left blank (no configured source — a wrong MST on an invoice copy is worse than an empty one).
         var html = $@"
 <!DOCTYPE html>
 <html>
@@ -602,10 +605,10 @@ public partial class BillingCompleteService {
     </div>
 
     <div class='info-section'>
-        <div class='info-row'><span class='info-label'>Don vi ban hang:</span><span class='info-value'>BENH VIEN DA KHOA ABC</span></div>
-        <div class='info-row'><span class='info-label'>Ma so thue:</span><span class='info-value'>0100000000</span></div>
-        <div class='info-row'><span class='info-label'>Dia chi:</span><span class='info-value'>123 Nguyen Trai, Thanh Xuan, Ha Noi</span></div>
-        <div class='info-row'><span class='info-label'>Dien thoai:</span><span class='info-value'>024 1234 5678</span></div>
+        <div class='info-row'><span class='info-label'>Don vi ban hang:</span><span class='info-value'>{Esc(PdfTemplateHelper.HospitalNameText)}</span></div>
+        <div class='info-row'><span class='info-label'>Ma so thue:</span><span class='info-value'></span></div>
+        <div class='info-row'><span class='info-label'>Dia chi:</span><span class='info-value'>{Esc(PdfTemplateHelper.HospitalAddressText)}</span></div>
+        <div class='info-row'><span class='info-label'>Dien thoai:</span><span class='info-value'>{Esc(PdfTemplateHelper.HospitalPhoneText)}</span></div>
     </div>
 
     <div class='info-section'>

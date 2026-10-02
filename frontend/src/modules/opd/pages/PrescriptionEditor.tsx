@@ -52,6 +52,18 @@ const ageOf = (p: Patient): number => {
   if (p.dateOfBirth) return new Date().getFullYear() - new Date(p.dateOfBirth).getFullYear();
   return 0;
 };
+/** QA-R15 (TT 26/2025 Đ.6): age on the prescription — a child under 72 months is written in months. */
+const rxAgeText = (dob?: string, yob?: number): string => {
+  if (dob) {
+    const b = new Date(dob); const t = new Date();
+    if (isNaN(b.getTime()) || b > t) return '';
+    const months = (t.getFullYear() - b.getFullYear()) * 12 + t.getMonth() - b.getMonth() - (t.getDate() < b.getDate() ? 1 : 0);
+    if (months < 1) return `${Math.floor((t.getTime() - b.getTime()) / 86400000)} ngày`;
+    if (months < 72) return `${months} tháng`;
+    return `${Math.floor(months / 12)} tuổi`;
+  }
+  return yob ? `${new Date().getFullYear() - yob} tuổi` : '';
+};
 const vitalsStr = (c: PrescriptionContextDto | null): string => {
   if (!c) return '';
   const parts: string[] = [];
@@ -552,8 +564,10 @@ table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #
 <div style="text-align:center"><strong>${HOSPITAL_NAME}</strong></div>
 <div class="title">ĐƠN THUỐC</div>
 ${pt ? `<div class="info">Họ tên: <strong>${esc(pt.fullName)}</strong> — Mã BN: ${esc(pt.patientCode)}</div>
-<div class="info">Giới: ${pt.gender === 1 ? 'Nam' : 'Nữ'} · BHYT: ${esc(pt.insuranceNumber || 'Không')}</div>` : ''}
-<div class="info">Chẩn đoán: <strong>${esc(ctx?.mainDiagnosis)}</strong></div>
+<div class="info">Giới: ${pt.gender === 1 ? 'Nam' : 'Nữ'} · Tuổi: ${esc(rxAgeText(pt.dateOfBirth ?? ctx?.dateOfBirth, pt.yearOfBirth))}${pt.dateOfBirth ? ` (sinh ${esc(new Date(pt.dateOfBirth).toLocaleDateString('vi-VN'))})` : ''}${ctx?.weight ? ` · Cân nặng: ${esc(ctx.weight)} kg` : ''} · BHYT: ${esc(pt.insuranceNumber || 'Không')}</div>
+<div class="info">Địa chỉ: ${esc(pt.address)}</div>` : ''}
+<div class="info">Chẩn đoán: <strong>${esc(ctx?.mainDiagnosis)}</strong>${ctx?.mainIcdCode ? ` (${esc(ctx.mainIcdCode)})` : ''}</div>
+${ctx?.doctorName ? `<div class="info">Bác sĩ khám: ${esc(ctx.doctorName)}</div>` : ''}
 <table><thead><tr><th>STT</th><th>Tên thuốc</th><th>Liều dùng</th><th>Số ngày</th><th>SL</th><th>Đường dùng</th><th>Ghi chú</th></tr></thead>
 <tbody>${items.map((it, i) => `<tr><td>${i + 1}</td>
 <td><strong>${esc(it.name)}</strong>${it.strength ? `<br/><small>${esc(it.strength)}</small>` : ''}</td>

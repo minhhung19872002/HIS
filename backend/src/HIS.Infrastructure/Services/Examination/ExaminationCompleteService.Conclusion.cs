@@ -716,8 +716,12 @@ public partial class ExaminationCompleteService
                 "Don vi cong tac", "So BHXH",
                 "Chan doan", "Ma ICD",
                 "So ngay nghi", "Tu ngay", "Den ngay",
-                "Ket luan"
+                "Ket luan",
+                // QA-R15 (TT 56/2017 mẫu giấy nghỉ việc hưởng BHXH): a child under 7 → the parent's name is mandatory
+                // (the benefit is paid to the parent caring for the child); the form had no such line.
+                "Ho ten cha/me (tre duoi 7 tuoi)"
             };
+            var isChildUnder7 = patient.DateOfBirth is { } dob7 && dob7.Date > DateTime.Today.AddYears(-7);
             var values = new[]
             {
                 patient.FullName,
@@ -734,13 +738,17 @@ public partial class ExaminationCompleteService
                     : "...",
                 (issued?.FromDate ?? DateTime.Now).ToString("dd/MM/yyyy"),
                 issued?.ToDate.ToString("dd/MM/yyyy") ?? examination.FollowUpDate?.ToString("dd/MM/yyyy") ?? ".../.../......",
-                conclusionTypeText
+                conclusionTypeText,
+                patient.GuardianName ?? ""
             };
+            if (!isChildUnder7) values = values[..^1]; // BuildVoucherReport prints min(labels, values) rows
 
             var html = BuildVoucherReport(
                 "GIAY CHUNG NHAN NGHI OM",
                 issued?.CertificateNumber ?? $"GNO{DateTime.Now:yyyyMMdd}-{examinationId.ToString()[..8].ToUpper()}",
-                DateTime.Now, labels, values, examination.Doctor?.FullName);
+                // QA-R15: a reprint on another day re-dated the certificate; the issue date is when it was issued (UTC → VN).
+                issued != null ? HIS.Core.Common.VnTime.UtcToVn(issued.IssuedAt) : DateTime.Now,
+                labels, values, examination.Doctor?.FullName);
             return Encoding.UTF8.GetBytes(html);
         }
         catch { return Array.Empty<byte>(); }

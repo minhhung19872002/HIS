@@ -709,14 +709,24 @@ public partial class ExaminationCompleteService
                 order.MedicalRecord.MedicalRecordCode, order.Department?.DepartmentName));
 
             body.AppendLine($@"<div class=""field""><span class=""field-label"">Loai chi dinh:</span><span class=""field-value"">{Esc(requestTypeText)}</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(order.Diagnosis)} ({Esc(order.IcdCode)})</span></div>");
+            // QA-R15: OPD orders never store Diagnosis/IcdCode on the request (the exam holds it) — every single-order
+            // slip printed "Chan doan: ()". Fall back to the visit's diagnosis.
+            var orderDx = order.Diagnosis;
+            var orderIcd = order.IcdCode;
+            if (string.IsNullOrWhiteSpace(orderDx) && string.IsNullOrWhiteSpace(orderIcd) && order.ExaminationId.HasValue)
+            {
+                var examDx = await _context.Examinations.AsNoTracking().Where(e => e.Id == order.ExaminationId.Value)
+                    .Select(e => new { e.MainDiagnosis, e.MainIcdCode }).FirstOrDefaultAsync();
+                orderDx = examDx?.MainDiagnosis; orderIcd = examDx?.MainIcdCode;
+            }
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(orderDx)} ({Esc(orderIcd)})</span></div>");
             if (order.IsEmergency)
                 body.AppendLine(@"<div class=""field""><span class=""field-value text-bold"" style=""color:red"">CAP CUU</span></div>");
 
             body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Ten dich vu</th><th>SL</th><th>Don gia</th><th>Thanh tien</th><th>Ghi chu</th></tr></thead><tbody>");
             int idx = 0;
             decimal total = 0;
-            foreach (var detail in order.Details)
+            foreach (var detail in order.Details.Where(d => d.Status != 3)) // QA-R15: cancelled lines (SRD 3) off the slip
             {
                 idx++;
                 total += detail.Amount;
@@ -759,7 +769,8 @@ public partial class ExaminationCompleteService
             var orders = await _context.ServiceRequests
                 .Include(sr => sr.Details).ThenInclude(d => d.Service)
                 .Include(sr => sr.Doctor)
-                .Where(sr => sr.ExaminationId == examinationId)
+                // QA-R15: cancelled orders (Status 4) were printed and summed — "Tong cong" 295,000 for 145,000 of live orders.
+                .Where(sr => sr.ExaminationId == examinationId && sr.Status != 4)
                 .OrderBy(sr => sr.RequestDate)
                 .ToListAsync();
             if (!orders.Any()) return Array.Empty<byte>();
@@ -781,7 +792,7 @@ public partial class ExaminationCompleteService
             decimal grandTotal = 0;
             foreach (var order in orders)
             {
-                foreach (var detail in order.Details)
+                foreach (var detail in order.Details.Where(d => d.Status != 3))
                 {
                     idx++;
                     grandTotal += detail.Amount;

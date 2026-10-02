@@ -83,6 +83,31 @@ public partial class ExaminationCompleteService
         return await SearchMedicinesAsync("", null, limit);
     }
 
+    /// <summary>
+    /// QA-R15 (TT 26/2025 Đ.6): drugs are prescribed by generic name (hoạt chất) — the brand name follows in brackets.
+    /// The prints showed only the catalogue name ("Hapacol 250"), so the active ingredient never reached the patient.
+    /// </summary>
+    private static string RxDrugName(Medicine? m)
+    {
+        if (m == null) return "";
+        var name = m.MedicineName ?? "";
+        var generic = m.ActiveIngredient?.Trim();
+        if (string.IsNullOrEmpty(generic) || name.StartsWith(generic, StringComparison.OrdinalIgnoreCase)) return name;
+        return $"{generic} ({name})";
+    }
+
+    /// <summary>
+    /// QA-R15 (TT 26/2025 Đ.6): a child under 72 months must have the parent/guardian named on the prescription.
+    /// </summary>
+    private static string RxGuardianLine(Patient patient)
+    {
+        if (patient.DateOfBirth is not { } dob || dob.Date > DateTime.Today || dob.Date <= DateTime.Today.AddMonths(-72)) return "";
+        var guardian = string.Join(" - ", new[] { patient.GuardianName, patient.GuardianRelationship, patient.GuardianPhone }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        return $@"<div class=""field""><span class=""field-label"">Bố/mẹ/người giám hộ:</span><span class=""field-value"">{Esc(guardian)}</span></div>
+";
+    }
+
     public async Task<byte[]> PrintPrescriptionAsync(Guid prescriptionId)
     {
         try
@@ -99,18 +124,19 @@ public partial class ExaminationCompleteService
 
             var body = new StringBuilder();
             body.AppendLine(GetHospitalHeader());
-            body.AppendLine(@"<div class=""form-title"">DON THUOC</div>");
-            body.AppendLine($@"<div class=""form-number"">So: {Esc(rx.PrescriptionCode)}</div>");
+            body.AppendLine(@"<div class=""form-title"">ĐƠN THUỐC</div>");
+            body.AppendLine($@"<div class=""form-number"">Số: {Esc(rx.PrescriptionCode)}</div>");
             body.AppendLine(GetPatientInfoBlock(
                 patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
                 patient.Address, patient.PhoneNumber, rx.MedicalRecord.InsuranceNumber,
                 rx.MedicalRecord.MedicalRecordCode, rx.Department?.DepartmentName));
+            body.Append(RxGuardianLine(patient));
 
             // QA-R13: OPD prescriptions store DiagnosisCode/DiagnosisName — the legacy Diagnosis/IcdCode printed "Chan doan: ()".
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">So ngay:</span><span class=""field-value"">{rx.TotalDays} ngay</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Số ngày:</span><span class=""field-value"">{rx.TotalDays} ngày</span></div>");
 
-            body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Ten thuoc</th><th>Ham luong</th><th>DVT</th><th>SL</th><th>Cach dung</th></tr></thead><tbody>");
+            body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th><th>SL</th><th>Cách dùng</th></tr></thead><tbody>");
             int idx = 0;
             foreach (var detail in rx.Details)
             {
@@ -135,19 +161,19 @@ public partial class ExaminationCompleteService
                 if (!string.IsNullOrEmpty(detail.Route)) dosageText.Append($" - {detail.Route}");
                 if (!string.IsNullOrWhiteSpace(detail.UsageInstructions)) dosageText.Append($". {detail.UsageInstructions}");
 
-                body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(detail.Medicine?.MedicineName)}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
+                body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(RxDrugName(detail.Medicine))}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
             }
             body.AppendLine("</tbody></table>");
 
             if (!string.IsNullOrEmpty(rx.Note))
-                body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Loi dan:</span><span class=""field-value"">{Esc(rx.Note)}</span></div>");
+                body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Lời dặn:</span><span class=""field-value"">{Esc(rx.Note)}</span></div>");
             // QA-R13: printed "Tai kham" was invented (today + TotalDays, and only when the DOB was known) instead of the
             // follow-up date the doctor actually booked on the visit.
             var followUp = rx.ExaminationId.HasValue
                 ? await _context.Examinations.Where(e => e.Id == rx.ExaminationId.Value).Select(e => e.FollowUpDate).FirstOrDefaultAsync()
                 : null;
             if (followUp.HasValue)
-                body.AppendLine($@"<div class=""field""><span class=""field-label"">Tai kham:</span><span class=""field-value"">{followUp:dd/MM/yyyy}</span></div>");
+                body.AppendLine($@"<div class=""field""><span class=""field-label"">Tái khám:</span><span class=""field-value"">{followUp:dd/MM/yyyy}</span></div>");
 
             body.AppendLine(GetSignatureBlock(rx.Doctor?.FullName));
 
@@ -173,18 +199,19 @@ public partial class ExaminationCompleteService
 
             var body = new StringBuilder();
             body.AppendLine(GetHospitalHeader());
-            body.AppendLine(@"<div class=""form-title"">DON THUOC (MUA NGOAI)</div>");
-            body.AppendLine($@"<div class=""form-number"">So: {Esc(rx.PrescriptionCode)}</div>");
+            body.AppendLine(@"<div class=""form-title"">ĐƠN THUỐC (MUA NGOÀI)</div>");
+            body.AppendLine($@"<div class=""form-number"">Số: {Esc(rx.PrescriptionCode)}</div>");
             body.AppendLine(GetPatientInfoBlock(
                 patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
                 patient.Address, patient.PhoneNumber, rx.MedicalRecord.InsuranceNumber,
                 rx.MedicalRecord.MedicalRecordCode, rx.Department?.DepartmentName));
+            body.Append(RxGuardianLine(patient));
 
             // QA-R13: OPD prescriptions store DiagnosisCode/DiagnosisName — the legacy Diagnosis/IcdCode printed "Chan doan: ()".
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">So ngay:</span><span class=""field-value"">{rx.TotalDays} ngay</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán:</span><span class=""field-value"">{Esc(rx.DiagnosisName ?? rx.Diagnosis)} ({Esc(rx.DiagnosisCode ?? rx.IcdCode)})</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Số ngày:</span><span class=""field-value"">{rx.TotalDays} ngày</span></div>");
 
-            body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Ten thuoc</th><th>Ham luong</th><th>DVT</th><th>SL</th><th>Cach dung</th></tr></thead><tbody>");
+            body.AppendLine(@"<table class=""bordered""><thead><tr><th style=""width:30px"">STT</th><th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th><th>SL</th><th>Cách dùng</th></tr></thead><tbody>");
             int idx = 0;
             foreach (var detail in rx.Details)
             {
@@ -209,14 +236,20 @@ public partial class ExaminationCompleteService
                 if (!string.IsNullOrEmpty(detail.Route)) dosageText.Append($" - {detail.Route}");
                 if (!string.IsNullOrWhiteSpace(detail.UsageInstructions)) dosageText.Append($". {detail.UsageInstructions}");
 
-                body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(detail.Medicine?.MedicineName)}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
+                body.AppendLine($@"<tr><td class=""text-center"">{idx}</td><td>{Esc(RxDrugName(detail.Medicine))}</td><td>{Esc(detail.Medicine?.Concentration)}</td><td class=""text-center"">{Esc(detail.Unit ?? detail.Medicine?.Unit)}</td><td class=""text-center"">{detail.Quantity:#,##0}</td><td>{Esc(dosageText.ToString())}</td></tr>");
             }
             body.AppendLine("</tbody></table>");
 
             body.AppendLine(@"<div style=""margin-top:15px;padding:10px;border:1px dashed #999;font-style:italic"">Luu y: Don thuoc nay mua tai nha thuoc ben ngoai. Benh nhan tu chiu trach nhiem ve chat luong thuoc.</div>");
 
             if (!string.IsNullOrEmpty(rx.Note))
-                body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Loi dan:</span><span class=""field-value"">{Esc(rx.Note)}</span></div>");
+                body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Lời dặn:</span><span class=""field-value"">{Esc(rx.Note)}</span></div>");
+            // QA-R15: the pharmacy copy never carried the follow-up date the doctor booked (the internal print does).
+            var followUpExt = rx.ExaminationId.HasValue
+                ? await _context.Examinations.Where(e => e.Id == rx.ExaminationId.Value).Select(e => e.FollowUpDate).FirstOrDefaultAsync()
+                : null;
+            if (followUpExt.HasValue)
+                body.AppendLine($@"<div class=""field""><span class=""field-label"">Tái khám:</span><span class=""field-value"">{followUpExt:dd/MM/yyyy}</span></div>");
 
             body.AppendLine(GetSignatureBlock(rx.Doctor?.FullName));
 

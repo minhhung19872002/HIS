@@ -29,18 +29,21 @@ public partial class BillingCompleteService {
 
             var patient = record.Patient;
 
-            // Query service requests for this medical record
+            // QA-R15: the 6556 is the FULL cost statement — query every line (incl. lines paid by QR/kiosk or sold at the
+            // pharmacy counter, which the cashier ledger skips) but drop cancelled lines, draft/returned prescriptions,
+            // and add the missing total row.
             var serviceDetails = await _context.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.Service)
                 .Include(d => d.ServiceRequest)
-                .Where(d => d.ServiceRequest.MedicalRecordId == dto.MedicalRecordId && d.ServiceRequest.Status != 4)
+                .Where(d => d.ServiceRequest.MedicalRecordId == dto.MedicalRecordId && !d.IsDeleted
+                    && d.ServiceRequest.Status != 4 && d.Status != 3)
                 .ToListAsync();
 
-            // Query prescription details for this medical record
             var rxDetails = await _context.PrescriptionDetails.AsNoTracking()
                 .Include(d => d.Medicine)
                 .Include(d => d.Prescription)
-                .Where(d => d.Prescription.MedicalRecordId == dto.MedicalRecordId && d.Prescription.Status != 4)
+                .Where(d => d.Prescription.MedicalRecordId == dto.MedicalRecordId
+                    && InvoiceLedger.BillableRxStatuses.Contains(d.Prescription.Status))
                 .ToListAsync();
 
             var headers = new[] { "Ma DV/Thuoc", "Ten DV/Thuoc", "DVT", "SL", "Don gia", "Thanh tien", "BHYT", "BN tra" };
@@ -67,13 +70,20 @@ public partial class BillingCompleteService {
                     rd.Medicine?.MedicineCode ?? "",
                     rd.Medicine?.MedicineName ?? "",
                     rd.Unit ?? "",
-                    rd.Quantity.ToString("#,##0"),
+                    rd.Quantity.ToString("#,##0.##"),
                     rd.UnitPrice.ToString("#,##0"),
                     rd.Amount.ToString("#,##0"),
                     rd.InsuranceAmount.ToString("#,##0"),
                     rd.PatientAmount.ToString("#,##0")
                 });
             }
+            rows.Add(new[]
+            {
+                "", "TONG CONG", "", "", "",
+                (serviceDetails.Sum(d => d.Amount) + rxDetails.Sum(d => d.Amount)).ToString("#,##0"),
+                (serviceDetails.Sum(d => d.InsuranceAmount) + rxDetails.Sum(d => d.InsuranceAmount)).ToString("#,##0"),
+                (serviceDetails.Sum(d => d.PatientAmount) + rxDetails.Sum(d => d.PatientAmount)).ToString("#,##0")
+            });
 
             var subtitle = $"Ho so: {record.MedicalRecordCode} - BN: {patient.FullName}";
             var html = BuildTableReport("BANG KE CHI PHI KHAM CHUA BENH", subtitle, DateTime.Now, headers, rows, "Thu ngan");
@@ -419,6 +429,8 @@ public partial class BillingCompleteService {
                     receipt.Note ?? ""
                 };
 
+                // QA-R15: "Thanh tien" is what the patient paid (FinalAmount) while SL × Don gia is the full price —
+                // 10 × 2,000 printed 2,000 with nothing saying the other 18,000 was BHYT / discount. Say it in the note.
                 var items = receipt.Details.Select(d => new ReportItemRow
                 {
                     Name = d.ItemName ?? "",
@@ -426,7 +438,11 @@ public partial class BillingCompleteService {
                     Quantity = d.Quantity,
                     UnitPrice = d.UnitPrice,
                     Amount = d.FinalAmount,
-                    Note = ""
+                    Note = d.Amount - d.Discount != d.FinalAmount || d.Discount != 0
+                        ? $"Tong {d.Amount:#,##0}"
+                          + (d.Amount - d.Discount - d.FinalAmount != 0 ? $"; BHYT tra {d.Amount - d.Discount - d.FinalAmount:#,##0}" : "")
+                          + (d.Discount != 0 ? $"; giam {d.Discount:#,##0}" : "")
+                        : ""
                 }).ToList();
 
                 var html = BuildItemizedReport("PHIEU THU TIEN", receipt.ReceiptCode, receipt.ReceiptDate, metaLabels, metaValues, items, receipt.Cashier?.FullName);
@@ -513,10 +529,13 @@ public partial class BillingCompleteService {
             sb.AppendLine($"<tr><td><b>Tong chi phi thuoc:</b></td><td class=\"text-right\">{invoice.TotalMedicineAmount:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Tong chi phi vat tu:</b></td><td class=\"text-right\">{invoice.TotalSupplyAmount:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Tong chi phi giuong:</b></td><td class=\"text-right\">{invoice.TotalBedAmount:#,##0}</td></tr>");
-            sb.AppendLine($"<tr><td><b>TONG CONG:</b></td><td class=\"text-right\"><b>{invoice.TotalAmount:#,##0}</b></td></tr>");
+            // QA-R15: "TONG CONG" printed TotalAmount — the PATIENT payable (InvoiceLedger) — right under categories summing
+            // to the full cost (145,000 + 35,000 → "TONG CONG: 37,500"). Print the real total and label the payable.
+            sb.AppendLine($"<tr><td><b>TONG CHI PHI KCB:</b></td><td class=\"text-right\"><b>{invoice.TotalServiceAmount + invoice.TotalMedicineAmount + invoice.TotalSupplyAmount + invoice.TotalBedAmount:#,##0}</b></td></tr>");
             sb.AppendLine($"<tr><td><b>BHYT chi tra:</b></td><td class=\"text-right\">{invoice.InsuranceAmount:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Dong chi tra:</b></td><td class=\"text-right\">{invoice.PatientCoPayment:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Ngoai BHYT:</b></td><td class=\"text-right\">{invoice.OutOfPocket:#,##0}</td></tr>");
+            sb.AppendLine($"<tr><td><b>NGUOI BENH PHAI TRA:</b></td><td class=\"text-right\"><b>{invoice.TotalAmount:#,##0}</b></td></tr>");
             sb.AppendLine($"<tr><td><b>Da tam ung:</b></td><td class=\"text-right\">{invoice.DepositAmount:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Da thanh toan:</b></td><td class=\"text-right\">{invoice.PaidAmount:#,##0}</td></tr>");
             sb.AppendLine($"<tr><td><b>Hoan tra:</b></td><td class=\"text-right\">{invoice.RefundAmount:#,##0}</td></tr>");

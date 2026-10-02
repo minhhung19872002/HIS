@@ -152,7 +152,8 @@ public partial class ReceptionCompleteService {
         {
             serviceRequests = await _context.ServiceRequests.AsNoTracking()
                 .Include(x => x.Service)
-                .Where(x => x.MedicalRecordId == medicalRecordId)
+                // QA-R15: a cancelled order (Status 4) stayed on the slip and in "Tổng tiền" (295,000 for 145,000 live).
+                .Where(x => x.MedicalRecordId == medicalRecordId && x.Status != 4)
                 .OrderByDescending(x => x.RequestDate)
                 .Take(20)
                 .ToListAsync();

@@ -480,10 +480,18 @@ public partial class LISCompleteService {
 
             var completedAt = detailsWithResult.Select(d => d.ResultDate).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault();
 
+            // QA-R15: the slip printed an empty BHYT card / phone (null was passed) and an empty diagnosis for every OPD
+            // order — OPD orders keep the diagnosis on the examination, not on the request.
+            var diagnosis = sr.Diagnosis;
+            if (string.IsNullOrWhiteSpace(diagnosis) && sr.ExaminationId.HasValue)
+                diagnosis = await _context.Examinations.AsNoTracking().Where(e => e.Id == sr.ExaminationId.Value)
+                    .Select(e => e.MainIcdCode == null ? e.MainDiagnosis : e.MainDiagnosis + " (" + e.MainIcdCode + ")")
+                    .FirstOrDefaultAsync();
+
             var html = PdfTemplateHelper.GetLabResult(
                 patient?.PatientCode, patient?.FullName, genderInt, patient?.DateOfBirth,
-                patient?.Address, null, null,
-                sr.Diagnosis, sr.Doctor?.FullName, sr.Department?.DepartmentName,
+                patient?.Address, patient?.PhoneNumber, sr.MedicalRecord?.InsuranceNumber,
+                diagnosis, sr.Doctor?.FullName, sr.Department?.DepartmentName,
                 sr.RequestDate, completedAt,
                 labResults, approverName);
 

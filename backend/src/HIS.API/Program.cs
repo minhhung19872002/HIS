@@ -393,6 +393,9 @@ DicomSetupBuilder.UseServiceProvider(app.Services);
 // #196: cau hinh static logger cho ToBoundedListAsync (log "cham tran" = no silent cap)
 QueryBoundExtensions.Configure(app.Services.GetRequiredService<ILoggerFactory>());
 
+// QA-R15: print headers read the hospital identity from SystemConfigs "Hospital.*" (was a hard-coded "BỆNH VIỆN ĐA KHOA ABC").
+HIS.Infrastructure.Services.PdfTemplateHelper.UseServiceProvider(app.Services);
+
 // #197(b): probe schema de suy whitelist Guid-audit converter (union voi hand-list trong
 // HISDbContext.OnModelCreating). PHAI chay TRUOC lan dung DbContext dau tien (model build 1 lan).
 GuidAuditSchemaRegistry.InitializeFromSchema(
