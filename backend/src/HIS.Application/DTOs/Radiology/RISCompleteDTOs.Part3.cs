@@ -735,6 +735,8 @@ public class SkipPatientRequest
         public DateTime? ToDate { get; set; }
         public int? Status { get; set; }
         public Guid? OrganizerId { get; set; }
+        // QA-R13: a ~4000-char term overflowed the LIKE parameter → SqlException 8152 → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Từ khóa tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? Keyword { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

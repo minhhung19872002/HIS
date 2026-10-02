@@ -108,7 +108,8 @@ public sealed class DomainExceptionFilter : IExceptionFilter
             // QA round 4: any constraint this filter can explain (duplicate key, unknown parent, NULL into a
             // NOT NULL column, oversized text) answers with that reason instead of falling to the catch-all 500
             // below — a zero-GUID parent on MedicalHR/specialty-emr/lis showed only "Hệ thống đang gặp sự cố".
-            case DbUpdateException dbEx when SqlConstraintError.Map(dbEx) is { } sqlMapped:
+            case Exception dbEx when (dbEx is DbUpdateException || SqlConstraintError.IsRawSqlError(dbEx))
+                                     && SqlConstraintError.Map(dbEx) is { } sqlMapped:
                 context.Result = new ObjectResult(new
                 {
                     error = sqlMapped.Code,

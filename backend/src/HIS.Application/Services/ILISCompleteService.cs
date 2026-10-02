@@ -782,14 +782,25 @@ namespace HIS.Application.Services
     /// <summary>IQC lot (nội kiểm) — shape matches FE LabQC "Thêm lô QC" form.</summary>
     public class SaveQCLotDto
     {
+        // QA-R13: saved via ExecuteSqlRaw → over-long text, a value past decimal(18,6) or a pre-1753 date was a bare
+        // SqlException → 500. Limits mirror the LabQCLots columns.
+        [global::System.ComponentModel.DataAnnotations.StringLength(50, ErrorMessage = "Số lô tối đa 50 ký tự.")]
         public string LotNumber { get; set; } = string.Empty;
+        [global::System.ComponentModel.DataAnnotations.StringLength(50, ErrorMessage = "Mã xét nghiệm tối đa 50 ký tự.")]
         public string TestCode { get; set; } = string.Empty;
+        [global::System.ComponentModel.DataAnnotations.StringLength(200, ErrorMessage = "Tên xét nghiệm tối đa 200 ký tự.")]
         public string? TestName { get; set; }
         public int Level { get; set; } = 2; // 1=Low, 2=Normal, 3=High
+        [global::System.ComponentModel.DataAnnotations.StringLength(200, ErrorMessage = "Nhà sản xuất tối đa 200 ký tự.")]
         public string? Manufacturer { get; set; }
+        [global::System.ComponentModel.DataAnnotations.Range(-999999999999.0, 999999999999.0, ErrorMessage = "Giá trị Target Mean quá lớn.")]
         public decimal TargetMean { get; set; }
+        [global::System.ComponentModel.DataAnnotations.Range(-999999999999.0, 999999999999.0, ErrorMessage = "Giá trị Target SD quá lớn.")]
         public decimal TargetSD { get; set; }
+        [global::System.ComponentModel.DataAnnotations.StringLength(50, ErrorMessage = "Đơn vị tối đa 50 ký tự.")]
         public string? Unit { get; set; }
+        [global::System.ComponentModel.DataAnnotations.Range(typeof(DateTime), "1753-01-01", "9999-12-31", ParseLimitsInInvariantCulture = true,
+            ConvertValueInInvariantCulture = true, ErrorMessage = "Hạn dùng không hợp lệ.")]
         public DateTime? ExpiryDate { get; set; }
         public bool IsActive { get; set; } = true;
     }

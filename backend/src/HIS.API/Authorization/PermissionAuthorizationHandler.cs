@@ -33,8 +33,15 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
             var idStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(idStr, out var userId)) return;
 
-            if (await _permissions.HasPermissionAsync(userId, requirement.PermissionCode))
-                context.Succeed(requirement);
+            // QA-R13: "A|B" = any of the listed codes (a screen shared by two roles, e.g. pharmacist + ward nurse).
+            foreach (var code in requirement.PermissionCode.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (await _permissions.HasPermissionAsync(userId, code))
+                {
+                    context.Succeed(requirement);
+                    return;
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -467,6 +467,8 @@ namespace HIS.Application.DTOs.System
     /// </summary>
     public class CreateItTicketDto
     {
+        // QA-R13: ItTickets.Title is nvarchar(300); a longer title was caught by the service and rethrown → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(300, ErrorMessage = "Tiêu đề sự cố IT tối đa 300 ký tự.")]
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int Priority { get; set; } = 2;

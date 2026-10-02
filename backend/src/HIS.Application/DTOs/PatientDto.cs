@@ -61,7 +61,10 @@ public class UpdatePatientDto : CreatePatientDto
 
 public class PatientSearchDto
 {
+    // QA-R13: a ~4000-char term overflowed the LIKE parameter → SqlException 8152 → 500. Cap like other search DTOs.
+    [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Từ khóa tìm kiếm quá dài (tối đa 500 ký tự).")]
     public string? Keyword { get; set; }
+    [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Mã bệnh nhân tìm kiếm quá dài (tối đa 500 ký tự).")]
     public string? PatientCode { get; set; }
     public string? IdentityNumber { get; set; }
     public string? PhoneNumber { get; set; }

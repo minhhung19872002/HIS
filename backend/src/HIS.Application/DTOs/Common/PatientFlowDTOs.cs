@@ -468,9 +468,12 @@ namespace HIS.Application.DTOs
 
     public class ExaminationSearchDto
     {
+        // QA-R13: a ~4000-char term overflowed the LIKE parameter → SqlException 8152 → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Từ khóa tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? Keyword { get; set; }
         // Exact patient filter used by the v2 prescription editor. It was not bound at all, so the editor's
         // "latest exam of this patient" lookup returned the latest exam of ANY patient.
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Mã bệnh nhân tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? PatientCode { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }

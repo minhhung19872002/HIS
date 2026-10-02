@@ -24,6 +24,8 @@ public class EarlyWarningScoreRequestDto
     public int? RespiratoryRate { get; set; }
     public decimal? Temperature { get; set; }
     public decimal? SpO2 { get; set; }
+    // QA-R13: -1 indexed labels[-1] → IndexOutOfRangeException → 500 (and would have scored 3 points).
+    [global::System.ComponentModel.DataAnnotations.Range(0, 3, ErrorMessage = "Mức ý thức (AVPU) phải là 0-3.")]
     public int? ConsciousnessLevel { get; set; } // 0=Alert, 1=Voice, 2=Pain, 3=Unresponsive
     public bool? IsOnSupplementalOxygen { get; set; }
 }

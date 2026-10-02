@@ -32,15 +32,28 @@ public sealed class WritePermissionConvention : IControllerModelConvention
     /// <summary>Số action ghi đã được convention gắn policy.</summary>
     public static int Applied => _applied;
 
+    private readonly bool _sensitiveReadGate;
+
+    /// <param name="sensitiveReadGate">QA-R13: also gate GETs of <see cref="WritePermissionMap.SensitiveReadControllers"/>.</param>
+    public WritePermissionConvention(bool sensitiveReadGate = true) => _sensitiveReadGate = sensitiveReadGate;
+
     public void Apply(ControllerModel controller)
     {
         if (HasAnonymous(controller.Attributes)) return;
         var controllerGated = HasExplicitGate(controller.Attributes);
+        var readCode = _sensitiveReadGate && !controllerGated
+            && WritePermissionMap.SensitiveReadControllers.TryGetValue(controller.ControllerName, out var rc) ? rc : null;
 
         foreach (var action in controller.Actions)
         {
             var verbs = HttpMethodsOf(action);
-            if (verbs.Count == 0 || verbs.All(v => v is "GET" or "HEAD" or "OPTIONS")) continue;
+            if (verbs.Count == 0) continue;
+            if (verbs.All(v => v is "GET" or "HEAD" or "OPTIONS"))
+            {
+                if (readCode != null && !HasAnonymous(action.Attributes) && !HasExplicitGate(action.Attributes))
+                    action.Filters.Add(new AuthorizeFilter(RequirePermissionAttribute.PolicyPrefix + readCode));
+                continue;
+            }
             if (HasAnonymous(action.Attributes)) continue;
             if (controllerGated || HasExplicitGate(action.Attributes)) continue;
 
@@ -87,8 +100,9 @@ public sealed class WritePermissionConvention : IControllerModelConvention
         var used = WritePermissionMap.Rules.Values
             .SelectMany(r => new[] { r.Write, r.Read }
                 .Concat(r.Overrides?.Values ?? Enumerable.Empty<string>()))
+            .Concat(WritePermissionMap.SensitiveReadControllers.Values)
             .Where(c => c is not null)
-            .Select(c => c!)
+            .SelectMany(c => c!.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

@@ -39,6 +39,7 @@ public sealed class DomainGuardExceptionFilter : IExceptionFilter
             InvalidOperationException ex when IsThrownByHisCode(ex) => (StatusCodes.Status400BadRequest, "INVALID_STATE"),
             // A constraint violation that escaped the service explains itself — see SqlConstraintError.
             DbUpdateException ex => SqlConstraintError.Map(ex),
+            Exception ex when SqlConstraintError.IsRawSqlError(ex) => SqlConstraintError.Map(ex),
             // A money/quantity total computed from an absurd input (1e15 × 1e15) overflows decimal.
             OverflowException => (StatusCodes.Status400BadRequest, SqlConstraintError.NumberOutOfRangeCode),
             _ => null,
@@ -50,6 +51,7 @@ public sealed class DomainGuardExceptionFilter : IExceptionFilter
             OverflowException => SqlConstraintError.NumberOutOfRangeMessage,
             DbUpdateConcurrencyException => "Dữ liệu vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.",
             DbUpdateException dbEx => SqlConstraintError.Message(dbEx),
+            Exception rawEx when SqlConstraintError.IsRawSqlError(rawEx) => SqlConstraintError.Message(rawEx),
             ArgumentException argEx => SqlConstraintError.UserMessage(argEx),
             _ => context.Exception.Message,
         };

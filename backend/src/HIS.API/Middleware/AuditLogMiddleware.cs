@@ -94,8 +94,21 @@ public class AuditLogMiddleware
         { "/api/fhir", "FHIR" },
         { "/api/audit", "Audit" },
         { "/api/pdf", "PDF" },
-        { "/api/queue", "Queue" }
+        { "/api/queue", "Queue" },
+        // QA-R13: these prefixes were logged as module "Unknown"
+        { "/api/archives", "EMR" },
+        { "/api/public-health", "PublicHealth" },
+        { "/api/delegation", "SystemAdmin" },
+        { "/api/training", "HR" },
+        { "/api/employee-profile", "HR" }
     };
+
+    // QA-R13: actor/location ids are not the record the action is about — skipped when picking a body id.
+    private static readonly HashSet<string> NonSubjectBodyIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "userId", "doctorId", "createdBy", "updatedBy", "roomId", "departmentId", "warehouseId", "cashierId", "branchId"
+    };
+    private const int MaxBodyBytesForId = 64 * 1024;
 
     public AuditLogMiddleware(
         RequestDelegate next,
@@ -118,6 +131,13 @@ public class AuditLogMiddleware
             await _next(context);
             return;
         }
+
+        // QA-R13: body-id routes (approve/confirm/discharge/transfer… with the id in the JSON body) were logged with
+        // an empty EntityId — the trail could not say which record was touched. Buffer small JSON bodies to read it.
+        var bufferBody = !HttpMethods.IsGet(method) && ResolveEntityId(path).Length == 0
+            && context.Request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true
+            && context.Request.ContentLength is > 0 and <= MaxBodyBytesForId;
+        if (bufferBody) context.Request.EnableBuffering();
 
         // Execute the request first
         await _next(context);
@@ -142,13 +162,17 @@ public class AuditLogMiddleware
             var action = ResolveAction(method, path);
             var entityType = ResolveEntityType(path);
             var entityId = ResolveEntityId(path);
+            string? bodyIdField = null;
+            if (entityId.Length == 0 && bufferBody)
+                (entityId, bodyIdField) = await ReadBodyEntityIdAsync(context.Request);
 
             var details = JsonSerializer.Serialize(new
             {
                 method,
                 path,
                 statusCode,
-                queryString = context.Request.QueryString.Value
+                queryString = context.Request.QueryString.Value,
+                bodyIdField
             });
 
             var entry = new AuditLog
@@ -290,6 +314,29 @@ public class AuditLogMiddleware
                 return segments[idx + 1];
         }
         return "Unknown";
+    }
+
+    /// <summary>First top-level "id" / "*Id" GUID of the (buffered) JSON body that names the subject record.</summary>
+    private static async Task<(string Id, string? Field)> ReadBodyEntityIdAsync(HttpRequest request)
+    {
+        try
+        {
+            request.Body.Position = 0;
+            using var doc = await JsonDocument.ParseAsync(request.Body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return (string.Empty, null);
+            (string, string?) fallback = (string.Empty, null);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (prop.Value.ValueKind != JsonValueKind.String || !Guid.TryParse(prop.Value.GetString(), out var g) || g == Guid.Empty)
+                    continue;
+                if (prop.Name.Equals("id", StringComparison.OrdinalIgnoreCase)) return (g.ToString(), prop.Name);
+                if (!prop.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!NonSubjectBodyIds.Contains(prop.Name)) return (g.ToString(), prop.Name);
+                if (fallback.Item1.Length == 0) fallback = (g.ToString(), prop.Name);
+            }
+            return fallback;
+        }
+        catch (Exception) { return (string.Empty, null); } // never lose the audit row over the optional body id
     }
 
     private static string ResolveEntityId(string path)

@@ -23,27 +23,32 @@ internal static class SqlConstraintError
     /// <summary>SQL error number of the innermost <see cref="SqlException"/>, or 0 when there is none.
     /// A number too large for its decimal column fails either in SQL (8115) or already in SqlClient while
     /// binding the parameter ("Parameter value '...' is out of range."); both are reported as 8115.</summary>
-    internal static int Number(DbUpdateException ex) => ex.GetBaseException() switch
+    internal static int Number(Exception ex) => ex.GetBaseException() switch
     {
         SqlException sql => sql.Number,
+        // QA-R13: SqlDateTime overflow (year < 1753) raised by SqlClient before the command runs. Exact type + message
+        // only: SqlNullValueException / SqlTruncateException derive from it and are real server faults (schema drift).
+        System.Data.SqlTypes.SqlTypeException t when t.GetType() == typeof(System.Data.SqlTypes.SqlTypeException)
+            && t.Message.Contains("SqlDateTime overflow", StringComparison.OrdinalIgnoreCase) => 242,
         OverflowException => 8115,
         ArgumentException arg when arg.Message.Contains("is out of range", StringComparison.Ordinal) => 8115,
         _ => 0,
     };
 
     /// <summary>The (status, error code) for a constraint we can explain, or null to leave the exception alone.</summary>
-    internal static (int Status, string Code)? Map(DbUpdateException ex) => Number(ex) switch
+    internal static (int Status, string Code)? Map(Exception ex) => Number(ex) switch
     {
         2601 or 2627 => (StatusCodes.Status409Conflict, "DUPLICATE"),
         547 => (StatusCodes.Status400BadRequest, "INVALID_REFERENCE"),
         515 => (StatusCodes.Status400BadRequest, "MISSING_REQUIRED"),
         2628 or 8152 => (StatusCodes.Status400BadRequest, "VALUE_TOO_LONG"),
         8115 => (StatusCodes.Status400BadRequest, NumberOutOfRangeCode),
+        242 => (StatusCodes.Status400BadRequest, "DATE_OUT_OF_RANGE"),
         _ => null,
     };
 
     /// <summary>Vietnamese reason derived from the constraint; the raw SQL text stays in the log only.</summary>
-    internal static string Message(DbUpdateException ex)
+    internal static string Message(Exception ex)
     {
         var raw = ex.GetBaseException().Message;
         return Number(ex) switch
@@ -59,13 +64,23 @@ internal static class SqlConstraintError
                 ? $"Giá trị nhập vượt quá độ dài cho phép của trường: {longCol}."
                 : "Giá trị nhập vượt quá độ dài cho phép của trường.",
             8115 => NumberOutOfRangeMessage,
+            242 => "Ngày tháng nằm ngoài phạm vi cho phép.",
             _ => "Không lưu được dữ liệu.",
         };
     }
 
     /// <summary>The column a NULL / too-long violation names (e.g. "FullName"), or null when SQL did not name one.</summary>
-    internal static string? Field(DbUpdateException ex) =>
+    internal static string? Field(Exception ex) =>
         Number(ex) is 515 or 2628 && Column(ex.GetBaseException().Message) is { Length: > 0 } col ? col : null;
+
+    /// <summary>
+    /// QA-R13: writes through ExecuteSqlRaw / raw ADO surface a bare SqlException (not a DbUpdateException) — an
+    /// oversized code, a 1e15 decimal or a 0001-01-01 date answered 500 on ~6 routes. Same mapping applies.
+    /// </summary>
+    internal static bool IsRawSqlError(Exception ex) =>
+        ex is not DbUpdateException
+        && ex.GetBaseException() is SqlException or System.Data.SqlTypes.SqlTypeException
+        && Map(ex) != null;
 
     private static string Column(string text)
     {

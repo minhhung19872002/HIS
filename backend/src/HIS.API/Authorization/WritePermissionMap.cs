@@ -53,6 +53,26 @@ public static class WritePermissionMap
         "Notification.MarkAllAsRead",
         "SystemComplete.ChangePassword",   // đổi mật khẩu của chính mình
         "SystemComplete.CreateItTicket",   // bất kỳ nhân viên nào cũng phải báo được sự cố IT
+        "RISComplete.SearchHelpArticles",  // QA-R13: trang Trợ giúp dùng chung toàn viện (POST tìm kiếm, chỉ đọc)
+    };
+
+    /// <summary>
+    /// QA-R13 (P0 PHI leak): READ gate for controllers whose GETs return sensitive program data. Their GETs had a bare
+    /// [Authorize] — a cashier/receptionist listed HIV, methadone, mental-health, IVF patients and staff ID numbers
+    /// (prod builds ship VITE_ACCESS_GATING=false, so the menu shows every page to every role). Each code equals the
+    /// `permission` of the one v2 page that calls the controller. Kill switch: Auth:SensitiveReadGateEnabled=false.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> SensitiveReadControllers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["HivManagement"] = PermissionCatalog.MedicalRecord.Read,
+        ["TbHiv"] = PermissionCatalog.MedicalRecord.Read,
+        ["Methadone"] = PermissionCatalog.MedicalRecord.Read,
+        ["MentalHealth"] = PermissionCatalog.MedicalRecord.Read,
+        ["Forensic"] = PermissionCatalog.MedicalRecord.Read,
+        ["ReproductiveHealth"] = PermissionCatalog.MedicalRecord.Read,
+        ["ChronicDisease"] = PermissionCatalog.MedicalRecord.Read,
+        ["IvfLab"] = PermissionCatalog.LabResult.Read + "|" + PermissionCatalog.MedicalRecord.Read,
+        ["PracticeLicense"] = PermissionCatalog.System.Configure + "|" + PermissionCatalog.Hr.Manage, // not Hr.Read: every role holds it
     };
 
     public static readonly IReadOnlyDictionary<string, Rule> Rules = new Dictionary<string, Rule>(StringComparer.OrdinalIgnoreCase)
@@ -188,7 +208,15 @@ public static class WritePermissionMap
             ["CreateBillingAfterDispensing"] = PermissionCatalog.Pharmacy.Dispense,
             ["CreateAdrReport"] = PermissionCatalog.Quality.Update,
         }),
-        ["PharmacyApproval"] = new(PermissionCatalog.Pharmacy.Approve, PermissionCatalog.Pharmacy.Read),
+        // QA-R13: ward return requests (inpatient TreatmentMonitor, type 5) and OPD stock reservations are drafted
+        // by nurses/doctors — they got 403. Drafting is open to Inpatient.Update too; Approve/Revoke stay pharmacist-only.
+        ["PharmacyApproval"] = new(PermissionCatalog.Pharmacy.Approve, PermissionCatalog.Pharmacy.Read, new Dictionary<string, string>
+        {
+            ["Create"] = PermissionCatalog.Pharmacy.Approve + "|" + PermissionCatalog.Inpatient.Update,
+            ["Update"] = PermissionCatalog.Pharmacy.Approve + "|" + PermissionCatalog.Inpatient.Update,
+            ["Submit"] = PermissionCatalog.Pharmacy.Approve + "|" + PermissionCatalog.Inpatient.Update,
+            ["DeleteDraft"] = PermissionCatalog.Pharmacy.Approve + "|" + PermissionCatalog.Inpatient.Update,
+        }),
         ["PharmacyEnhancement"] = new(PermissionCatalog.Pharmacy.Dispense, PermissionCatalog.Pharmacy.Read),
         ["HospitalPharmacy"] = new(PermissionCatalog.Pharmacy.Dispense, PermissionCatalog.Pharmacy.Read),
         ["WarehouseComplete"] = new(PermissionCatalog.Pharmacy.StockIn, PermissionCatalog.Pharmacy.Read),

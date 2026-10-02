@@ -279,6 +279,8 @@ namespace HIS.Application.DTOs.Radiology
     /// </summary>
     public class SearchHelpDto
     {
+        // QA-R13: a ~4000-char term overflowed the LIKE parameter → SqlException 8152 → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Từ khóa tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? Keyword { get; set; }
         public Guid? CategoryId { get; set; }
         public string? ArticleType { get; set; }

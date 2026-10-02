@@ -597,8 +597,12 @@ namespace HIS.Application.DTOs.Radiology
         public string? Direction { get; set; }
         public string? MessageType { get; set; }
         public int? Status { get; set; }
+        // QA-R13: a ~4000-char code overflowed the LIKE parameter → SqlException 8152 → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Mã phiếu tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? RequestCode { get; set; }
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Mã bệnh nhân tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? PatientCode { get; set; }
+        [global::System.ComponentModel.DataAnnotations.StringLength(500, ErrorMessage = "Mã bệnh án tìm kiếm quá dài (tối đa 500 ký tự).")]
         public string? MedicalRecordCode { get; set; }
         public string? SourceSystem { get; set; }
         public int Page { get; set; } = 1;

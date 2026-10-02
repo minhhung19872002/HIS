@@ -63,7 +63,8 @@ builder.Services.AddControllers(options =>
         // AUTHZ #216/F2: gate đường GHI đang chỉ có [Authorize] trần bằng policy perm:{code}
         // theo bảng khai báo WritePermissionMap. Phải đứng TRƯỚC các filter khác vì nó sửa
         // ApplicationModel lúc dựng, không phải lúc chạy request.
-        options.Conventions.Add(new HIS.API.Authorization.WritePermissionConvention());
+        options.Conventions.Add(new HIS.API.Authorization.WritePermissionConvention(
+            builder.Configuration.GetValue("Auth:SensitiveReadGateEnabled", true)));
         options.Filters.Add<HIS.API.Filters.ApiResponseWrapperFilter>();
         // #369: UnauthorizedAccessException → 403 (trước đây rơi vào catch-all → 500).
         options.Filters.Add<HIS.API.Filters.ForbiddenExceptionFilter>();
