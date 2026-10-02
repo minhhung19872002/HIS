@@ -6,6 +6,7 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { getBookings } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
 import { quickRegisterByAppointment } from '../api/reception';
+import { vnIncludes } from '../../../utils/vnSearch';
 
 /* ────────────────────────────────────────────────────────────
    Danh sách đặt khám — chọn 1 lịch hẹn (Chờ XN / Đã XN) rồi check-in
@@ -63,10 +64,9 @@ export const BookingPickerModal: React.FC<{
   }, [open, message]);
 
   const filtered = list.filter((b) => {
-    const q = kw.trim().toLowerCase();
-    if (!q) return true;
-    return [b.patientName, b.appointmentCode, b.phoneNumber, b.doctorName, b.departmentName]
-      .filter(Boolean).join(' ').toLowerCase().includes(q);
+    // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+    return vnIncludes([b.patientName, b.appointmentCode, b.phoneNumber, b.doctorName, b.departmentName]
+      .filter(Boolean).join(' '), kw);
   });
 
   const checkIn = async (b: PickBooking) => {

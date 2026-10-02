@@ -16,6 +16,7 @@ import {
   fmtDMYg, fmtDTg, tk, ti, te, tw, cf, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { vnIncludes } from '../../../utils/vnSearch';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
@@ -650,7 +651,8 @@ const EmrEditorV2: React.FC = () => {
   ];
 
   const filtered = records.filter((r) =>
-    !search || `${r.patientCode} ${r.patientName} ${r.lastDiagnosisName || ''}`.toLowerCase().includes(search.toLowerCase()));
+    // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+    !search || vnIncludes(`${r.patientCode} ${r.patientName} ${r.lastDiagnosisName || ''}`, search));
 
   const activeCount = records.filter((r) => (r.allergies?.length ?? 0) > 0).length;
 

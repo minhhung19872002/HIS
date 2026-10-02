@@ -31,6 +31,21 @@ public static class PhoneNumberKey
         return digits;
     }
 
+    /// <summary>
+    /// QA-R15: so khớp cho Ô TÌM KIẾM — từ khoá là một số điện thoại đầy đủ (≥ 9 chữ số, chỉ gồm số và
+    /// + . - space ( )) thì so theo khoá, nên "+84 912 345 678" ra BN lưu "0912345678"; còn lại giữ kiểu
+    /// "chứa" như cũ (gõ vài số cuối vẫn ra).
+    /// </summary>
+    public static bool SearchMatches(string? stored, string? term)
+    {
+        if (string.IsNullOrWhiteSpace(stored) || string.IsNullOrWhiteSpace(term)) return false;
+        var t = term.Trim();
+        if (stored.Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
+        var isPhone = t.All(ch => char.IsDigit(ch) || ch is '+' or '.' or '-' or ' ' or '(' or ')')
+                      && t.Count(char.IsDigit) >= 9;
+        return isPhone && Same(stored, t);
+    }
+
     /// <summary>Hai giá trị có phải cùng một số không. Rỗng không bao giờ khớp với rỗng.</summary>
     public static bool Same(string? a, string? b)
     {

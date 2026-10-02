@@ -246,10 +246,12 @@ public partial class ExaminationCompleteService
     public async Task<List<RoomPatientListDto>> SearchRoomPatientsAsync(Guid roomId, string keyword, DateTime date)
     {
         var patients = await GetRoomPatientListAsync(roomId, date);
+        if (string.IsNullOrWhiteSpace(keyword)) return patients;
 
         return patients.Where(p =>
-            p.PatientCode.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-            p.PatientName.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            // QA-R15: accent/case/NFD-insensitive (ordinal missed "nguyen" → "Nguyễn").
+            HIS.Core.Common.VnSearchText.Contains(p.PatientCode, keyword) ||
+            HIS.Core.Common.VnSearchText.Contains(p.PatientName, keyword))
             .ToList();
     }
 

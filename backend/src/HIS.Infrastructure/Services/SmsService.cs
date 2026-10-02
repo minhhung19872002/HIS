@@ -358,7 +358,9 @@ public class SmsService : ISmsService
         var payload = new
         {
             ApiKey,
-            Content = message,
+            // QA-R15: IsUnicode = 0 (unsigned SMS) but the templates interpolate patient/test/department names with
+            // diacritics ("Kinh gui Nguyễn Thị Ánh…") — strip them so the text matches the declared encoding.
+            Content = HIS.Core.Common.VnSearchText.Unsign(message),
             Phone = phone,
             SecretKey = ApiSecret,
             SmsType = 2,

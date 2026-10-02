@@ -17,13 +17,17 @@ public class AdministrativeUnitService : IAdministrativeUnitService
 
     public AdministrativeUnitService(HISDbContext db) => _db = db;
 
+    // QA-R15: place names are Vietnamese_CI_AS (accent-sensitive) — "ha noi" found 0 of "Hà Nội". Same collation as
+    // the Patients name column (script 143; Vietnamese_CI_AI would still miss Đ/đ: "da nang" ≠ "Đà Nẵng").
+    private const string AccentInsensitive = "Latin1_General_CI_AI";
+
     // ─── Province ────────────────────────────────────────────────────────────
 
     public async Task<List<ProvinceDto>> GetProvincesAsync(string? keyword)
     {
         var q = _db.Provinces.Where(p => !p.IsDeleted);
         if (!string.IsNullOrWhiteSpace(keyword))
-            q = q.Where(p => p.Name.Contains(keyword) || p.Code.Contains(keyword));
+            q = q.Where(p => EF.Functions.Collate(p.Name, AccentInsensitive).Contains(keyword) || p.Code.Contains(keyword));
         return await q.OrderBy(p => p.Code)
             .Select(p => new ProvinceDto
             {
@@ -79,7 +83,7 @@ public class AdministrativeUnitService : IAdministrativeUnitService
         if (provinceId.HasValue)
             q = q.Where(d => d.ProvinceId == provinceId.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
-            q = q.Where(d => d.Name.Contains(keyword) || d.Code.Contains(keyword));
+            q = q.Where(d => EF.Functions.Collate(d.Name, AccentInsensitive).Contains(keyword) || d.Code.Contains(keyword));
         return await q.OrderBy(d => d.Code)
             .Select(d => new DistrictDto
             {
@@ -139,7 +143,7 @@ public class AdministrativeUnitService : IAdministrativeUnitService
         if (districtId.HasValue)
             q = q.Where(w => w.DistrictId == districtId.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
-            q = q.Where(w => w.Name.Contains(keyword) || w.Code.Contains(keyword));
+            q = q.Where(w => EF.Functions.Collate(w.Name, AccentInsensitive).Contains(keyword) || w.Code.Contains(keyword));
         return await q.OrderBy(w => w.Code)
             .Select(w => new WardDto
             {

@@ -23,6 +23,7 @@ import type { SupportedBankDto } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
 import { useTabState } from '../../../hooks/useTabState';
 import { printPaymentReceipt } from '../api/billing';
+import { vnIncludes } from '../../../utils/vnSearch';
 
 interface PaymentTxn {
   id: string;
@@ -158,9 +159,9 @@ const BankPayments: React.FC = () => {
     if (stab !== 'all' && statusToKey(r.status) !== stab) return false;
     if (fBank && bankKey(r.provider) !== fBank) return false;
     if (search) {
-      const s = search.toLowerCase();
-      const hay = [r.txnRef, r.patientName, r.patientCode, r.gatewayTxnRef].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(s)) return false;
+      // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+      const hay = [r.txnRef, r.patientName, r.patientCode, r.gatewayTxnRef].filter(Boolean).join(' ');
+      if (!vnIncludes(hay, search)) return false;
     }
     return true;
   });

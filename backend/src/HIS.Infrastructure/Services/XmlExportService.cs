@@ -62,8 +62,10 @@ public class XmlExportService
     private static string ToIntNullable(int? value) =>
         value?.ToString(CultureInfo.InvariantCulture) ?? "";
 
+    // QA-R15: NFC — a name/address saved decomposed (macOS/iOS keyboard, PDF paste) went into HO_TEN/DIA_CHI as NFD,
+    // which does not compare equal to the NFC holder name on the BHXH side.
     private static void WriteElement(XmlWriter w, string name, string? value) =>
-        w.WriteElementString(name, value ?? "");
+        w.WriteElementString(name, HIS.Core.Common.VnSearchText.ToNfc(value) ?? "");
 
     #endregion
 

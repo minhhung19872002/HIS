@@ -29,6 +29,32 @@ public static class VnSearchText
         return sb.ToString();
     }
 
+    /// <summary>QA-R15: bỏ dấu tiếng Việt, GIỮ hoa/thường ("Nguyễn Đức" → "Nguyen Duc") — cho kênh không Unicode (SMS IsUnicode=0).</summary>
+    public static string Unsign(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var normalized = value.Replace('Đ', 'D').Replace('đ', 'd').Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        }
+        return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    /// <summary>
+    /// QA-R15: Unicode NFC (dựng sẵn). Bàn phím macOS/iOS và chữ copy từ PDF gửi tiếng Việt dạng NFD
+    /// (chữ gốc + dấu rời): "Nguyễn" NFD ≠ NFC dưới collation Vietnamese_CI_AS, và iText in dấu chồng lệch.
+    /// Chuỗi có ký tự không chuẩn hoá được (surrogate lẻ) giữ nguyên.
+    /// </summary>
+    public static string? ToNfc(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        try { return value.IsNormalized(NormalizationForm.FormC) ? value : value.Normalize(NormalizationForm.FormC); }
+        catch (ArgumentException) { return value; }
+    }
+
     /// <summary><paramref name="value"/> có chứa <paramref name="term"/> (đã cắt khoảng trắng) không, bỏ qua dấu
     /// và hoa/thường. Từ khoá rỗng không khớp gì.</summary>
     public static bool Contains(string? value, string? term)

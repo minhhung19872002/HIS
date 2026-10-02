@@ -24,6 +24,7 @@ import {
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { fmtVND } from '../../../utils/format';
+import { vnIncludes } from '../../../utils/vnSearch';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { buildMedicalRecordHtml } from '../../../pages/inpatient/printTemplates';
@@ -251,9 +252,9 @@ const InpatientV2: React.FC = () => {
     if (fWard && b.wardId !== fWard) return false;
     if (fStatus && String(b.status) !== fStatus) return false;
     if (search.trim()) {
-      const q = search.toLowerCase();
-      const hay = [b.patientName, b.patientCode, b.bedName, b.bedCode].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
+      // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+      const hay = [b.patientName, b.patientCode, b.bedName, b.bedCode].filter(Boolean).join(' ');
+      if (!vnIncludes(hay, search)) return false;
     }
     return true;
   }), [allBeds, fWard, fStatus, search]);

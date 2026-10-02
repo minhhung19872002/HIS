@@ -3,6 +3,7 @@ import { useTabState } from '../../../hooks/useTabState';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { escapeCsvCell } from '../../../utils/csvExport';
+import { vnIncludes } from '../../../utils/vnSearch';
 import { App as AntdApp } from 'antd';
 import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto } from '../api/reception';
@@ -128,10 +129,10 @@ const ReceptionV2: React.FC = () => {
       if (fInsurance === 'n' && hasValidInsurance(r)) return false;
       if (fVisitType && visitTypeKey(r) !== fVisitType) return false;
       if (search.trim()) {
-        const q = search.toLowerCase();
+        // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
         const hay = [r.patientName, r.patientCode, r.phoneNumber, r.identityNumber, r.insuranceNumber, r.queueCode]
-          .filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
+          .filter(Boolean).join(' ');
+        if (!vnIncludes(hay, search)) return false;
       }
       return true;
     });

@@ -51,5 +51,7 @@ public sealed class SearchKeywordTrimFilter : IActionFilter
     public void OnActionExecuted(ActionExecutedContext context) { }
 
     // Blank stays "" (not null): some actions call keyword.ToLower() without a null check.
-    private static string Clean(string s) => s.Trim();
+    // QA-R15: also NFC — a keyword pasted from a PDF / typed on macOS arrives decomposed (NFD) and matched nothing
+    // in Vietnamese_CI_AS columns (catalogs, denormalised patient names) or in ordinal in-memory filters.
+    private static string Clean(string s) => HIS.Core.Common.VnSearchText.ToNfc(s.Trim())!;
 }

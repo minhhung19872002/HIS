@@ -122,11 +122,11 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
             .ToList();
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            var kw = keyword.Trim().ToLower();
+            // QA-R15: accent/case/NFD-insensitive like the reception search — "bui quoc" found 0 of "Bùi Quốc Hà".
             grouped = grouped.Where(r =>
-                (r.PatientName?.ToLower().Contains(kw) ?? false) ||
-                (r.PatientCode?.ToLower().Contains(kw) ?? false) ||
-                (r.LastDiagnosisName?.ToLower().Contains(kw) ?? false)).ToList();
+                HIS.Core.Common.VnSearchText.Contains(r.PatientName, keyword) ||
+                HIS.Core.Common.VnSearchText.Contains(r.PatientCode, keyword) ||
+                HIS.Core.Common.VnSearchText.Contains(r.LastDiagnosisName, keyword)).ToList();
         }
         grouped = grouped.OrderByDescending(r => r.LastVisit).ToList();
         var total = grouped.Count;

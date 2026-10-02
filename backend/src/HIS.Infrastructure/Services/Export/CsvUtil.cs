@@ -76,7 +76,8 @@ public static class CsvUtil
             throw new InvalidOperationException("Tệp Excel (.xlsx/.xls) chưa được hỗ trợ — hãy lưu dưới dạng \"CSV UTF-8 (Comma delimited)\" rồi nhập lại.");
         try
         {
-            return new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(content).TrimStart('﻿');
+            // QA-R15: NFC like the Windows-1258 branch below — a UTF-8 CSV saved on macOS (Numbers) is often NFD.
+            return HIS.Core.Common.VnSearchText.ToNfc(new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(content).TrimStart('﻿'))!;
         }
         catch (DecoderFallbackException)
         {

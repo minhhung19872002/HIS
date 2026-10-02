@@ -6,7 +6,14 @@ namespace HIS.Core.Entities;
 public class Patient : BaseEntity
 {
     public string PatientCode { get; set; } = string.Empty; // Mã bệnh nhân
-    public string FullName { get; set; } = string.Empty; // Họ tên
+    // QA-R15: name/address/guardian are stored NFC whatever the keyboard sent (macOS/iOS and PDF copy-paste send
+    // NFD) — NFD never matched an NFC search on Vietnamese_CI_AS columns that copy the name, and printed with
+    // stacked marks overlapping. EF materialises through the backing fields, so legacy rows load unchanged.
+    private string _fullName = string.Empty;
+    private string? _address;
+    private string? _guardianName;
+
+    public string FullName { get => _fullName; set => _fullName = HIS.Core.Common.VnSearchText.ToNfc(value)!; } // Họ tên
     public DateTime? DateOfBirth { get; set; } // Ngày sinh
     public int? YearOfBirth { get; set; } // Năm sinh (nếu không biết ngày cụ thể)
     public int Gender { get; set; } // Giới tính: 1-Nam, 2-Nữ, 3-Khác
@@ -15,7 +22,7 @@ public class Patient : BaseEntity
     public string? Email { get; set; }
 
     // Địa chỉ
-    public string? Address { get; set; } // Địa chỉ chi tiết
+    public string? Address { get => _address; set => _address = HIS.Core.Common.VnSearchText.ToNfc(value); } // Địa chỉ chi tiết
     public string? WardCode { get; set; } // Mã xã/phường
     public string? WardName { get; set; }
     public string? DistrictCode { get; set; } // Mã quận/huyện
@@ -51,7 +58,7 @@ public class Patient : BaseEntity
     public string? BirthCertificateNumber { get; set; }
 
     // Người giám hộ (cho trẻ em)
-    public string? GuardianName { get; set; }
+    public string? GuardianName { get => _guardianName; set => _guardianName = HIS.Core.Common.VnSearchText.ToNfc(value); }
     public string? GuardianPhone { get; set; }
     public string? GuardianRelationship { get; set; }
 

@@ -330,7 +330,8 @@ public partial class ReceptionCompleteService {
                 || HIS.Core.Common.VnSearchText.Contains(m.Patient?.FullName, kw)
                 || (m.Patient?.IdentityNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (m.Patient?.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (m.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+                // QA-R15: "+84…"/"0912 345 678" found nobody stored as "0912345678".
+                || HIS.Core.Common.PhoneNumberKey.SearchMatches(m.Patient?.PhoneNumber, kw))
             .Take(50)
             .ToList();
 

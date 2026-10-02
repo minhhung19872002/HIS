@@ -21,8 +21,10 @@ public partial class HospitalPharmacyService
             if (!string.IsNullOrEmpty(filter.Keyword))
             {
                 var kw = filter.Keyword.ToLower();
+                // QA-R15: FullName is Vietnamese_CI_AS (accent-sensitive) — "dang van" missed "Đặng Văn". Same
+                // accent-insensitive collation the Patients name column uses (script 143).
                 query = query.Where(c =>
-                    c.FullName.ToLower().Contains(kw) ||
+                    EF.Functions.Collate(c.FullName, "Latin1_General_CI_AI").Contains(filter.Keyword) ||
                     c.CustomerCode.ToLower().Contains(kw) ||
                     (c.Phone != null && c.Phone.Contains(kw)) ||
                     (c.CardNumber != null && c.CardNumber.Contains(kw))

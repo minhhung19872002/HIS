@@ -17,6 +17,7 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import ExpiryAlertModal from './ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
+import { vnIncludes } from '../../../utils/vnSearch';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
@@ -379,10 +380,10 @@ const PharmacyV2: React.FC = () => {
   /* ══════════════ RX DERIVED ══════════════ */
 
   const rxFiltered = useMemo(() => {
-    const k = rxSearch.toLowerCase();
     return rxRows.filter((r) => {
       if (rxStab !== 'all' && r.status !== rxStab) return false;
-      if (k && !`${r.patientName} ${r.patientCode} ${r.prescriptionCode} ${r.doctorName}`.toLowerCase().includes(k)) return false;
+      // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+      if (rxSearch && !vnIncludes(`${r.patientName} ${r.patientCode} ${r.prescriptionCode} ${r.doctorName}`, rxSearch)) return false;
       return true;
     });
   }, [rxRows, rxSearch, rxStab]);

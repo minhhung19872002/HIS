@@ -23,7 +23,8 @@ public partial class HospitalPharmacyService
                 var kw = filter.Keyword.ToLower();
                 query = query.Where(s =>
                     s.SaleCode.ToLower().Contains(kw) ||
-                    (s.PatientName != null && s.PatientName.ToLower().Contains(kw)) ||
+                    // QA-R15: walk-in buyer name is Vietnamese_CI_AS — match it accent-insensitively like Patients.FullName.
+                    (s.PatientName != null && EF.Functions.Collate(s.PatientName, "Latin1_General_CI_AI").Contains(filter.Keyword)) ||
                     (s.PhoneNumber != null && s.PhoneNumber.Contains(kw)) ||
                     (s.Patient != null && (s.Patient.FullName.ToLower().Contains(kw) || s.Patient.PatientCode.ToLower().Contains(kw)))
                 );

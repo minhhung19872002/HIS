@@ -20,6 +20,7 @@ import {
 } from '@/_v2kit';
 import { SortTh, useSortableRows } from '../../../components/table';
 import { utcToLocal } from '../../../utils/format';
+import { vnIncludes } from '../../../utils/vnSearch';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
@@ -261,13 +262,11 @@ const BookingManagementV2: React.FC = () => {
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fDept && r.departmentName !== fDept) return false;
-      if (!k) return true;
-      return [r.patientName, r.appointmentCode, r.phoneNumber, r.doctorName]
-        .some((v) => (v || '').toLowerCase().includes(k));
+      // QA-R15: accent/NFD-insensitive — "nguyen" must find "Nguyễn".
+      return vnIncludes([r.patientName, r.appointmentCode, r.phoneNumber, r.doctorName], search);
     });
   }, [items, search, stab, fDept]);
 
