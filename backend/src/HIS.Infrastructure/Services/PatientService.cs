@@ -229,6 +229,10 @@ public class PatientService : IPatientService
         if (dto.YearOfBirth.HasValue && (dto.YearOfBirth.Value < 1900 || dto.YearOfBirth.Value > todayVn.Year)
             && dto.YearOfBirth != existing?.YearOfBirth)
             throw new ArgumentException($"Năm sinh không hợp lệ ({dto.YearOfBirth.Value})", nameof(dto.YearOfBirth));
+        // QA-R13: an expiry of 0001-01-01 was stored and the card then read as "expired" everywhere.
+        if (dto.InsuranceExpireDate.HasValue && dto.InsuranceExpireDate.Value.Year < 1900
+            && dto.InsuranceExpireDate.Value.Date != existing?.InsuranceExpireDate?.Date)
+            throw new ArgumentException($"Hạn thẻ BHYT không hợp lệ ({dto.InsuranceExpireDate.Value:dd/MM/yyyy})", nameof(dto.InsuranceExpireDate));
         if ((dto.Gender < 0 || dto.Gender > 3) && dto.Gender != existing?.Gender)
             throw new ArgumentException($"Giới tính không hợp lệ ({dto.Gender})", nameof(dto.Gender));
         if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))

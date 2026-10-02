@@ -35,6 +35,11 @@ public partial class ReceptionCompleteService {
 
     private async Task<AdmissionDto> RegisterFeePatientCoreAsync(FeeRegistrationDto dto, Guid userId)
     {
+        // QA-R13: serviceType 99 was stored as MedicalRecord.PatientType (no payer label, no price list).
+        // 1-BHYT · 2-Viện phí · 3-Dịch vụ · 4-Khám sức khỏe.
+        if (dto.ServiceType is < 1 or > 4)
+            throw new ArgumentException("Loại khám không hợp lệ (1-BHYT, 2-Viện phí, 3-Dịch vụ, 4-Khám sức khỏe).", nameof(dto.ServiceType));
+
         Patient? patient = null;
         var useNewPatient = false;
 
@@ -861,16 +866,41 @@ public partial class ReceptionCompleteService {
         // chỉ gác đúng nhánh ghi chẩn đoán chứ không chặn cả hàm.
         // AdmissionDto.ChiefComplaint is read from MedicalRecord.InitialDiagnosis (BuildAdmissionDto) and the reception
         // drawer sends only `chiefComplaint` — it used to be ignored, so "Lý do khám" edits were never saved.
+        // QA-R13: "   " passed IsNullOrEmpty and was saved as the visit's chief complaint.
+        if (string.IsNullOrWhiteSpace(dto.ChiefComplaint)) dto.ChiefComplaint = null;
+        if (string.IsNullOrWhiteSpace(dto.InitialDiagnosis)) dto.InitialDiagnosis = null;
         if (string.IsNullOrEmpty(dto.InitialDiagnosis) && !string.IsNullOrEmpty(dto.ChiefComplaint))
             dto.InitialDiagnosis = dto.ChiefComplaint;
 
         if (!string.IsNullOrEmpty(dto.InitialDiagnosis))
             await EmrLockGuard.EnsureEditableByRecordAsync(_context, medicalRecord.Id);
 
+        // QA-R13: a room change here only rewrote MedicalRecord.RoomId — the examination and the queue ticket stayed
+        // in the old room (record in P101, exam + ticket in P102) and a finished/paid visit could be moved.
+        // Route it through ChangeRoomAsync so the same guards apply and exam + ticket move together.
+        if (dto.RoomId.HasValue && dto.RoomId != medicalRecord.RoomId)
+        {
+            await ChangeRoomAsync(new ChangeRoomDto
+            {
+                MedicalRecordId = medicalRecord.Id,
+                NewRoomId = dto.RoomId.Value,
+                NewDoctorId = dto.AttendingDoctorId,
+            }, userId);
+        }
+
+        if (!string.IsNullOrEmpty(dto.ChiefComplaint))
+        {
+            // The reception list shows the examination's chief complaint (what the doctor reads) — keep both in step.
+            var exam = await _context.Examinations
+                .Where(e => e.MedicalRecordId == medicalRecord.Id && !e.IsDeleted)
+                .OrderByDescending(e => e.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (exam != null && exam.Status != HIS.Core.Constants.ExaminationStatus.Completed)
+                exam.ChiefComplaint = dto.ChiefComplaint.Trim();
+        }
+
         if (dto.DepartmentId.HasValue)
             medicalRecord.DepartmentId = dto.DepartmentId;
-        if (dto.RoomId.HasValue)
-            medicalRecord.RoomId = dto.RoomId;
         if (dto.AttendingDoctorId.HasValue)
             medicalRecord.DoctorId = dto.AttendingDoctorId;
         if (!string.IsNullOrEmpty(dto.InitialDiagnosis))

@@ -213,8 +213,11 @@ public partial class ReceptionCompleteService {
             PatientCode = record.Patient.PatientCode,
             PatientName = record.Patient.FullName,
             Gender = record.Patient.Gender,
+            // QA-R13: year difference only — a patient born 31/12/1990 printed "36" on 03/10/2026 (real age 35,
+            // the reception list said 35). Subtract a year until this year's birthday is reached.
             Age = record.Patient.DateOfBirth.HasValue
                 ? DateTime.Today.Year - record.Patient.DateOfBirth.Value.Year
+                  - (record.Patient.DateOfBirth.Value.Date > DateTime.Today.AddYears(-(DateTime.Today.Year - record.Patient.DateOfBirth.Value.Year)) ? 1 : 0)
                 : record.Patient.YearOfBirth.HasValue
                     ? DateTime.Today.Year - record.Patient.YearOfBirth.Value
                     : 0,

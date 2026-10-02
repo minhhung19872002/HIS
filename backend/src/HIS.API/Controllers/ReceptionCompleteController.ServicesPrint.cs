@@ -164,6 +164,9 @@ public partial class ReceptionCompleteController
     public async Task<IActionResult> PrintQueueTicket(Guid ticketId)
     {
         var data = await _receptionService.PrintQueueTicketAsync(ticketId);
+        // QA-R13: an unknown ticket returned 200 with an empty "PDF" (blank tab) instead of 404.
+        if (data.Length == 0)
+            return NotFound(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Không tìm thấy số thứ tự"));
         return File(data, "application/pdf", $"PhieuSTT_{ticketId}.pdf");
     }
 

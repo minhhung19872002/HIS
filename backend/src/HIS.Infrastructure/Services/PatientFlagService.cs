@@ -50,13 +50,17 @@ public class PatientFlagService : IPatientFlagService
             throw new ArgumentException("Loại cờ cảnh báo không hợp lệ (1-7)", nameof(dto.FlagType));
         if (dto.ExpiresAt.HasValue && dto.ExpiresAt.Value <= DateTime.UtcNow) // same clock as ByPatientAsync (FE sends ISO UTC)
             throw new ArgumentException("Ngày hết hiệu lực phải sau thời điểm hiện tại", nameof(dto.ExpiresAt));
+        // QA-R13: a note of only spaces was saved as an empty warning (the drawer requires a note).
+        if (string.IsNullOrWhiteSpace(dto.Note))
+            throw new ArgumentException("Nhập nội dung cảnh báo", nameof(dto.Note));
         if (!dto.Id.HasValue && !await _db.Patients.AnyAsync(p => p.Id == dto.PatientId))
             throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
         PatientFlag entity;
         if (dto.Id.HasValue)
         {
+            // QA-R13: an unknown id answered 404 "The given key was not present in the dictionary."
             entity = await _db.PatientFlags.FirstOrDefaultAsync(f => f.Id == dto.Id.Value)
-                ?? throw new KeyNotFoundException();
+                ?? throw new KeyNotFoundException("Không tìm thấy cờ cảnh báo");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId.ToString();
         }
@@ -74,7 +78,7 @@ public class PatientFlagService : IPatientFlagService
         }
         entity.FlagType = dto.FlagType;
         entity.Color = string.IsNullOrWhiteSpace(dto.Color) ? "red" : dto.Color;
-        entity.Note = dto.Note ?? string.Empty;
+        entity.Note = dto.Note.Trim();
         entity.ExpiresAt = dto.ExpiresAt;
         entity.IsActive = true;
         await _db.SaveChangesAsync();
@@ -87,7 +91,7 @@ public class PatientFlagService : IPatientFlagService
     public async Task<ServiceOutcome> DeleteAsync(Guid id, Guid userId)
     {
         var entity = await _db.PatientFlags.FirstOrDefaultAsync(f => f.Id == id)
-            ?? throw new KeyNotFoundException();
+            ?? throw new KeyNotFoundException("Không tìm thấy cờ cảnh báo");
         entity.IsActive = false;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId.ToString();

@@ -131,11 +131,11 @@ namespace HIS.Application.DTOs.PatientPortal
         public Guid AccountId { get; set; }
         public string FullName { get; set; }
         public string Relationship { get; set; }
-        public string DateOfBirth { get; set; }
-        public string Gender { get; set; }
-        public string IdNumber { get; set; }
-        public string Phone { get; set; }
-        public string InsuranceNumber { get; set; }
+        public string? DateOfBirth { get; set; }
+        public string? Gender { get; set; }
+        public string? IdNumber { get; set; }
+        public string? Phone { get; set; }
+        public string? InsuranceNumber { get; set; }
         public Guid? LinkedPatientId { get; set; }
     }
 
@@ -165,12 +165,12 @@ namespace HIS.Application.DTOs.PatientPortal
         public string MedicineName { get; set; }
         public string Dosage { get; set; }
         public string Frequency { get; set; }
-        public string Times { get; set; }
-        public string Instructions { get; set; }
+        public string? Times { get; set; }
+        public string? Instructions { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string PrescriptionId { get; set; }
-        public string Notes { get; set; }
+        public string? PrescriptionId { get; set; }
+        public string? Notes { get; set; }
     }
 
 
@@ -207,8 +207,8 @@ namespace HIS.Application.DTOs.PatientPortal
         public decimal? BloodGlucose { get; set; }
         public decimal? Temperature { get; set; }
         public decimal? SpO2 { get; set; }
-        public string Notes { get; set; }
-        public string Source { get; set; }
+        public string? Notes { get; set; }
+        public string? Source { get; set; }
     }
 
     public class HealthMetricTrendDto
@@ -259,8 +259,8 @@ namespace HIS.Application.DTOs.PatientPortal
 
     public class AnswerPatientQuestionDto
     {
-        public string AnsweredBy { get; set; }
-        public string AnsweredByName { get; set; }
+        public string? AnsweredBy { get; set; }
+        public string? AnsweredByName { get; set; }
         public string Answer { get; set; }
     }
 

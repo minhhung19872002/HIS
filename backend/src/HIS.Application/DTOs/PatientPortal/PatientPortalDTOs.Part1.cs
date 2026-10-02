@@ -599,12 +599,12 @@ namespace HIS.Application.DTOs.PatientPortal
     {
         public Guid Id { get; set; }
         public Guid PrescriptionId { get; set; }
-        public string DeliveryOption { get; set; } // Pickup, Delivery
-        public string DeliveryAddress { get; set; }
-        public string DeliveryPhone { get; set; }
+        public string? DeliveryOption { get; set; } // Pickup, Delivery
+        public string? DeliveryAddress { get; set; }
+        public string? DeliveryPhone { get; set; }
         public Guid? PreferredPharmacyId { get; set; }
-        public string Notes { get; set; }
-        public string Status { get; set; } // Pending, Approved, Rejected, Dispensed
+        public string? Notes { get; set; }
+        public string? Status { get; set; } // Pending, Approved, Rejected, Dispensed
         public DateTime RequestedAt { get; set; }
     }
 

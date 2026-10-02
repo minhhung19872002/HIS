@@ -180,7 +180,7 @@ public partial class ReceptionCompleteService {
         var examinations = await _context.Examinations
             .Include(e => e.Doctor)
             .Where(e => medicalRecordIds.Contains(e.MedicalRecordId))
-            .Select(e => new { e.MedicalRecordId, e.Id, e.CreatedAt, e.Status, e.StartTime, e.EndTime, DoctorName = e.Doctor != null ? e.Doctor.FullName : null })
+            .Select(e => new { e.MedicalRecordId, e.Id, e.CreatedAt, e.Status, e.StartTime, e.EndTime, e.ChiefComplaint, DoctorName = e.Doctor != null ? e.Doctor.FullName : null })
             .ToListAsync();
         var examLookup = examinations
             .GroupBy(e => e.MedicalRecordId)
@@ -205,6 +205,9 @@ public partial class ReceptionCompleteService {
                 dto.DoctorName = exam.DoctorName;
                 dto.StartedAt = exam.StartTime;
                 dto.CompletedAt = exam.EndTime;
+                // QA-R13: registration stores "Lý do khám" on the examination, but the row read only
+                // MedicalRecord.InitialDiagnosis — the reception drawer showed it empty for every new visit.
+                if (!string.IsNullOrWhiteSpace(exam.ChiefComplaint)) dto.ChiefComplaint = exam.ChiefComplaint;
             }
             return dto;
         }).ToList();
@@ -358,6 +361,13 @@ public partial class ReceptionCompleteService {
 
     private async Task<QueueTicketDto> IssueQueueTicketCoreAsync(IssueQueueTicketDto dto)
     {
+        // QA-R13: queueType 99 / priority 99 / -1 were stored as-is (a ticket in a queue no board reads, and a
+        // priority CallNextAsync does not order). Same ranges as the mobile path + print labels (6 = Thanh toán).
+        if (dto.QueueType is < 1 or > 6)
+            throw new ArgumentException("Loại hàng đợi không hợp lệ (1-6).", nameof(dto.QueueType));
+        if (dto.Priority is < 0 or > 2)
+            throw new ArgumentException("Mức ưu tiên không hợp lệ (0-Thường, 1-Ưu tiên, 2-Cấp cứu).", nameof(dto.Priority));
+
         var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
         var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeVn(today); // IssueDate = VN local
 
@@ -683,6 +693,7 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+        EnsureTicketNotCompleted(ticket);
 
         await EnsureAppointmentRecordAsync(ticket);
 
@@ -754,6 +765,7 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+        EnsureTicketNotCompleted(ticket);
 
         ticket.CalledTime = DateTime.Now;
         ticket.CalledByUserId = userId;
@@ -767,6 +779,7 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+        EnsureTicketNotCompleted(ticket);
 
         ticket.Status = 4; // Skipped
         ticket.Notes = reason;
@@ -781,6 +794,7 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+        EnsureTicketNotCompleted(ticket);
 
         ticket.Status = 2; // Serving
         await SyncMedicalRecordStatusAsync(ticket, mrStatus: 1); // InProgress
@@ -794,14 +808,35 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+        EnsureTicketNotCompleted(ticket);
 
         ticket.Status = 3; // Completed
         ticket.CompletedTime = DateTime.Now;
-        await SyncMedicalRecordStatusAsync(ticket, mrStatus: 3); // Completed
+        // QA-R13: finishing the queue ticket closed the visit (MedicalRecord → Completed) while its examination was
+        // still Waiting — the doctor's exam was never done, change-room refused ("đã kết thúc") and the same
+        // patient could be registered again the same day (the one-open-visit check reads Status < 3).
+        // Only close the record when no examination of it is still open.
+        var hasOpenExam = ticket.MedicalRecordId.HasValue && await _context.Examinations.AnyAsync(e =>
+            e.MedicalRecordId == ticket.MedicalRecordId.Value && !e.IsDeleted
+            && e.Status != HIS.Core.Constants.ExaminationStatus.Completed
+            && e.Status != HIS.Core.Constants.ExaminationStatus.Cancelled);
+        if (!hasOpenExam)
+            await SyncMedicalRecordStatusAsync(ticket, mrStatus: 3); // Completed
 
         await _unitOfWork.SaveChangesAsync();
 
         return (await GetQueueTicketByIdAsync(ticketId))!;
+    }
+
+    /// <summary>
+    /// QA-R13: a completed ticket is terminal — "complete" again, skip, call, serve and recall on it all returned
+    /// 200 and rewrote the ticket (Completed → Skipped → Calling → Serving), re-stamping CompletedTime/CalledTime
+    /// that the waiting-time statistics read. A skipped ticket may still be called back (patient returns).
+    /// </summary>
+    private static void EnsureTicketNotCompleted(QueueTicket ticket)
+    {
+        if (ticket.Status == HIS.Core.Constants.QueueTicketStatus.Completed)
+            throw new InvalidOperationException($"Số {ticket.TicketNumber} đã hoàn thành — không thao tác lại được.");
     }
 
     /// <summary>

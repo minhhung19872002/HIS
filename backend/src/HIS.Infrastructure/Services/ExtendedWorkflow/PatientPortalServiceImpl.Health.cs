@@ -130,6 +130,23 @@ public partial class PatientPortalServiceImpl
         await EnsurePortalAccountExistsAsync(dto.AccountId);
         if (dto.RecordedAt == default)
             throw new ArgumentException("Thời điểm đo là bắt buộc", nameof(dto.RecordedAt));
+        // QA-R13: SpO2 1e15 / 150 %, heart rate -1 and a measurement dated 9999-12-31 were stored and fed the
+        // trend charts (min/max/avg/latest) the patient and staff read. Reject physically impossible values.
+        if (dto.RecordedAt > DateTime.Now.AddDays(1))
+            throw new ArgumentException("Thời điểm đo không được ở tương lai", nameof(dto.RecordedAt));
+        static void Range(decimal? v, decimal min, decimal max, string label)
+        {
+            if (v.HasValue && (v.Value < min || v.Value > max))
+                throw new ArgumentException($"{label} không hợp lệ (từ {min} đến {max})", label);
+        }
+        Range(dto.SpO2, 0, 100, "SpO2 (%)");
+        Range(dto.HeartRate, 0, 300, "Nhịp tim");
+        Range(dto.BloodPressureSystolic, 0, 300, "Huyết áp tâm thu");
+        Range(dto.BloodPressureDiastolic, 0, 250, "Huyết áp tâm trương");
+        Range(dto.Temperature, 25, 45, "Nhiệt độ");
+        Range(dto.Weight, 0, 500, "Cân nặng (kg)");
+        Range(dto.Height, 20, 300, "Chiều cao (cm)");
+        Range(dto.BloodGlucose, 0, 1000, "Đường huyết");
         var entity = dto.Id.HasValue && dto.Id != Guid.Empty
             ? await _context.HealthMetrics.FindAsync(dto.Id.Value) : null;
         if (dto.Id.HasValue && dto.Id != Guid.Empty && (entity == null || entity.AccountId != dto.AccountId))
@@ -329,6 +346,9 @@ public partial class PatientPortalServiceImpl
     {
         var entity = await _context.PatientQuestions.FindAsync(id);
         if (entity == null) return null!;
+        // QA-R13: an answer of only spaces marked the question "Đã trả lời" with nothing for the patient to read.
+        if (string.IsNullOrWhiteSpace(dto.Answer))
+            throw new ArgumentException("Nhập nội dung trả lời", nameof(dto.Answer));
         entity.AnsweredBy = dto.AnsweredBy;
         entity.AnsweredByName = dto.AnsweredByName;
         entity.Answer = dto.Answer;

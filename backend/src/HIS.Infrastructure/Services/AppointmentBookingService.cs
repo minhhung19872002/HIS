@@ -290,6 +290,21 @@ public class AppointmentBookingService : IAppointmentBookingService
             return new BookingResultDto { Success = false, Message = "Vui lòng nhập số điện thoại" };
         if (dto.AppointmentDate.Date < DateTime.Today)
             return new BookingResultDto { Success = false, Message = "Ngày hẹn không hợp lệ" };
+        // QA-R13 (anonymous endpoint): 9999-12-31 surfaced the raw .NET overflow text, appointment type 99 /
+        // gender 99 / a future birth date were stored on the appointment and on the NEW patient record, and an
+        // over-long name/reason/notes turned into a misleading 409 "trùng mã" (see SaveWithQueueNumberRetryAsync).
+        if (dto.AppointmentDate.Date > DateTime.Today.AddYears(1))
+            return new BookingResultDto { Success = false, Message = "Chỉ đặt lịch trước tối đa 1 năm" };
+        if (dto.AppointmentType is < 1 or > 3)
+            return new BookingResultDto { Success = false, Message = "Loại khám không hợp lệ" };
+        if (dto.Gender is < 0 or > 3)
+            return new BookingResultDto { Success = false, Message = "Giới tính không hợp lệ" };
+        if (dto.DateOfBirth.HasValue && (dto.DateOfBirth.Value.Date > DateTime.Today || dto.DateOfBirth.Value.Year < 1900))
+            return new BookingResultDto { Success = false, Message = "Ngày sinh không hợp lệ" };
+        if (dto.PatientName.Trim().Length > 100 || dto.PhoneNumber.Trim().Length > 20
+            || dto.Reason?.Trim().Length > 500 || dto.Notes?.Trim().Length > 1000
+            || dto.Email?.Trim().Length > 200 || dto.Address?.Trim().Length > 255 || dto.IdentityNumber?.Trim().Length > 20)
+            return new BookingResultDto { Success = false, Message = "Thông tin nhập quá dài, vui lòng rút gọn" };
 
         var phone = dto.PhoneNumber.Trim();
         var ip = dto.ClientIp?.Trim();
@@ -644,7 +659,10 @@ public class AppointmentBookingService : IAppointmentBookingService
                 await _unitOfWork.SaveChangesAsync();
                 return;
             }
-            catch (DbUpdateException) when (appointment.QueueNumber != null && attempt < maxAttempts)
+            // QA-R13: only a unique-index clash on the queue number is retryable. Any DbUpdateException was retried
+            // (an FK error from a non-doctor doctorId, a truncation) and surfaced as 409 "trùng mã".
+            catch (DbUpdateException ex) when (appointment.QueueNumber != null && attempt < maxAttempts
+                                               && NangCap23ServiceHelpers.IsUniqueViolation(ex))
             {
                 var retry = await AppointmentQueueAllocator.ReserveAsync(
                     _context, appointment.RoomId, appointment.AppointmentDate);

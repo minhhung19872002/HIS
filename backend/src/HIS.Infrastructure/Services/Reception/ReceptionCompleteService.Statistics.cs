@@ -325,7 +325,7 @@ public partial class ReceptionCompleteService {
         {
             var ticketQuery = _context.QueueTickets.AsNoTracking()
                 .Include(q => q.Room)
-                .Where(q => q.CreatedAt.Date >= dto.FromDate.Date && q.CreatedAt.Date <= dto.ToDate.Date);
+                .Where(q => q.CreatedAt >= HIS.Core.Common.VnTime.DayRangeUtc(dto.FromDate).FromUtc && q.CreatedAt < HIS.Core.Common.VnTime.DayRangeUtc(dto.ToDate).ToUtc); // QA-R13: VN days vs UTC CreatedAt
             // QA-R11: room/queue-type/department filters were accepted and ignored.
             if (dto.RoomId.HasValue) ticketQuery = ticketQuery.Where(q => q.RoomId == dto.RoomId);
             if (dto.QueueType.HasValue) ticketQuery = ticketQuery.Where(q => q.QueueType == dto.QueueType);
