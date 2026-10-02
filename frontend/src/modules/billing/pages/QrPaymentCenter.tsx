@@ -7,10 +7,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DataTable, StatusBadge,
-  fmtVNDg, fmtDTg, tk, te, cf, type ColumnDef, type TopTab,
+  fmtVNDg, fmtDTg, tk, te, cf, EmptyState, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import {
@@ -74,8 +74,15 @@ const QrPaymentCenter: React.FC = () => {
   };
   const cformForm = useModalForm(cformRules, createOpen);
 
+  // QA-R14: on a failed load (403 for roles without the reconciliation permission) the recon tab fell through to the
+  // disbursement KPIs ("Lệnh chi 0 · Tổng tiền 0 ₫") and the old period's rows stayed — misleading. Track the failure.
+  const [loadErr, setLoadErr] = useState<null | 'denied' | 'error'>(null);
+  // Reconciliation / QR report and every disbursement write share one server role gate (Admin/Accountant):
+  // once a report tab is refused, the disbursement write buttons would only 403 → hide them.
+  const [mgrDenied, setMgrDenied] = useState(false);
   const load = useCallback(async (t: TabKey) => {
     setLoading(true);
+    setLoadErr(null);
     try {
       if (t === 'recon') setRecon(await getBankReconciliation(from, to, bank || undefined));
       else if (t === 'creators') setFinance(await getQrFinanceReport(from, to));
@@ -84,7 +91,11 @@ const QrPaymentCenter: React.FC = () => {
         setDisb(r.items || []);
         setDisbTotals({ total: r.totalAmount, transferred: r.transferredAmount });
       }
-    } catch { te('Không tải được dữ liệu'); }
+    } catch (e) {
+      setLoadErr(isForbiddenError(e) ? 'denied' : 'error');
+      if (isForbiddenError(e) && t !== 'disburse') setMgrDenied(true);
+      te(friendlyErrorMessage(e, 'Không tải được dữ liệu'));
+    }
     finally { setLoading(false); }
   }, [from, to, bank]);
 
@@ -162,11 +173,17 @@ const QrPaymentCenter: React.FC = () => {
       await cancelDisbursement(r.id);
       tk('Đã hủy lệnh chi');
       void load('disburse');
-    } catch { te('Hủy thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Hủy thất bại')); }
     finally { setRowBusy(null); }
   };
 
-  const kpis = tab === 'recon' && recon ? [
+  const errEmpty = loadErr === 'denied'
+    ? <EmptyState icon="shield" message="Bạn không có quyền xem dữ liệu này. Liên hệ quản trị nếu cần được cấp quyền." />
+    : <EmptyState icon="alert" message="Không tải được dữ liệu — bấm Làm mới để thử lại." />;
+
+  const kpis = loadErr ? [
+    { lbl: 'Dữ liệu', val: '—', sub: loadErr === 'denied' ? 'không có quyền xem' : 'không tải được', tone: 'warn' as const },
+  ] : tab === 'recon' && recon ? [
     { lbl: 'Tổng GD', val: recon.totalCount, sub: fmtVNDg(recon.totalAmount) },
     { lbl: 'Đã thanh toán', val: recon.paidCount, tone: 'ok' as const, sub: fmtVNDg(recon.paidAmount) },
     { lbl: 'Chờ TT', val: recon.pendingCount, tone: 'warn' as const, sub: fmtVNDg(recon.pendingAmount) },
@@ -205,21 +222,21 @@ const QrPaymentCenter: React.FC = () => {
 
       {tab === 'recon' && (
         <div style={{ padding: 'var(--space-12) 0' }}>
-          {recon && recon.unmatchedPaid.length > 0 && (
+          {!loadErr && recon && recon.unmatchedPaid.length > 0 && (
             <div style={{ margin: '0 0 var(--space-12)', padding: 'var(--space-10)', border: '1px solid var(--s-warn)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
               <b>⚠ {recon.unmatchedPaid.length} giao dịch đã thu nhưng THIẾU mã tham chiếu ngân hàng</b> — cần đối soát lại với sao kê.
             </div>
           )}
-          <DataTable<QrFinanceItem> columns={txnCols} data={recon?.items ?? []} rowKey={(r) => r.id} loading={loading} empty="Không có giao dịch QR trong kỳ" />
+          <DataTable<QrFinanceItem> columns={txnCols} data={loadErr ? [] : recon?.items ?? []} rowKey={(r) => r.id} loading={loading} empty={loadErr ? errEmpty : 'Không có giao dịch QR trong kỳ'} />
         </div>
       )}
 
       {tab === 'creators' && (
         <div style={{ padding: 'var(--space-12) 0', display: 'grid', gap: 'var(--space-14)' }}>
-          <DataTable<QrCreatorStat> columns={creatorCols} data={finance?.byCreator ?? []} rowKey={(r) => r.creatorName} loading={loading} empty="Không có dữ liệu" />
+          <DataTable<QrCreatorStat> columns={creatorCols} data={loadErr ? [] : finance?.byCreator ?? []} rowKey={(r) => r.creatorName} loading={loading} empty={loadErr ? errEmpty : 'Không có dữ liệu'} />
           <div>
             <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, margin: '0 0 var(--space-6)' }}>Chi tiết giao dịch</div>
-            <DataTable<QrFinanceItem> columns={txnCols} data={finance?.items ?? []} rowKey={(r) => r.id} loading={loading} empty="—" />
+            <DataTable<QrFinanceItem> columns={txnCols} data={loadErr ? [] : finance?.items ?? []} rowKey={(r) => r.id} loading={loading} empty="—" />
           </div>
         </div>
       )}
@@ -227,15 +244,15 @@ const QrPaymentCenter: React.FC = () => {
       {tab === 'disburse' && (
         <div style={{ padding: 'var(--space-12) 0' }}>
           <div style={{ marginBottom: 'var(--space-12)' }}>
-            <Btn variant="primary" onClick={() => setCreateOpen(true)}><TermIcon name="plus" size={12} /> Tạo lệnh chi hộ</Btn>
+            {!mgrDenied && loadErr !== 'denied' && <Btn variant="primary" onClick={() => setCreateOpen(true)}><TermIcon name="plus" size={12} /> Tạo lệnh chi hộ</Btn>}
           </div>
           <DataTable<RefundDisbursementDto>
             columns={disbCols}
-            data={disb}
+            data={loadErr ? [] : disb}
             rowKey={(r) => r.id}
             loading={loading}
-            empty="Chưa có lệnh chi hộ"
-            actions={(r) => (r.status === 0 || r.status === 1) ? (
+            empty={loadErr ? errEmpty : 'Chưa có lệnh chi hộ'}
+            actions={(r) => !mgrDenied && (r.status === 0 || r.status === 1) ? (
               <>
                 <ActBtn
                   ic="check"

@@ -373,9 +373,12 @@ const ReceptionV2: React.FC = () => {
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
         ok += 1;
-      } catch { /* skip failed ones */ }
+      } catch { /* skip failed ones — counted below */ }
     }
-    message.success(`Đã tải ${ok}/${targets.length} phiếu`);
+    // QA-R14: "Đã tải 0/3 phiếu" used to come as a green success toast.
+    if (ok === targets.length) message.success(`Đã tải ${ok}/${targets.length} phiếu`);
+    else if (ok > 0) message.warning(`Chỉ tải được ${ok}/${targets.length} phiếu — các phiếu còn lại lỗi, vui lòng in lại từng phiếu.`);
+    else message.error(`Không tải được phiếu nào (0/${targets.length}). Vui lòng thử lại.`);
     setSelRows(new Set());
   };
 

@@ -11,6 +11,7 @@ import {
 import { PlusOutlined, WarningFilled } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { can } from '../../../services/permission.service';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import {
   getPatientFlags,
   savePatientFlag,
@@ -49,6 +50,8 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
   const canWrite = can(FLAG_WRITE_PERMISSION);
   const [flags, setFlags] = useState<PatientFlagDto[]>([]);
   const [loading, setLoading] = useState(false);
+  // QA-R14: a failed load used to render NOTHING — identical to "this patient has no allergy/safety flag".
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [editing, setEditing] = useState<PatientFlagDto | null>(null);
   const [form] = Form.useForm<{
@@ -61,12 +64,17 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
   const load = useCallback(async () => {
     if (!patientId) { setFlags([]); return; }
     setLoading(true);
+    setLoadError(null);
     try {
       const list = await getPatientFlags(patientId);
       setFlags(list);
       onCountChange?.(list.length);
-    } catch {
+    } catch (e) {
       setFlags([]);
+      // A role without MedicalRecord.Read (cashier) simply has no banner; only a real failure shows the warning.
+      setLoadError(isForbiddenError(e)
+        ? null
+        : friendlyErrorMessage(e, 'Không tải được cờ cảnh báo BN (dị ứng, nguy cơ…) — chưa xác định được BN có cảnh báo hay không.'));
     } finally {
       setLoading(false);
     }
@@ -90,8 +98,8 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
       setEditing(null);
       load();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      message.error(err?.response?.data?.message || 'Lưu thất bại');
+      if ((e as { errorFields?: unknown })?.errorFields) return; // form validation — fields already show the error
+      message.error(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
   };
 
@@ -100,8 +108,8 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
       await deletePatientFlag(id);
       message.success('Đã xóa cảnh báo');
       load();
-    } catch {
-      message.error('Xóa thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Xóa thất bại'));
     }
   };
 
@@ -124,6 +132,18 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
   };
 
   if (!patientId || loading) return null;
+
+  if (loadError) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 8 }}
+        title={loadError}
+        action={<Button size="small" type="link" onClick={() => { void load(); }}>Thử lại</Button>}
+      />
+    );
+  }
 
   const mostSevere = flags.find(f => f.color === 'red') || flags[0];
   const alertType = mostSevere?.color === 'red' ? 'error'

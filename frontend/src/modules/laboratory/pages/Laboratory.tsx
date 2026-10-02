@@ -419,16 +419,22 @@ const LaboratoryV2: React.FC = () => {
     setChainBusy(true);
     const reason = chainReason.trim();
     let touched = 0;
+    // QA-R14: every step error was swallowed → a 403 / server error read as "kiểm tra trạng thái từng bước".
+    // Keep the first error so the "nothing cancelled" message can say why. Steps skipped for a wrong state still pass.
+    let firstErr: unknown = null;
+    const step = <T,>(p: Promise<T>) => p.catch((e) => { firstErr ??= e; return null; });
     for (const t of items) {
-      const r1 = await labApi.cancelChainApproval(t.id, reason).catch(() => null);
-      const r2 = chainLevel >= 2 ? await labApi.cancelChainResult(t.id, reason).catch(() => null) : null;
-      const r3 = chainLevel >= 3 ? await labApi.cancelChainCollection(t.id, reason).catch(() => null) : null;
+      const r1 = await step(labApi.cancelChainApproval(t.id, reason));
+      const r2 = chainLevel >= 2 ? await step(labApi.cancelChainResult(t.id, reason)) : null;
+      const r3 = chainLevel >= 3 ? await step(labApi.cancelChainCollection(t.id, reason)) : null;
       if (r1 || r2 || r3) touched += 1;
     }
     setChainBusy(false);
     setChainOpen(false);
     if (touched > 0) message.success(`Đã hủy ngược chuỗi ${touched}/${items.length} chỉ số · ${chainTarget.requestCode}`);
-    else message.warning('Không có chỉ số nào hủy được — kiểm tra trạng thái từng bước');
+    else message.warning(firstErr
+      ? `Không có chỉ số nào hủy được — ${friendlyErrorMessage(firstErr, 'kiểm tra trạng thái từng bước')}`
+      : 'Không có chỉ số nào hủy được — kiểm tra trạng thái từng bước');
     setDetail(null);
     reload();
   };

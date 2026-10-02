@@ -19,7 +19,8 @@ import type { BusinessAlertDto } from '../../patient/api/businessAlerts';
 import * as hrApi from '../../hr/api/medicalHR';
 import type { MedicalHRDashboardDto } from '../../hr/api/medicalHR';
 import { usePermission } from '../../../hooks/usePermission';
-import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '@/utils/friendlyError';
+import { EmptyState } from '@/_v2kit';
 import '../../../styles/Dashboard.css';
 
 import type { Kpi } from './dashboard/_shared';
@@ -71,6 +72,9 @@ const DashboardV2: React.FC = () => {
   // #459: 7 bucket luồng BN từ API riêng (thay vì đếm client-side 4 trạng thái)
   const EMPTY_FLOW: OpdFlowStatsDto = { registered: 0, waiting: 0, inProgress: 0, waitingCls: 0, clsResultReady: 0, completed: 0, paid: 0 };
   const [opdFlow, setOpdFlow]       = useState<OpdFlowStatsDto>(EMPTY_FLOW);
+  // QA-R14: /statistics/dashboard 403 for roles without the stats permission → every KPI/chart rendered 0,
+  // which reads as "a quiet day", not "you may not see this". Track it and show a permission notice instead.
+  const [statsDenied, setStatsDenied] = useState(false);
 
   // Popup state — ER row drawer, bed modal, OR case modal, stock PO modal,
   // alert detail modal, all-alerts drawer.
@@ -93,8 +97,12 @@ const DashboardV2: React.FC = () => {
         const days = Array.from({ length: 7 }, (_, i) =>
           dayjs().subtract(6 - i, 'day').format('YYYY-MM-DD'),
         );
+        let historyDenied = false;
         const historyPromises = days.map((d) =>
-          statisticsApi.getHospitalDashboard(d).then((r) => r.data).catch(() => null),
+          statisticsApi.getHospitalDashboard(d).then((r) => r.data).catch((e) => {
+            if (isForbiddenError(e)) historyDenied = true;
+            return null;
+          }),
         );
 
         const [
@@ -122,6 +130,7 @@ const DashboardV2: React.FC = () => {
 
         const effectiveHistory = (historyRes.filter(Boolean) as HospitalDashboardDto[]);
         setHistory(effectiveHistory);
+        setStatsDenied(historyDenied && effectiveHistory.length === 0);
 
         const depts = Array.isArray(deptRes) ? deptRes : [];
         setDeptStats(depts);
@@ -228,9 +237,16 @@ const DashboardV2: React.FC = () => {
   return (
     <div className="dash-root">
       {/* ============== KPI STRIP ============== */}
-      <div className="dash-top">
-        {kpis.map((k, i) => <KpiCard key={i} k={k} />)}
-      </div>
+      {statsDenied ? (
+        <EmptyState
+          icon="shield"
+          message="Bạn không có quyền xem số liệu thống kê tổng quan (KPI, biểu đồ, doanh thu, sơ đồ giường). Liên hệ quản trị nếu cần được cấp quyền."
+        />
+      ) : (
+        <div className="dash-top">
+          {kpis.map((k, i) => <KpiCard key={i} k={k} />)}
+        </div>
+      )}
 
       {/* ============== MAIN 3-COL GRID ============== */}
       {/* #379: widget gate theo permission — lâm sàng=MedicalRecord.Read · dược=Pharmacy.Read ·
@@ -252,12 +268,13 @@ const DashboardV2: React.FC = () => {
             />
           )}
           {/* #352 parity v1: biểu đồ hoạt động (7 ngày / theo khoa / phân bố) */}
-          {seeClinical && <ActivityChartCard history={history} byDept={opdByDept} />}
+          {seeClinical && !statsDenied && <ActivityChartCard history={history} byDept={opdByDept} />}
         </div>
 
         {/* ---------- COL 2 ---------- */}
         <div className="dash-col">
-          {seeClinical && <BedMapMini beds={allBeds} totals={bedTotals} onBedClick={setBedIt} />}
+          {/* bed map is built from /statistics/departments — hidden with the stats notice above */}
+          {seeClinical && !statsDenied && <BedMapMini beds={allBeds} totals={bedTotals} onBedClick={setBedIt} />}
           {seeClinical && <OrBoard schedule={surgeries} onSlotClick={(s, orName) => setOrIt({ surgery: s, orName })} />}
           {seePharmacy && (
             <PharmacyAlerts
@@ -267,7 +284,7 @@ const DashboardV2: React.FC = () => {
             />
           )}
           {/* #352 parity v1: mini-card xong/chờ theo dịch vụ (Khám/CĐHA/XN/PT/TT/Kê đơn) */}
-          {seeClinical && <ServiceStatusStrip d={latest} />}
+          {seeClinical && !statsDenied && <ServiceStatusStrip d={latest} />}
         </div>
 
         {/* ---------- COL 3 ---------- */}
@@ -278,9 +295,9 @@ const DashboardV2: React.FC = () => {
             onAlertClick={setAlertIt}
             onShowAll={() => setShowAllAlerts(true)}
           />
-          {seeBilling && <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />}
+          {seeBilling && !statsDenied && <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />}
           {/* #352 parity v1: doanh thu theo khoa + theo loại BN */}
-          {seeBilling && <RevenueBreakdownCard latest={latest} deptStats={deptStats} />}
+          {seeBilling && !statsDenied && <RevenueBreakdownCard latest={latest} deptStats={deptStats} />}
         </div>
       </div>
 
@@ -294,10 +311,18 @@ const DashboardV2: React.FC = () => {
       <ErPatientDrawer
         row={erPt}
         onClose={() => setErPt(null)}
-        onAddOrder={() => message.success('Đã gửi y lệnh CT ngực STAT')}
-        onTransferIcu={() => {
-          message.success(`Đã chuyển ${erPt?.patientName ?? 'BN'} → HS-1`);
+        // QA-R14: these two buttons used to toast "Đã gửi y lệnh CT ngực STAT" / "Đã chuyển → HS-1" without
+        // calling any API — a doctor could believe a STAT order or an ICU transfer had been made. The dashboard
+        // has no order/transfer form, so send the user to the screen that does it (same as onReserve below).
+        onAddOrder={() => {
+          message.info('Vui lòng thêm y lệnh từ màn hình Khám bệnh');
           setErPt(null);
+          navigate('/v2/opd');
+        }}
+        onTransferIcu={() => {
+          message.info('Vui lòng chuyển khoa / chuyển hồi sức từ màn hình Nội trú');
+          setErPt(null);
+          navigate('/v2/ipd');
         }}
       />
       <BedDetailModal
@@ -316,7 +341,12 @@ const DashboardV2: React.FC = () => {
       <OrCaseModal
         data={orIt}
         onClose={() => setOrIt(null)}
-        onPrint={() => message.info('Đã gửi phiếu mổ tới máy in')}
+        // QA-R14: claimed "Đã gửi phiếu mổ tới máy in" but printed nothing — the print form lives on the surgery screen.
+        onPrint={() => {
+          message.info('Vui lòng in phiếu mổ từ màn hình Phẫu thuật');
+          setOrIt(null);
+          navigate('/v2/surgery');
+        }}
         onMarkDone={async () => {
           if (!orIt || markingDone.current) return;
           markingDone.current = true;
@@ -347,9 +377,17 @@ const DashboardV2: React.FC = () => {
       <AlertDetailModal
         alert={alertIt}
         onClose={() => setAlertIt(null)}
-        onAck={() => {
-          message.success('Đã xác nhận cảnh báo');
-          setAlertIt(null);
+        // QA-R14: ACK only toasted success — nothing was saved and the alert came back on reload. Call the real API.
+        onAck={async () => {
+          if (!alertIt) return;
+          try {
+            await alertsApi.acknowledgeAlert(alertIt.id);
+            setAlerts((prev) => prev.filter((a) => a.id !== alertIt.id));
+            message.success('Đã xác nhận cảnh báo');
+            setAlertIt(null);
+          } catch (e) {
+            message.error(friendlyErrorMessage(e, 'Xác nhận cảnh báo thất bại. Vui lòng thử lại.'));
+          }
         }}
       />
       <AllAlertsDrawer
@@ -357,9 +395,18 @@ const DashboardV2: React.FC = () => {
         alerts={alerts}
         onClose={() => setShowAllAlerts(false)}
         onAlertClick={(a) => setAlertIt(a)}
-        onAckAll={() => {
-          message.success('Đã xác nhận tất cả cảnh báo');
-          setShowAllAlerts(false);
+        onAckAll={async () => {
+          if (alerts.length === 0) { setShowAllAlerts(false); return; }
+          const results = await Promise.allSettled(alerts.map((a) => alertsApi.acknowledgeAlert(a.id)));
+          const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+          const okIds = new Set(alerts.filter((_, i) => results[i].status === 'fulfilled').map((a) => a.id));
+          setAlerts((prev) => prev.filter((a) => !okIds.has(a.id)));
+          if (failed.length === 0) {
+            message.success(`Đã xác nhận ${okIds.size} cảnh báo`);
+            setShowAllAlerts(false);
+          } else {
+            message.error(`Xác nhận được ${okIds.size}/${alerts.length} cảnh báo. ${friendlyErrorMessage(failed[0].reason, 'Vui lòng thử lại.')}`);
+          }
         }}
       />
     </div>

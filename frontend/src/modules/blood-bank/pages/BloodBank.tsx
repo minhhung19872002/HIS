@@ -10,11 +10,11 @@ import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductType
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell, cf,
+  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell, cf, EmptyState,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -149,6 +149,10 @@ const BloodBankV2: React.FC = () => {
   const [unitSel, setUnitSel] = useState<BloodStockDetailDto | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  // QA-R14: stock endpoints are blood-bank-staff only (doctor/nurse request blood, they do not see the store).
+  // On a 403 the KPIs read "Khả dụng 0 · O- khả dụng 0" once the toast faded — looks like an empty blood store.
+  // Receive/issue use the same server role gate, so they are hidden too.
+  const [stockDenied, setStockDenied] = useState(false);
   // Gelcard results — local-only (v1 lưu vào state, không có API persist). Key = bloodBagId.
   const [gelcardResults, setGelcardResults] = useState<Record<string, string>>({});
   const saveGelcardResult = (bloodBagId: string, testResult: string) =>
@@ -165,6 +169,7 @@ const BloodBankV2: React.FC = () => {
       getExpiredBloodBags(),
     ]).then(([s, u, e, r, x]) => {
       if (s.status === 'fulfilled') setStock(withRh((s.value.data || []) as BloodStockDto[]));
+      setStockDenied(s.status === 'rejected' && isForbiddenError(s.reason));
       if (u.status === 'fulfilled') setUnits(withRh((u.value.data || []) as BloodStockDetailDto[]));
       if (e.status === 'fulfilled') setExpiring(withRh((e.value.data || []) as BloodStockDetailDto[]));
       if (r.status === 'fulfilled') setRequests(withRh((r.value.data || []) as BloodIssueRequestDto[]));
@@ -354,12 +359,18 @@ const BloodBankV2: React.FC = () => {
     <div className="ab">
       <KpiStrip
         items={[
-          { lbl: 'Tổng đơn vị', val: kpis.total, sub: 'tất cả nhóm' },
-          { lbl: 'Khả dụng', val: kpis.available, sub: 'sẵn sàng cấp', tone: 'ok' },
-          { lbl: 'Đặt trước', val: kpis.reserved, sub: 'đã reserve' },
-          { lbl: 'Hết hạn ≤7 ngày', val: kpis.expiring7, sub: 'cần xử lý', tone: 'warn' },
+          ...(stockDenied ? [
+            { lbl: 'Tồn kho máu', val: '—', sub: 'không có quyền xem tồn kho', tone: 'warn' as const },
+          ] : [
+            { lbl: 'Tổng đơn vị', val: kpis.total, sub: 'tất cả nhóm' },
+            { lbl: 'Khả dụng', val: kpis.available, sub: 'sẵn sàng cấp', tone: 'ok' as const },
+            { lbl: 'Đặt trước', val: kpis.reserved, sub: 'đã reserve' },
+            { lbl: 'Hết hạn ≤7 ngày', val: kpis.expiring7, sub: 'cần xử lý', tone: 'warn' as const },
+          ]),
           { lbl: 'Yêu cầu chờ', val: kpis.pendingReq, sub: 'chờ duyệt', tone: 'warn' },
-          { lbl: 'O- khả dụng', val: kpis.oNeg, sub: 'cấp cứu', tone: kpis.oNeg < 5 ? 'crit' : 'ok' },
+          ...(stockDenied ? [] : [
+            { lbl: 'O- khả dụng', val: kpis.oNeg, sub: 'cấp cứu', tone: kpis.oNeg < 5 ? 'crit' as const : 'ok' as const },
+          ]),
         ]}
       />
 
@@ -370,9 +381,12 @@ const BloodBankV2: React.FC = () => {
         actions={
           <>
             <RefreshButton onRefresh={async () => { await reload() }} />
-            <Btn variant="ghost" onClick={() => setReceiveOpen(true)}>
-              <TermIcon name="plus" size={12} /> Nhận máu
-            </Btn>
+            {!stockDenied && (
+              <Btn variant="ghost" onClick={() => setReceiveOpen(true)}>
+                <TermIcon name="plus" size={12} /> Nhận máu
+              </Btn>
+            )}
+            {/* Doctors cannot read stock but DO create issue requests here — the only FE path to request blood. */}
             <Btn variant="primary" onClick={() => setIssueOpen(true)}>
               <TermIcon name="send" size={12} /> Xuất máu
             </Btn>
@@ -399,7 +413,10 @@ const BloodBankV2: React.FC = () => {
         </span>
       </div>
 
-      {tab === 'stock' && (
+      {stockDenied && tab !== 'requests' && (
+        <EmptyState icon="shield" message="Bạn không có quyền xem tồn kho máu (chỉ nhân viên ngân hàng máu). Yêu cầu máu cho người bệnh bằng nút Xuất máu, theo dõi ở tab Yêu cầu xuất máu." />
+      )}
+      {!stockDenied && tab === 'stock' && (
         <>
           {/* Group-count chip bar */}
           <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--d-1)' }}>
@@ -444,7 +461,7 @@ const BloodBankV2: React.FC = () => {
           />
         </>
       )}
-      {tab === 'expiring' && (
+      {!stockDenied && tab === 'expiring' && (
         <>
           {/* #352: 4 stat-card phân bố hạn dùng (v1 có, v2 trước đây chỉ có mốc ≤7 ngày) */}
           <div style={{ display: 'flex', gap: 'var(--space-8)', margin: '0 16px 10px', flexWrap: 'wrap' }}>
@@ -470,7 +487,7 @@ const BloodBankV2: React.FC = () => {
           />
         </>
       )}
-      {tab === 'expired' && (
+      {!stockDenied && tab === 'expired' && (
         <>
           {expiredFiltered.length > 0 && (
             <div style={{
@@ -498,7 +515,7 @@ const BloodBankV2: React.FC = () => {
           loading={loading} units={units} onReload={reload}
         />
       )}
-      {tab === 'gelcard' && (
+      {!stockDenied && tab === 'gelcard' && (
         <GelcardTab
           rows={gelcardFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
           allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult}

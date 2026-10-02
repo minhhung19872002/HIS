@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import { financeApi, statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
@@ -343,14 +343,19 @@ const ReportsV2: React.FC = () => {
   // QA-R3: real run history + schedules (the strip, "Lần chạy" and "Lịch" used to be hard-coded text).
   const [history, setHistory] = React.useState<ReportHistoryDto[]>([]);
   const [schedules, setSchedules] = React.useState<ScheduledReportConfigDto[]>([]);
+  // QA-R14: a 403 on these sources used to render as 0 / "Chưa chạy" / "Thủ công" / "chưa có số liệu" — indistinguishable
+  // from a real empty result. Remember which ones the server refused so the cards say "không có quyền xem".
+  const [historyDenied, setHistoryDenied] = React.useState(false);
+  const [schedulesDenied, setSchedulesDenied] = React.useState(false);
+  const [statsDenied, setStatsDenied] = React.useState(false);
 
   const loadRunInfo = React.useCallback(() => {
     getReportHistory(undefined, undefined, undefined, 200)
-      .then((r) => setHistory(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setHistory([]));
+      .then((r) => { setHistory(Array.isArray(r.data) ? r.data : []); setHistoryDenied(false); })
+      .catch((e) => { setHistory([]); setHistoryDenied(isForbiddenError(e)); });
     getScheduledReports()
-      .then((r) => setSchedules(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setSchedules([]));
+      .then((r) => { setSchedules(Array.isArray(r.data) ? r.data : []); setSchedulesDenied(false); })
+      .catch((e) => { setSchedules([]); setSchedulesDenied(isForbiddenError(e)); });
   }, []);
 
   React.useEffect(() => {
@@ -359,6 +364,7 @@ const ReportsV2: React.FC = () => {
       .catch((error) => {
         message.warning(friendlyErrorMessage(error, 'Không tải được dữ liệu dashboard'));
         setDashboard(null);
+        if (isForbiddenError(error)) setStatsDenied(true);
       });
     loadRunInfo();
   }, [loadRunInfo]);
@@ -368,7 +374,7 @@ const ReportsV2: React.FC = () => {
     let cancelled = false;
     getKPIDashboard(fromDate, toDate)
       .then((r) => { if (!cancelled) setKpi(r.data ?? null); })
-      .catch(() => { if (!cancelled) setKpi(null); });
+      .catch((e) => { if (!cancelled) { setKpi(null); if (isForbiddenError(e)) setStatsDenied(true); } });
     financeApi.getRevenueByExecutingDept(fromDate, toDate)
       .then((r) => {
         if (cancelled) return;
@@ -383,12 +389,14 @@ const ReportsV2: React.FC = () => {
   }, [period]);
 
   const lastRunOf = (code: string): string => {
+    if (historyDenied) return '—';
     const last = history.find((h) => h.reportCode?.toLowerCase() === code.toLowerCase());
     return last ? utcDay(last.createdAt).format('DD/MM/YYYY HH:mm') : 'Chưa chạy';
   };
   const configOf = (code: string): ScheduledReportConfigDto | undefined =>
     schedules.find((x) => x.reportCode?.toLowerCase() === code.toLowerCase());
   const scheduleOf = (code: string): string => {
+    if (schedulesDenied) return '—';
     const sch = configOf(code);
     return sch && sch.isActive ? `${scheduleLabel(sch.schedule)} · gửi khi bấm "Gửi báo cáo"` : 'Thủ công';
   };
@@ -431,7 +439,7 @@ const ReportsV2: React.FC = () => {
   // số liệu" (the page used to fall back to invented numbers — 1.284 lượt khám, 2,84 tỷ — or derived trends).
   const NO_DATA = '—';
   const metricText = (kind: string, value: number | null) => (value === null ? NO_DATA : formatMetricValue(kind, value));
-  const subText = (value: number | null, text: string) => (value === null ? 'chưa có số liệu' : text);
+  const subText = (value: number | null, text: string) => (value === null ? (statsDenied ? 'không có quyền xem' : 'chưa có số liệu') : text);
   // Visits / revenue follow the selected period (/reporting/kpi, change vs the previous period of the same length);
   // without the KPI payload only the day view can fall back to today's dashboard.
   const visits = kpiVisits ? kpiVisits.currentValue : (period === 'day' && hasLiveVisitData ? visitTotal : null);
@@ -444,8 +452,12 @@ const ReportsV2: React.FC = () => {
   const activeSchedules = schedules.filter((x) => x.isActive).length;
   const stripCards = [
     { label: 'Báo cáo có sẵn', value: REPORTS.length.toString(), sub: `${REPORT_CATEGORIES.length} nhóm` },
-    { label: 'Đã chạy hôm nay', value: todayRuns.toString(), sub: 'theo lịch sử xuất', tone: 'ok' },
-    { label: 'Cấu hình gửi', value: activeSchedules.toString(), sub: 'báo cáo đã cấu hình người nhận', tone: 'info' },
+    historyDenied
+      ? { label: 'Đã chạy hôm nay', value: '—', sub: 'không có quyền xem lịch sử xuất' }
+      : { label: 'Đã chạy hôm nay', value: todayRuns.toString(), sub: 'theo lịch sử xuất', tone: 'ok' },
+    schedulesDenied
+      ? { label: 'Cấu hình gửi', value: '—', sub: 'không có quyền xem cấu hình gửi' }
+      : { label: 'Cấu hình gửi', value: activeSchedules.toString(), sub: 'báo cáo đã cấu hình người nhận', tone: 'info' },
     { label: 'Báo cáo BYT', value: categoryCounts.regulatory.toString(), sub: 'định kỳ', tone: 'info' },
   ];
 

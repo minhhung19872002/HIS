@@ -30,6 +30,14 @@ interface AxiosLikeError {
 const isAxiosLike = (e: unknown): e is AxiosLikeError =>
   !!e && typeof e === 'object' && ('response' in e || 'request' in e || 'code' in e);
 
+/**
+ * True when the server refused the call for lack of permission (HTTP 403). A page uses it to show
+ * "Bạn không có quyền xem …" instead of an empty table / zero KPI that looks like "no data".
+ */
+export function isForbiddenError(e: unknown): boolean {
+  return isAxiosLike(e) && e.response?.status === 403;
+}
+
 export function friendlyErrorMessage(e: unknown, fallback = DEFAULT_FALLBACK): string {
   console.warn('[his] operation failed:', e); // log kỹ thuật riêng — không hiển thị cho user
   const hasContext = fallback !== DEFAULT_FALLBACK; // caller có nêu rõ thao tác nào hỏng không

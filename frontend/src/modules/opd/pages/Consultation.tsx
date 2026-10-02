@@ -24,7 +24,7 @@ import {
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions, RefreshButton } from '../../../components/actions';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 
 // QA-R10: shared CSV helpers (BOM + quoting + formula-injection guard) instead of a local copy
@@ -65,13 +65,20 @@ const CRUD_FIELDS: CrudFieldCfg[] = [
 const ConsultationV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [createOpen, setCreateOpen] = useState(false);
+  // QA-R14: a 403 used to toast "Không tải được … Vui lòng thử lại." (retrying never helps) over a table of zeros.
+  // Search and create share the same server permission, so a refused search also hides "Tạo hội chẩn".
+  const [denied, setDenied] = useState(false);
   const { rows, loading, error, reload } = useListData<ConsultationSessionDto>(
     useCallback(() => risApi.searchConsultations({
       fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
       toDate:   dayjs().add(30, 'day').format('YYYY-MM-DD'),
       page: 1, pageSize: 200,
-    }).then((r) => r.data?.items || []), []),
-    useCallback(() => te('Không tải được danh sách phiên hội chẩn. Vui lòng thử lại.'), []),
+    }).then((r) => { setDenied(false); return r.data?.items || []; })
+      .catch((e) => {
+        setDenied(isForbiddenError(e));
+        te(friendlyErrorMessage(e, 'Không tải được danh sách phiên hội chẩn. Vui lòng thử lại.'));
+        throw e;
+      }), []),
   );
   const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -144,7 +151,9 @@ const ConsultationV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip
-        items={[
+        items={denied ? [
+          { lbl: 'Hội chẩn', val: '—', sub: 'không có quyền xem danh sách hội chẩn', tone: 'warn' },
+        ] : [
           { lbl: 'Hôm nay', val: kpis.todayCount, sub: 'phiên', tone: 'info' },
           { lbl: 'Đang diễn ra', val: kpis.ongoing, sub: 'live', tone: 'warn' },
           { lbl: 'Đã lên lịch', val: kpis.scheduled, sub: 'sắp diễn ra' },
@@ -176,9 +185,11 @@ const ConsultationV2: React.FC = () => {
         }}>
           <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
-        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
-          <TermIcon name="plus" size={12} /> Tạo hội chẩn
-        </Btn>
+        {!denied && (
+          <Btn variant="primary" onClick={() => setCreateOpen(true)}>
+            <TermIcon name="plus" size={12} /> Tạo hội chẩn
+          </Btn>
+        )}
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -236,8 +247,10 @@ const ConsultationV2: React.FC = () => {
         )}
         empty={loading ? 'Đang tải…' : (
           <div className="ab-empty">
-            <TermIcon name={error ? 'alert' : 'search'} size={20} />
-            <div>{error ? 'Không tải được danh sách hội chẩn. Vui lòng thử lại.' : 'Không có phiên hội chẩn nào'}</div>
+            <TermIcon name={denied ? 'shield' : error ? 'alert' : 'search'} size={20} />
+            <div>{denied
+              ? 'Bạn không có quyền xem danh sách hội chẩn. Liên hệ quản trị nếu cần được cấp quyền.'
+              : error ? 'Không tải được danh sách hội chẩn. Vui lòng thử lại.' : 'Không có phiên hội chẩn nào'}</div>
           </div>
         )}
       />

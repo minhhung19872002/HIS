@@ -13,12 +13,12 @@ import {
 } from '../../../services/file.service';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
+  DrawerShell, DrSec, DrField, fmtVNDg, tk, te, Ico, EmptyState,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { SortTh, useSortableRows } from '../../../components/table';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 
 /** Ô tiêu đề của hai bảng trong thẻ báo cáo — chúng kẻ viền bằng style rời, không dùng `ab-tbl`. */
 const RPT_TH: React.CSSProperties = { padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' };
@@ -89,10 +89,14 @@ const FinanceV2: React.FC = () => {
     ? `${dayjs(reportFrom).format('DD/MM/YYYY')} – ${dayjs(reportTo).format('DD/MM/YYYY')}` : '';
   const periodFile = reportFrom && reportTo ? `${reportFrom}_${reportTo}` : dayjs().format('YYYYMM');
 
+  // QA-R14: a failed load (403 for roles without the finance permission) left every KPI at "0tr" and the tables
+  // saying "Không có dữ liệu doanh thu" behind an info toast — read as "no revenue". Keep the failure visible.
+  const [loadErr, setLoadErr] = useState<null | 'denied' | 'error'>(null);
   const load = useCallback(async () => {
     // QA-R11: xoá RangePicker → from/to rỗng → BE 400 + toast lỗi. Chưa đủ kỳ báo cáo thì chưa tải.
     if (!reportFrom || !reportTo) { setItems([]); setDeptItems([]); return; }
     setLoading(true);
+    setLoadErr(null);
     try {
       const [svcRes, deptRes] = await Promise.all([
         financeApi.getRevenueByService(reportFrom, reportTo),
@@ -100,7 +104,11 @@ const FinanceV2: React.FC = () => {
       ]);
       setItems((svcRes.data || []).map((x, i) => ({ ...x, id: x.serviceId || `r-${i}` })));
       setDeptItems((deptRes.data || []).map((x, i) => ({ ...x, id: x.departmentId || `d-${i}` })));
-    } catch { setItems([]); setDeptItems([]); ti('Không tải được dữ liệu tài chính'); }
+    } catch (e) {
+      setItems([]); setDeptItems([]);
+      setLoadErr(isForbiddenError(e) ? 'denied' : 'error');
+      te(friendlyErrorMessage(e, 'Không tải được dữ liệu tài chính'));
+    }
     finally { setLoading(false); }
   }, [reportFrom, reportTo]);
   useEffect(() => { load(); }, [load]);
@@ -262,9 +270,15 @@ const FinanceV2: React.FC = () => {
     </div>
   );
 
+  const loadErrEmpty = loadErr === 'denied'
+    ? <EmptyState icon="shield" message="Bạn không có quyền xem số liệu doanh thu. Liên hệ quản trị nếu cần được cấp quyền." />
+    : loadErr === 'error' ? <EmptyState icon="alert" message="Không tải được dữ liệu doanh thu — bấm Làm mới để thử lại." /> : null;
+
   return (
     <div className="ab">
-      <KpiStrip items={[
+      <KpiStrip items={loadErr ? [
+        { lbl: 'Doanh thu', val: '—', sub: loadErr === 'denied' ? 'không có quyền xem số liệu tài chính' : 'không tải được dữ liệu', tone: 'warn' },
+      ] : [
         { lbl: 'Số dịch vụ', val: kpis.count, sub: `${groups.length} nhóm` },
         { lbl: 'Số lượt', val: kpis.qty.toLocaleString('vi-VN'), sub: 'trong kỳ', tone: 'info' },
         { lbl: 'Tổng doanh thu', val: Math.round(kpis.totalRev / 1_000_000), unit: 'tr', sub: 'VND' },
@@ -310,7 +324,7 @@ const FinanceV2: React.FC = () => {
         setTab={setTab}
         tabs={TOP_TABS}
         actions={tab !== 'reports' ? (
-          <Btn variant="ghost" disabled={xlsxLoading} onClick={handleExportExcel}>
+          <Btn variant="ghost" disabled={xlsxLoading || !!loadErr} onClick={handleExportExcel}>
             <Ico name="download" size={12} /> {xlsxLoading ? 'Đang xuất…' : 'Xuất Excel'}
           </Btn>
         ) : undefined}
@@ -325,7 +339,7 @@ const FinanceV2: React.FC = () => {
           </Btn>
           <span className="spacer" />
           <RefreshButton onRefresh={load} loading={loading} />
-          <Btn variant="ghost" disabled={csvLoading} onClick={handleExportCsv}>
+          <Btn variant="ghost" disabled={csvLoading || !!loadErr} onClick={handleExportCsv}>
             <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
           </Btn>
         </div>
@@ -333,7 +347,7 @@ const FinanceV2: React.FC = () => {
         <DataTable<Row>
           columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu doanh thu'}
+          empty={loading ? 'Đang tải…' : loadErrEmpty ?? 'Không có dữ liệu doanh thu'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -355,7 +369,7 @@ const FinanceV2: React.FC = () => {
         <DataTable<DeptRow>
           columns={deptCols} data={deptItems} rowKey={(r) => r.id}
           onRowClick={(r) => setDeptSel(r)}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu doanh thu theo khoa'}
+          empty={loading ? 'Đang tải…' : loadErrEmpty ?? 'Không có dữ liệu doanh thu theo khoa'}
         />
       </>}
 

@@ -5,6 +5,8 @@ import { ModalShell, tk, te, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
+import { can } from '../../../services/permission.service';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import {
   getPatientFlags, savePatientFlag, deletePatientFlag, PATIENT_FLAG_TYPES,
   type PatientFlagDto,
@@ -40,10 +42,17 @@ interface FlagFormState {
 
 const EMPTY_FLAG_FORM: FlagFormState = { flagType: 1, color: 'red', note: '', expiresAt: null };
 
+/** Server gate for writing a flag (WritePermissionMap "PatientFlag" → MedicalRecord.Update — doctor/nurse/admin).
+ *  Same source as PatientFlagBanner: can() hides the buttons when FE access gating is on; with gating off the
+ *  first 403 hides them (writeDenied) so the receptionist is not left clicking a button that always fails. */
+const FLAG_WRITE_PERMISSION = 'MedicalRecord.Update';
+
 export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientId }) => {
   const [flags, setFlags] = useState<PatientFlagDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [writeDenied, setWriteDenied] = useState(false);
+  const canWrite = can(FLAG_WRITE_PERMISSION) && !writeDenied;
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FlagFormState>(EMPTY_FLAG_FORM);
@@ -51,12 +60,16 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
 
   const load = useCallback(async () => {
     if (!patientId) { setFlags([]); return; }
-    setLoading(true); setErr(false);
+    setLoading(true); setErr(null);
     try {
       const list = await getPatientFlags(patientId);
       setFlags(Array.isArray(list) ? list : []);
-    } catch {
-      setErr(true); setFlags([]);
+    } catch (e) {
+      // QA-R14: said "(lỗi kết nối)" for every failure, including 403/500.
+      setErr(isForbiddenError(e)
+        ? 'Bạn không có quyền xem cờ cảnh báo của bệnh nhân này.'
+        : friendlyErrorMessage(e, 'Không tải được cảnh báo — chưa xác định được BN có cờ cảnh báo hay không.'));
+      setFlags([]);
     } finally {
       setLoading(false);
     }
@@ -91,8 +104,10 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
       setModalOpen(false);
       load();
     } catch (e: unknown) {
-      const ax = e as { response?: { data?: { message?: string } } };
-      te(ax?.response?.data?.message || 'Lưu cảnh báo thất bại');
+      if (isForbiddenError(e)) { setWriteDenied(true); setModalOpen(false); }
+      te(isForbiddenError(e)
+        ? 'Bạn không có quyền thêm/sửa cờ cảnh báo bệnh nhân (chỉ bác sĩ / điều dưỡng).'
+        : friendlyErrorMessage(e, 'Lưu cảnh báo thất bại'));
     } finally {
       setSaving(false);
     }
@@ -105,8 +120,11 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
           await deletePatientFlag(f.id);
           tk('Đã xoá cảnh báo');
           load();
-        } catch {
-          te('Xoá cảnh báo thất bại');
+        } catch (e) {
+          if (isForbiddenError(e)) setWriteDenied(true);
+          te(isForbiddenError(e)
+            ? 'Bạn không có quyền xoá cờ cảnh báo bệnh nhân (chỉ bác sĩ / điều dưỡng).'
+            : friendlyErrorMessage(e, 'Xoá cảnh báo thất bại'));
         }
       })();
     }, { tone: 'crit', confirm: 'Xoá' });
@@ -117,18 +135,20 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
       <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
         <TermIcon name="alert" size={11} /> CỜ CẢNH BÁO BỆNH NHÂN
         {flags.length > 0 && <i>{flags.length}</i>}
-        <button
-          type="button"
-          className="ab-btn ghost sm"
-          style={{ marginLeft: 'auto' }}
-          onClick={openNew}
-        >
-          <TermIcon name="plus" size={11} /> Thêm
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            className="ab-btn ghost sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={openNew}
+          >
+            <TermIcon name="plus" size={11} /> Thêm
+          </button>
+        )}
       </h5>
 
       {loading && <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Đang tải cảnh báo…</div>}
-      {err && <div style={{ fontSize: 11.5, color: 'var(--s-crit)' }}>Không tải được cảnh báo (lỗi kết nối).</div>}
+      {err && <div style={{ fontSize: 11.5, color: 'var(--s-crit)' }}>{err}</div>}
       {!loading && !err && flags.length === 0 && (
         <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Chưa có cờ cảnh báo nào cho bệnh nhân này.</div>
       )}
@@ -160,16 +180,20 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
                   </i>
                 )}
               </span>
-              <button type="button" className="ab-iconbtn" title="Sửa" onClick={() => openEdit(f)}>
-                <TermIcon name="edit" size={12} />
-              </button>
-              <button
-                type="button" className="ab-iconbtn" title="Xoá"
-                style={{ color: 'var(--s-crit)' }}
-                onClick={() => handleDelete(f)}
-              >
-                <TermIcon name="trash" size={12} />
-              </button>
+              {canWrite && (
+                <>
+                  <button type="button" className="ab-iconbtn" title="Sửa" onClick={() => openEdit(f)}>
+                    <TermIcon name="edit" size={12} />
+                  </button>
+                  <button
+                    type="button" className="ab-iconbtn" title="Xoá"
+                    style={{ color: 'var(--s-crit)' }}
+                    onClick={() => handleDelete(f)}
+                  >
+                    <TermIcon name="trash" size={12} />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>

@@ -7,11 +7,11 @@ import { useTabState } from '../../../hooks/useTabState';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
-  KpiStrip, TopTabs, DataTable, StatusBadge, Btn, Ico, tk, tw,
+  KpiStrip, TopTabs, DataTable, StatusBadge, Btn, Ico, tk, tw, EmptyState,
   fmtVNDg, fmtDMYg, type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
-import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { friendlyErrorMessage, isForbiddenError } from '../../../utils/friendlyError';
 import {
   getRadiologyRegister, getUltrasoundRegister, getFunctionalTestRegister,
   getStatistics, getRevenueReport, getConsumptionNormReport, exportReportToExcel,
@@ -60,6 +60,8 @@ const RadiologyReportsV2: React.FC = () => {
   const [stats, setStats] = useState<RadiologyStatisticsDto | null>(null);
   const [revenue, setRevenue] = useState<RadiologyRevenueReportDto | null>(null);
   const [consumption, setConsumption] = useState<ConsumptionNormReportDto | null>(null);
+  // QA-R14: the toast vanished and the tab kept "Số ca ghi sổ 0 / Không có dữ liệu trong kỳ" — looked like an empty register.
+  const [denied, setDenied] = useState(false);
 
   const from = range[0].format('YYYY-MM-DD');
   const to = range[1].format('YYYY-MM-DD');
@@ -67,6 +69,7 @@ const RadiologyReportsV2: React.FC = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setDenied(false);
     try {
       switch (tab) {
         case 'register': setRegister((await getRadiologyRegister(from, to)).data?.items || []); break;
@@ -79,6 +82,7 @@ const RadiologyReportsV2: React.FC = () => {
     } catch (e) {
       // Most of these registers are manager-only on the server: a 403 must say "no permission", not a generic failure.
       tw(friendlyErrorMessage(e, 'Không tải được báo cáo'));
+      setDenied(isForbiddenError(e));
     } finally {
       setLoading(false);
     }
@@ -128,6 +132,7 @@ const RadiologyReportsV2: React.FC = () => {
 
   const kpis = useMemo(() => {
     const period = { lbl: 'Kỳ báo cáo', val: `${fmtDMYg(from)} → ${fmtDMYg(to)}`, sub: 'từ ngày → đến ngày', tone: 'info' as const };
+    if (denied) return [period, { lbl: current.l, val: '—', sub: 'không có quyền xem báo cáo này', tone: 'warn' as const }];
     switch (tab) {
       case 'register':
         return [period, { lbl: 'Số ca ghi sổ', val: register.length, sub: 'phiếu đã thực hiện', tone: 'ok' as const }];
@@ -161,7 +166,7 @@ const RadiologyReportsV2: React.FC = () => {
           },
         ];
     }
-  }, [tab, from, to, register, ultrasound, functional, stats, revenue, consumption, consumptionRows]);
+  }, [tab, from, to, register, ultrasound, functional, stats, revenue, consumption, consumptionRows, denied, current.l]);
 
   const registerCols: ColumnDef<RadiologyRegisterItemDto>[] = [
     { key: 'no', label: 'STT', width: 60, render: (r) => r.rowNumber },
@@ -237,26 +242,29 @@ const RadiologyReportsV2: React.FC = () => {
         />
         <span className="spacer" />
         <RefreshButton onRefresh={load} loading={loading} />
-        <Btn variant="primary" onClick={exportExcel} disabled={exporting || loading}>
+        <Btn variant="primary" onClick={exportExcel} disabled={exporting || loading || denied}>
           <Ico name="download" size={12} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
         </Btn>
       </div>
 
-      {tab === 'register' && (
+      {denied && (
+        <EmptyState icon="shield" message={`Bạn không có quyền xem ${current.l.toLowerCase()}. Liên hệ quản trị nếu cần được cấp quyền.`} />
+      )}
+      {!denied && tab === 'register' && (
         <DataTable<RadiologyRegisterItemDto> columns={registerCols} data={register}
           rowKey={(r) => `${r.rowNumber}`} empty={emptyText} />
       )}
-      {tab === 'ultrasound' && (
+      {!denied && tab === 'ultrasound' && (
         <DataTable<UltrasoundRegisterItemDto> columns={ultrasoundCols} data={ultrasound}
           rowKey={(r) => `${r.rowNumber}`} empty={emptyText} />
       )}
-      {tab === 'functional' && (
+      {!denied && tab === 'functional' && (
         <DataTable<FunctionalTestRegisterItemDto> columns={functionalCols} data={functional}
           rowKey={(r) => `${r.rowNumber}`} empty={emptyText} />
       )}
-      {tab === 'statistics' && <StatisticsPanel stats={stats} loading={loading} />}
-      {tab === 'revenue' && <RevenuePanel revenue={revenue} loading={loading} />}
-      {tab === 'consumption' && (
+      {!denied && tab === 'statistics' && <StatisticsPanel stats={stats} loading={loading} />}
+      {!denied && tab === 'revenue' && <RevenuePanel revenue={revenue} loading={loading} />}
+      {!denied && tab === 'consumption' && (
         <DataTable<ConsumptionRow> columns={consumptionCols} data={consumptionRows}
           rowKey={(r) => r.key}
           empty={loading ? 'Đang tải…' : 'Chưa có phiếu kê vật tư nào trong kỳ'} />

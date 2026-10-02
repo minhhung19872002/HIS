@@ -361,7 +361,11 @@ const EmrEditorV2: React.FC = () => {
       // envelope nên `r.data` là object đó, KHÔNG phải mảng → check Array.isArray
       // luôn false và danh sách rỗng dù API có dữ liệu. Dùng helper tolerant 2 shape.
       setRecords(unwrapList<EmrRecordDto>(r.data as MaybePaged<EmrRecordDto>));
-    } catch { setRecords([]); }
+    } catch (e) {
+      // QA-R14: was swallowed — the left list just said "Không có hồ sơ" on a 403/500.
+      setRecords([]);
+      te(friendlyErrorMessage(e, 'Không tải được danh sách hồ sơ bệnh án'));
+    }
     finally { setListLoading(false); }
   }, []);
   useEffect(() => { loadList(); }, [loadList]);
