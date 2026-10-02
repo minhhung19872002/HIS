@@ -602,6 +602,10 @@ public partial class InpatientCompleteService {
 
     public async Task DeleteServiceOrderAsync(Guid id, Guid userId)
     {
+        // QA-R14: same collect-vs-cancel race as the OPD cancel — lock the order like LISCompleteService.CollectSampleAsync.
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
+        await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{id:N}",
+            "Chỉ định này đang được xử lý (lấy mẫu / thực hiện), vui lòng thử lại.");
         var request = await _context.ServiceRequests
             .Include(r => r.Details)
             .FirstOrDefaultAsync(r => r.Id == id)
@@ -617,7 +621,6 @@ public partial class InpatientCompleteService {
         await CancelLinkedRisRequestsAsync(request.Details.Select(d => d.Id), "[Hủy chỉ định nội trú]");
         request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in request.Details) d.Status = 3;
-        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
         await _context.SaveChangesAsync();
         // QA-R9 (MONEY): same as the OPD cancel — the visit total dropped, the 15% / cap rules may re-split the rest.
         if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)

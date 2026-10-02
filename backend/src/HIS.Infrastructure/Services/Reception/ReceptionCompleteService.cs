@@ -333,7 +333,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         var today = DateTime.Today;
         var prefix = $"MR{today:yyyyMMdd}";
 
+        // QA-R14: include soft-deleted records (deleted registrations) — the global filter hid them, so their codes were
+        // issued again (measured: MR202610030001…0007 each held by a deleted AND a live record).
         var maxCode = await _context.MedicalRecords
+            .IgnoreQueryFilters()
             .Where(m => m.MedicalRecordCode.StartsWith(prefix))
             .OrderByDescending(m => m.MedicalRecordCode)
             .Select(m => m.MedicalRecordCode)

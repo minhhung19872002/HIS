@@ -622,8 +622,19 @@ public partial class WarehouseCompleteService {
                 .FirstOrDefaultAsync();
             if (invoice != null)
             {
-                await InvoiceLedger.RefreshAsync(_context, invoice);
-                await _context.SaveChangesAsync();
+                // QA-R14: this runs AFTER the cancel committed. A concurrent writer on the same invoice (dispense
+                // billing, a cashier) made it throw DbUpdateConcurrencyException → HTTP 500 although the stock was
+                // already returned (pharmacist retries → 400). The invoice is recomputed from the ledger on its next
+                // read/payment anyway, so a lost refresh here is harmless.
+                try
+                {
+                    await InvoiceLedger.RefreshAsync(_context, invoice);
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    _context.Entry(invoice).State = EntityState.Detached;
+                }
             }
         }
 

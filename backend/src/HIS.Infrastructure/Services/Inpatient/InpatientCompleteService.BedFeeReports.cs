@@ -39,6 +39,14 @@ public partial class InpatientCompleteService {
         // QA-R4: two parallel assign-bed calls for the same free bed both passed the occupancy query and the
         // bed ended with two active assignments — serialize the check + insert per bed.
         await using var tx = await _context.Database.BeginTransactionAsync();
+        // QA-R14: the bed lock alone does not stop two nurses giving the SAME patient two DIFFERENT beds at once (3/5
+        // runs: one admission with two active beds). Lock the admission first (same key/order as department transfer).
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.Admission.{dto.AdmissionId:N}",
+            "Bệnh nhân này đang được người khác xếp/chuyển giường, vui lòng thử lại.");
+        await _context.Entry(admission).ReloadAsync(); // status read above was before the lock
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không phân giường được.");
         await LockBedAsync(dto.BedId);
 
         // QA0915: assigning a second bed without releasing the first left one admission holding two
@@ -138,6 +146,14 @@ public partial class InpatientCompleteService {
 
         // QA-R4: same per-bed lock as AssignBedAsync (parallel transfers to one free bed).
         await using var tx = await _context.Database.BeginTransactionAsync();
+        // QA-R14: two transfers of the same patient to two different beds both released the same old bed and both
+        // created an active assignment (4/5 runs). Lock the admission before the bed (same order as AssignBedAsync).
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.Admission.{dto.AdmissionId:N}",
+            "Bệnh nhân này đang được người khác xếp/chuyển giường, vui lòng thử lại.");
+        await _context.Entry(admissionToMove).ReloadAsync(); // status read above was before the lock
+        if (!AdmissionStatus.IsActive(admissionToMove.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admissionToMove.Status)}), không chuyển giường được.");
         await LockBedAsync(dto.NewBedId);
 
         // Release current bed

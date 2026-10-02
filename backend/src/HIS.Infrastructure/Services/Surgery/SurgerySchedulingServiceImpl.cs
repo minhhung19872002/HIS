@@ -392,6 +392,11 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
 
     public async Task<SurgeryDto> RejectSurgeryAsync(Guid surgeryId, string reason, Guid userId)
     {
+        // QA-R14: serialize with ScheduleSurgeryAsync (same lock) — reject racing a schedule left a cancelled request
+        // with a live schedule row.
+        await using var tx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
+        await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Surgery.Schedule",
+            "Đang có người khác xếp lịch mổ, vui lòng thử lại.");
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
         if (request == null) throw new KeyNotFoundException("Surgery request not found");
 
@@ -406,6 +411,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
         request.UpdatedBy = userId.ToString();
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return await GetSurgeryByIdAsync(surgeryId) ?? new SurgeryDto();
     }
 
@@ -446,6 +452,14 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             await using var scheduleTx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
             await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Surgery.Schedule",
                 "Đang có người khác xếp lịch mổ, vui lòng thử lại.");
+            // QA-R14: the status check above ran before the lock — a request rejected meanwhile still got a schedule
+            // row (2/5 runs: request cancelled + live schedule). Re-read it under the lock.
+            if (request != null)
+            {
+                await _context.Entry(request).ReloadAsync();
+                if (request.Status == SurgeryStatus.RequestCancelled)
+                    throw new InvalidOperationException("Ca mổ đã hủy, không lên lịch được. Hãy tạo yêu cầu mới.");
+            }
             var newStart = dto.ScheduledDate;
             var newEnd = newStart.AddMinutes(dto.EstimatedDurationMinutes);
             // QA-R6: the window was the same calendar day only, so a 23:30 case running past midnight never

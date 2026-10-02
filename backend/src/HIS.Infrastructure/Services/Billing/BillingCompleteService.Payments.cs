@@ -326,6 +326,12 @@ public partial class BillingCompleteService {
 
     public async Task<PaymentDto> UseDepositForPaymentAsync(UseDepositForPaymentDto dto, Guid userId)
     {
+        // QA-R14: spending a deposit and refunding it at another counter at the same moment both passed their
+        // balance checks (the refund only reads the deposit, so RowVersion never fired) — measured 5/5: a 120.000đ
+        // deposit spent 120.000đ AND refunded 120.000đ. Take the same per-source lock as CreateRefundAsync.
+        await using var codeTx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Billing.RefundSource.{dto.DepositId:N}",
+            "Phiếu tạm ứng này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var deposit = await _context.Deposits.FindAsync(dto.DepositId);
         if (deposit == null)
             throw new KeyNotFoundException("Không tìm thấy phiếu tạm ứng"); // #462: 404, không phải 500
@@ -387,7 +393,6 @@ public partial class BillingCompleteService {
             deposit.Status = 3; // Đã sử dụng hết
 
         // Create payment receipt
-        await using var codeTx = await SqlAppLock.BeginAsync(_context);
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
@@ -479,6 +484,11 @@ public partial class BillingCompleteService {
 
     public async Task<bool> CancelDepositAsync(Guid depositId, string reason, Guid userId)
     {
+        // QA-R14: cancel and refund of the same deposit at two counters both passed (1/5 runs: deposit cancelled
+        // with a live 102.000đ refund) — the refund never writes the deposit row. Same lock as CreateRefundAsync.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Billing.RefundSource.{depositId:N}",
+            "Phiếu tạm ứng này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var deposit = await _context.Deposits.FindAsync(depositId);
         if (deposit == null)
             throw new KeyNotFoundException("Deposit not found");
@@ -499,6 +509,7 @@ public partial class BillingCompleteService {
         deposit.Status = 5; // Đã hủy
         deposit.Notes = $"{deposit.Notes} | Hủy: {reason}";
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -738,6 +749,11 @@ public partial class BillingCompleteService {
 
     public async Task<bool> CancelPaymentAsync(Guid paymentId, string reason, Guid userId)
     {
+        // QA-R14: voiding a payment while another counter raised a refund on it both succeeded (5/5 runs: receipt
+        // voided AND a live refund of the full amount — money out twice). Same per-source lock as CreateRefundAsync.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Billing.RefundSource.{paymentId:N}",
+            "Phiếu thu này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var receipt = await _context.Receipts.FindAsync(paymentId);
         if (receipt == null)
             // Không tìm thấy là 404, không phải lỗi quy tắc nghiệp vụ (400).
@@ -817,6 +833,7 @@ public partial class BillingCompleteService {
         }
 
         await _context.SaveChangesAsync(); // atomic: hủy phiếu + hoàn nợ cùng transaction
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 

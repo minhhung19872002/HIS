@@ -398,6 +398,12 @@ public partial class LISCompleteService {
             var barcode = $"LIS{today:yyMMdd}{dto.LabOrderId.ToString().Substring(0, 4).ToUpper()}";
             var collectionTime = dto.Samples.FirstOrDefault()?.CollectedAt ?? DateTime.Now;
 
+            // QA-R14: collecting while the doctor cancelled the order both succeeded (5/5 runs) — and two stations
+            // collecting together both passed the "đã lấy mẫu" check. Same per-order lock as CancelServiceOrderAsync.
+            await using var tx = await SqlAppLock.BeginAsync(_context);
+            await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{dto.LabOrderId:N}",
+                "Phiếu chỉ định này đang được xử lý ở nơi khác, vui lòng thử lại.");
+
             // #14e-B: EF Core model 1 — thay raw-SQL (model 3) bằng load ServiceRequest + Details
             var sr = await _context.ServiceRequests
                 .Include(r => r.Details)
@@ -456,6 +462,7 @@ public partial class LISCompleteService {
             if (sr.Status < 2) sr.Status = 2;
 
             await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
 
             _logger.LogInformation("Sample collected for order {OrderId}, barcode: {Barcode}", dto.LabOrderId, barcode);
             return new CollectSampleResultDto

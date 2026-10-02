@@ -148,7 +148,9 @@ public partial class InpatientCompleteService {
         var prescription = new Prescription
         {
             Id = Guid.NewGuid(),
-            PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
+            // QA-R14: second-resolution stamp — orders saved in the same second shared a code (DT20261003000208 ×4).
+            // Same strictly-increasing ms generator as the OPD path.
+            PrescriptionCode = $"DT{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}",
             PrescriptionDate = dto.PrescriptionDate,
             MedicalRecordId = admission.MedicalRecordId,
             DoctorId = userId,

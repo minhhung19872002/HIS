@@ -101,6 +101,11 @@ public partial class PharmacyService : IPharmacyService
 
     public async Task<bool> RejectPrescriptionAsync(Guid prescriptionId, string? reason)
     {
+        // QA-R14: "Từ chối" racing "Cấp phát" both answered 200 (5/5 runs) — the rejecter was told the prescription
+        // was cancelled while it had just been dispensed. Same lock as WarehouseCompleteService dispensing.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Pharmacy.Prescription.{prescriptionId:N}",
+            "Đơn thuốc này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var prescription = await _context.Prescriptions
             .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
         if (prescription == null) return false;
@@ -111,6 +116,7 @@ public partial class PharmacyService : IPharmacyService
         prescription.Note = reason ?? prescription.Note;
         prescription.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 

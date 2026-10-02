@@ -124,18 +124,32 @@ public partial class ExaminationCompleteService
     public async Task<CallingPatientDto?> CallNextPatientAsync(Guid roomId)
     {
         var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
-        var nextPatient = await _context.Examinations
-            .Include(e => e.MedicalRecord)
-            .ThenInclude(m => m.Patient)
-            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate >= admFromUtc && e.MedicalRecord.AdmissionDate < admToUtc && e.Status == 0)
-            .OrderBy(e => e.QueueNumber)
-            .FirstOrDefaultAsync();
+        // QA-R14: two doctors of the same room pressing "Gọi tiếp" together both read the same waiting exam and both
+        // called it (measured 4/5 runs). Claim atomically (UPDATE … WHERE Status = 0); if the other one won, take the next.
+        Examination? nextPatient = null;
+        for (var attempt = 0; attempt < 5 && nextPatient == null; attempt++)
+        {
+            var candidateId = await _context.Examinations
+                .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate >= admFromUtc && e.MedicalRecord.AdmissionDate < admToUtc && e.Status == 0)
+                .OrderBy(e => e.QueueNumber)
+                .Select(e => (Guid?)e.Id)
+                .FirstOrDefaultAsync();
+            if (candidateId == null) return null;
+
+            var calledAt = DateTime.Now;
+            var claimed = await _context.Examinations
+                .Where(e => e.Id == candidateId.Value && e.Status == 0)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(e => e.Status, 1) // Calling
+                    .SetProperty(e => e.StartTime, calledAt));
+            if (claimed == 1)
+                nextPatient = await _context.Examinations.AsNoTracking()
+                    .Include(e => e.MedicalRecord)
+                    .ThenInclude(m => m.Patient)
+                    .FirstAsync(e => e.Id == candidateId.Value);
+        }
 
         if (nextPatient == null) return null;
-
-        nextPatient.Status = 1; // Calling
-        nextPatient.StartTime = DateTime.Now;
-        await _unitOfWork.SaveChangesAsync();
 
         return new CallingPatientDto
         {

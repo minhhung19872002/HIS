@@ -165,6 +165,11 @@ public partial class InpatientCompleteService {
 
     public async Task<DischargeDto> DischargePatientAsync(CompleteDischargeDto dto, Guid userId)
     {
+        // QA-R14: a bed transfer committed while the discharge ran left the new bed occupied for good — take the
+        // same per-admission lock as assign/transfer-bed and department transfer.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.Admission.{dto.AdmissionId:N}",
+            "Lượt nội trú đang được thao tác ở nơi khác (chuyển giường/chuyển khoa), vui lòng thử lại.");
         var admission = await _context.Set<Admission>()
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
@@ -178,6 +183,14 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Loại ra viện không hợp lệ (1 Ra viện · 2 Chuyển viện · 3 Bỏ về · 4 Tử vong).");
         if (dto.DischargeCondition < 1 || dto.DischargeCondition > 5)
             throw new InvalidOperationException("Tình trạng ra viện không hợp lệ (1 Khỏi · 2 Đỡ · 3 Không đổi · 4 Nặng hơn · 5 Tử vong).");
+        // QA-R14: a stay closed as "Tử vong" with outcome "Khỏi" (and no diagnosis) was accepted — mortality reports
+        // count DischargeCondition 5 and the record's main diagnosis was wiped to NULL. The v2 form requires the
+        // discharge diagnosis; the API now does too, and the death type/outcome pair must agree.
+        if (string.IsNullOrWhiteSpace(dto.DischargeDiagnosis))
+            throw new InvalidOperationException("Chưa nhập chẩn đoán ra viện.");
+        if (dto.DischargeType == 4) dto.DischargeCondition = 5;
+        else if (dto.DischargeCondition == 5)
+            throw new InvalidOperationException("Tình trạng ra viện 'Tử vong' chỉ dùng với loại ra viện 'Tử vong'.");
 
         // QA0915: a discharge date before the admission date was accepted (negative length of stay on
         // the 6556 statement). Business timestamps are VN local: a client ISO value with "Z" (toISOString)
@@ -245,9 +258,11 @@ public partial class InpatientCompleteService {
         };
 
         // Release bed
-        var bedAssignment = await _context.Set<BedAssignment>()
-            .FirstOrDefaultAsync(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0);
-        if (bedAssignment != null)
+        // QA-R14: release EVERY open assignment (FirstOrDefault left a second, concurrently assigned bed occupied).
+        var openBeds = await _context.Set<BedAssignment>()
+            .Where(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0)
+            .ToListAsync();
+        foreach (var bedAssignment in openBeds)
         {
             bedAssignment.Status = 1;
             bedAssignment.ReleasedAt = DateTime.Now;
@@ -259,6 +274,11 @@ public partial class InpatientCompleteService {
         {
             medRecord.Status = 3; // Đã xuất viện
             medRecord.MainDiagnosis = dto.DischargeDiagnosis;
+            // QA-R14: keep code and name of the main diagnosis together (the old OPD ICD stayed next to the new name).
+            // The form's code box is free text — only a catalog ICD-10 code replaces the stored one.
+            var dxCode = dto.DischargeDiagnosisCode?.Trim();
+            if (!string.IsNullOrEmpty(dxCode) && await _context.IcdCodes.AnyAsync(i => i.Code == dxCode))
+                medRecord.MainIcdCode = dxCode;
             // Length-of-stay, XML/4210 export and archive deadlines read MedicalRecords.DischargeDate,
             // which no discharge ever filled (every discharged record had it NULL).
             medRecord.DischargeDate = dto.DischargeDate;
@@ -288,6 +308,7 @@ public partial class InpatientCompleteService {
         });
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var dischargeTypeName = dto.DischargeType switch
         {

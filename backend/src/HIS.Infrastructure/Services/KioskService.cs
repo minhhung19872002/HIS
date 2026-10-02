@@ -46,7 +46,9 @@ public class KioskService : IKioskService
     /// <summary>Lấy số thứ tự kế tiếp cho ngày VN hôm nay + khoa + serviceType.</summary>
     private async Task<int> NextSequenceAsync(DateTime issueDateVn, Guid? departmentId, string prefix)
     {
-        var max = await _context.Set<KioskTicket>()
+        // QA-R14: soft-deleted tickets still hold their number in UX_KioskTickets_Day_Dept_Number — counting
+        // only live rows re-issued "A001" forever (every kiosk press → 409 for the rest of the day).
+        var max = await _context.Set<KioskTicket>().IgnoreQueryFilters()
             .Where(t => t.IssueDate == issueDateVn.Date
                      && t.DepartmentId == departmentId
                      && t.TicketNumber.StartsWith(prefix))

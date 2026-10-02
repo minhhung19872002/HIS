@@ -215,7 +215,8 @@ namespace HIS.Infrastructure.Services
             await EnsureIssuableAsync(dto.RequestId, dto.BloodBagIds);
 
             var receiptId = Guid.NewGuid();
-            var receiptCode = $"ISS{DateTime.Now:yyyyMMddHHmmss}";
+            // QA-R14: second-resolution stamp — concurrent issues shared a receipt code (ISS20261003015224 ×3).
+            var receiptCode = $"ISS{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}";
 
             // One unit of work: a failure mid-loop used to leave a receipt with half its bags issued
             await using (var tx = await _context.Database.BeginTransactionAsync())
@@ -256,11 +257,16 @@ namespace HIS.Infrastructure.Services
                 }
             }
 
-            await _context.Database.ExecuteSqlRawAsync(
+            // QA-R14: the "còn lại của phiếu" check in EnsureIssuableAsync ran before this transaction — two issues of
+            // different bags against a 1-bag request both passed (2/5 runs: IssuedQuantity 2 of 1). Re-check atomically.
+            var requestRows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodIssueRequests SET IssuedQuantity = IssuedQuantity + @p0,
                 Status = CASE WHEN IssuedQuantity + @p0 >= RequestedQuantity THEN 'FullyIssued' ELSE 'PartiallyIssued' END
-                WHERE Id=@p1",
+                WHERE Id=@p1 AND Status IN ('Approved','PartiallyIssued')
+                  AND (RequestedQuantity IS NULL OR IssuedQuantity + @p0 <= RequestedQuantity)",
                 dto.BloodBagIds?.Count ?? 0, dto.RequestId);
+            if (requestRows == 0)
+                throw new InvalidOperationException("Phiếu lĩnh máu vừa được xuất đủ / thay đổi bởi thao tác khác, không xuất thêm được.");
             await tx.CommitAsync();
             }
 

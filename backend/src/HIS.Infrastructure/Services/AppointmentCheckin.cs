@@ -18,7 +18,9 @@ internal static class AppointmentCheckin
     public static async Task<string> NextRecordCodeAsync(HISDbContext db, DateTime todayVn)
     {
         var prefix = $"MR{todayVn:yyyyMMdd}";
+        // QA-R14: soft-deleted records keep their code — ignore the global filter so it is not issued twice.
         var maxCode = await db.MedicalRecords
+            .IgnoreQueryFilters()
             .Where(m => m.MedicalRecordCode.StartsWith(prefix))
             .OrderByDescending(m => m.MedicalRecordCode)
             .Select(m => m.MedicalRecordCode)

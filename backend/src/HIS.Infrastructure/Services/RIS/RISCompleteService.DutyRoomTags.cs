@@ -556,18 +556,32 @@ public partial class RISCompleteService
         // QA R4: không lọc ngày → hàng đợi bỏ dở của những ngày trước (Status=0, STT 1) được gọi
         // trước bệnh nhân hôm nay. Gọi theo hàng đợi HÔM NAY (giờ VN) — cùng phạm vi GetRoomQueueAsync.
         var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
-        var nextAssignment = await _context.Set<RadiologyRoomAssignment>()
-            .Include(a => a.RadiologyRequest)
-                .ThenInclude(r => r.Patient)
-            .Where(a => a.RoomId == roomId && a.Status == 0 && a.AssignedAt >= fromUtc && a.AssignedAt < toUtc)
-            .OrderBy(a => a.QueueNumber)
-            .FirstOrDefaultAsync();
+        // QA-R14: two technicians pressing "Gọi tiếp" together both read the same waiting assignment and both called
+        // it (same race as the OPD waiting room). Claim atomically (UPDATE … WHERE Status = 0); loser takes the next.
+        RadiologyRoomAssignment? nextAssignment = null;
+        for (var attempt = 0; attempt < 5 && nextAssignment == null; attempt++)
+        {
+            var candidateId = await _context.Set<RadiologyRoomAssignment>()
+                .Where(a => a.RoomId == roomId && a.Status == 0 && a.AssignedAt >= fromUtc && a.AssignedAt < toUtc)
+                .OrderBy(a => a.QueueNumber)
+                .Select(a => (Guid?)a.Id)
+                .FirstOrDefaultAsync();
+            if (candidateId == null) return null;
+
+            var calledAt = HIS.Core.Common.VnTime.NowVn; // same clock as AssignedAt (was DateTime.Now)
+            var claimed = await _context.Set<RadiologyRoomAssignment>()
+                .Where(a => a.Id == candidateId.Value && a.Status == 0)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.Status, 1) // Called
+                    .SetProperty(a => a.CalledAt, calledAt));
+            if (claimed == 1)
+                nextAssignment = await _context.Set<RadiologyRoomAssignment>().AsNoTracking()
+                    .Include(a => a.RadiologyRequest)
+                        .ThenInclude(r => r.Patient)
+                    .FirstAsync(a => a.Id == candidateId.Value);
+        }
 
         if (nextAssignment == null) return null;
-
-        nextAssignment.Status = 1; // Called
-        nextAssignment.CalledAt = HIS.Core.Common.VnTime.NowVn; // same clock as AssignedAt (was DateTime.Now)
-        await _unitOfWork.SaveChangesAsync();
 
         return new RoomAssignmentDto
         {

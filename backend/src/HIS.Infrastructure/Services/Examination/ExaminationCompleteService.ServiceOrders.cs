@@ -267,6 +267,12 @@ public partial class ExaminationCompleteService
 
     public async Task<bool> CancelServiceOrderAsync(Guid orderId, string reason)
     {
+        // QA-R14: the doctor cancelling while the lab collected the tube both answered 200 (5/5 runs): header cancelled
+        // with a tube drawn, or the collection's header Status 2 overwrote the cancel (cancelled lines, live header).
+        // Same per-order lock as LISCompleteService.CollectSampleAsync.
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
+        await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{orderId:N}",
+            "Chỉ định này đang được xử lý (lấy mẫu / thực hiện), vui lòng thử lại.");
         var request = await _context.ServiceRequests.FindAsync(orderId);
         // QA-R11: refusals returned 200 {data:false} (the UI could not tell why) — say why, like the paid case below.
         if (request == null || request.IsDeleted)
@@ -326,7 +332,6 @@ public partial class ExaminationCompleteService
             r.UpdatedAt = DateTime.Now;
         }
 
-        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: the visit total dropped — the 15% threshold may flip the remaining lines.
         if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)

@@ -661,6 +661,10 @@ public partial class WarehouseCompleteService {
 
     public async Task<bool> CancelUnclaimedPrescriptionAsync(Guid prescriptionId, Guid userId)
     {
+        // QA-R14: cancelling an "unclaimed" prescription while it was being dispensed answered 200 for both (4/5 runs).
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Pharmacy.Prescription.{prescriptionId:N}",
+            "Đơn thuốc này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var prescription = await _context.Prescriptions.FindAsync(prescriptionId);
         if (prescription == null)
             throw new KeyNotFoundException("Prescription not found");
@@ -673,6 +677,7 @@ public partial class WarehouseCompleteService {
         PrescriptionStatus.EnsureCanTransition(prescription.Status, PrescriptionStatus.Cancelled);
         prescription.Status = PrescriptionStatus.Cancelled;
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 

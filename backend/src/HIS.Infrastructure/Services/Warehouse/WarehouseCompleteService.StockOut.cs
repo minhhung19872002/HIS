@@ -64,6 +64,12 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockIssueDto> DispenseOutpatientPrescriptionAsync(Guid prescriptionId, Guid userId)
     {
+        // QA-R14: two pharmacists dispensing the same prescription at once both passed the "đã phát hết" check (the
+        // lots were read only after the first commit, so RowVersion never fired) — measured 8/10: two export receipts,
+        // stock deducted twice. Reject/cancel raced the same way. Serialize every write on this prescription.
+        await using var rxTx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Pharmacy.Prescription.{prescriptionId:N}",
+            "Đơn thuốc này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var prescription = await _context.Prescriptions
             .Include(p => p.Details)
                 .ThenInclude(d => d.Medicine)
@@ -73,6 +79,9 @@ public partial class WarehouseCompleteService {
         // Sweep 2026-06-12: KeyNotFound/InvalidOperation → filter trả 404/400 message rõ (trước 500)
         if (prescription == null)
             throw new KeyNotFoundException("Khong tim thay don thuoc (prescriptionId khong ton tai)");
+        // QA-R14: PharmacyService.CompleteDispensingAsync loads (tracks) this prescription BEFORE the lock, and a tracking
+        // query never overwrites a tracked entity — re-read it so the checks below see what was committed meanwhile.
+        await _context.Entry(prescription).ReloadAsync();
 
         // QA0915: đây là đường màn "Quầy cấp phát thuốc" gọi, nhưng khác PharmacyService.CompleteDispensingAsync
         // nó KHÔNG xét trạng thái đơn — đo được đơn Hủy (4) và đơn Nháp (5) vẫn phát 200 + trừ kho.
@@ -131,7 +140,8 @@ public partial class WarehouseCompleteService {
                 "Đơn thuốc này đã phát hết, không phát lại được.");
         await EnsureNotSoldAtPharmacyAsync(prescriptionId);
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await using var ownTx = rxTx == null ? await _context.Database.BeginTransactionAsync() : null;
+        var transaction = rxTx ?? ownTx!;
         try
         {
 
@@ -297,6 +307,10 @@ public partial class WarehouseCompleteService {
     public async Task<StockIssueDto> DispenseInpatientOrderAsync(Guid orderSummaryId, Guid userId)
     {
         // For inpatient, orderSummaryId is a prescription ID (inpatient type)
+        // QA-R14: same double-dispense race as the outpatient path — lock the prescription before the status checks.
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Pharmacy.Prescription.{orderSummaryId:N}",
+            "Đơn thuốc này đang được xử lý ở quầy khác, vui lòng thử lại.");
         var prescription = await _context.Prescriptions
             .Include(p => p.Details)
                 .ThenInclude(d => d.Medicine)
@@ -322,7 +336,6 @@ public partial class WarehouseCompleteService {
         // NangCap26 V.33: kho đang khóa → không phát thuốc nội trú.
         await EnsureWarehouseNotLockedAsync(warehouseId);
 
-        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
