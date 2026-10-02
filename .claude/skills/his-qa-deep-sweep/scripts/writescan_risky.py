@@ -17,3 +17,31 @@ FORBIDDEN_SUBSTR = ["sign", "certificate", "webauthn", "biometric", "hsm", "pkcs
 def is_forbidden(path):
     low = path.lower()
     return any(s in low for s in FORBIDDEN_SUBSTR)
+
+
+# Round 13: "replace-all" child-collection routes. A PUT/POST here deletes the current children and inserts the
+# body — bodyfuzz's [] baseline wiped a role's permissions and its 1000-item array replaced an analyzer's test
+# mappings / a test's reference ranges. Scans skip them (and any top-level-array body) unless --include-replace.
+REPLACE_ALL = ["mappings", "items", "parameters", "members", "permissions", "roles", "configs", "settings",
+               "reference-ranges", "critical-values", "norms", "details", "lines", "children", "assignments"]
+
+
+# Round 13: substrings a value-fuzzing scan must never write to — global switches / gateway config (one write
+# changes the whole deployment: enabled-modules [] hid LIS/CDHA/BHYT; bhxh-config/dqgvn got 5000-char values) and
+# outbound or alarm actions the RISKY token regex misses ("resubmit" ≠ "submit", "test-connection", "broadcast").
+NO_FUZZ_SUBSTR = ["resubmit", "test-connection", "test-auth", "broadcast", "bhxh-config", "dqgvn", "de-an-06",
+                  "enabled-modules", "/config", "national-prescription/", "mci/", "hie/", "fhir/",
+                  "callback", "mark-expired"]
+
+
+def is_no_fuzz(path):
+    low = path.lower()
+    return any(s in low for s in NO_FUZZ_SUBSTR) and not low.rstrip("/").endswith("/search")
+
+
+def is_replace_all(path, body_schema=None):
+    """True when the route's LAST static segment is a replace-all collection, or the JSON body is a top-level array."""
+    last = [s for s in path.lower().rstrip("/").split("/") if s and not s.startswith("{")]
+    if last and last[-1] in REPLACE_ALL:
+        return True
+    return bool(body_schema) and body_schema.get("type") == "array"

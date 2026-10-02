@@ -14,12 +14,14 @@ FE = os.path.join(REPO, "frontend", "src")
 BE = os.path.join(REPO, "backend", "src")
 
 
-def req(method, url, body=None, token=None, timeout=90):
+def req(method, url, body=None, token=None, timeout=90, headers=None):
     data = json.dumps(body).encode() if body is not None else None
     r = urllib.request.Request(url, data=data, method=method)
     r.add_header("Content-Type", "application/json")
     if token:
         r.add_header("Authorization", "Bearer " + token)
+    for k, v in (headers or {}).items():  # e.g. a per-run User-Agent so AuditLogs rows can be told apart
+        r.add_header(k, v)
     try:
         with urllib.request.urlopen(r, timeout=timeout) as resp:
             return resp.status, resp.read()

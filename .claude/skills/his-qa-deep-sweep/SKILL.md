@@ -50,6 +50,12 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
      status); `txnscan.py` — static: methods with ≥2 SaveChanges and no transaction (partial writes);
      `stubscan.py` — static FE+BE "pretend" code (toast-only handlers, `Task.FromResult(true)`, 501, random codes)
      = the **unfinished-feature** lens; pair it with a real-browser click audit of every route (agents `ui-audit-*`).
+   - Round 13: `bodyfuzz.py` — typed hostile values per property (5000 chars, spaces, emoji, −1/1e15/0.001, 0001/9999
+     dates, enum 99, a REAL id of the WRONG entity type) → 5xx = unhandled, 2xx = silent accept; `auditscan.py` — every
+     2xx write vs `AuditLogs` (NO-ROW / NO-ENTITY-ID). ⛔ **LOCAL ONLY, never prod**: round 13's first run overwrote real
+     data through replace-all PUTs (role permissions, analyzer mappings, LIS reference ranges) and action routes on real
+     ids. Defaults now skip `REPLACE_ALL` / top-level arrays (`--include-replace`) and action routes on real ids
+     (`--real-actions`); still snapshot the DB first.
    Then keep only hits whose function is actually called by a v2 page (`frontend/src/modules/*/pages/`).
    ⚠️ Write scans EXECUTE whatever accepts `{}` — keep the shared `writescan_risky.py` list, never a shorter copy,
    and clean rows created in the scan window afterwards (round 6 fired "activate code blue" locally).
