@@ -131,25 +131,33 @@ public class PathologyService : IPathologyService
         if (request.Status == 5)
             throw new InvalidOperationException("Phiếu GPB đã hủy — không nhập kết quả được");
 
-        var result = new PathologyResult
+        // QA-R13: re-entering the result (the v2 page only has "create") added a SECOND result row. Verify then
+        // signed one row while the request detail showed the newest, unverified one — still editable after
+        // sign-off. One working result per request: an unverified one is overwritten in place.
+        var result = await _context.PathologyResults
+            .Where(x => x.RequestId == request.Id && !x.IsDeleted && x.VerifiedAt == null)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
+        if (result == null)
         {
-            Id = Guid.NewGuid(),
-            RequestId = dto.RequestId ?? Guid.Empty,
-            GrossDescription = dto.GrossDescription,
-            MicroscopicDescription = dto.MicroscopicDescription,
-            Diagnosis = dto.Diagnosis,
-            IcdCode = dto.IcdCode,
-            StainingMethods = dto.StainingMethods != null ? JsonSerializer.Serialize(dto.StainingMethods) : null,
-            SlideCount = dto.SlideCount,
-            BlockCount = dto.BlockCount,
-            SpecialStains = dto.SpecialStains,
-            Immunohistochemistry = dto.Immunohistochemistry,
-            MolecularTests = dto.MolecularTests,
-            Pathologist = dto.Pathologist,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        _context.PathologyResults.Add(result);
+            result = new PathologyResult { Id = Guid.NewGuid(), RequestId = request.Id, CreatedAt = DateTime.UtcNow };
+            _context.PathologyResults.Add(result);
+        }
+        else
+        {
+            result.UpdatedAt = DateTime.UtcNow;
+        }
+        result.GrossDescription = dto.GrossDescription;
+        result.MicroscopicDescription = dto.MicroscopicDescription;
+        result.Diagnosis = dto.Diagnosis;
+        result.IcdCode = dto.IcdCode;
+        result.StainingMethods = dto.StainingMethods != null ? JsonSerializer.Serialize(dto.StainingMethods) : null;
+        result.SlideCount = dto.SlideCount;
+        result.BlockCount = dto.BlockCount;
+        result.SpecialStains = dto.SpecialStains;
+        result.Immunohistochemistry = dto.Immunohistochemistry;
+        result.MolecularTests = dto.MolecularTests;
+        result.Pathologist = dto.Pathologist;
 
         // Update request status to Completed
         request.Status = 3; // Completed
@@ -184,6 +192,13 @@ public class PathologyService : IPathologyService
                 $"Kết quả GPB này đã được {result.VerifiedByName ?? "bác sĩ"} duyệt lúc "
                 + $"{result.VerifiedAt:HH:mm dd/MM/yyyy} — không sửa nội dung được nữa. "
                 + "Cần tu chỉnh thì phải hủy duyệt trước, có lưu vết.");
+        // QA-R13: a second (unverified) result row of an already verified/cancelled request stayed editable.
+        var requestStatus = await _context.PathologyRequests
+            .Where(r => r.Id == result.RequestId).Select(r => (int?)r.Status).FirstOrDefaultAsync();
+        if (requestStatus == 4)
+            throw new InvalidOperationException("Phiếu GPB đã duyệt kết quả — không sửa kết quả được nữa.");
+        if (requestStatus == 5)
+            throw new InvalidOperationException("Phiếu GPB đã hủy — không sửa kết quả được.");
 
         if (dto.GrossDescription != null) result.GrossDescription = dto.GrossDescription;
         if (dto.MicroscopicDescription != null) result.MicroscopicDescription = dto.MicroscopicDescription;

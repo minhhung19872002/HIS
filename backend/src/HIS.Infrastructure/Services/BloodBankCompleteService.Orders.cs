@@ -365,6 +365,8 @@ namespace HIS.Infrastructure.Services
             // Túi được phép gán khi còn trong kho, hoặc đã xuất cho khoa nhưng chưa dùng.
             EnsureBagUsable(ctx.BagStatus, ctx.Expiry, ctx.BagAbo, ctx.BagRh, ctx.ProductCode,
                             ctx.PatientAbo, ctx.PatientRh, new[] { "Available", "Issued" });
+            if (string.Equals(ctx.BagStatus, "Issued", StringComparison.OrdinalIgnoreCase))
+                await EnsureIssuedToOrderPatientAsync(orderItemId, bloodBagId);
 
             var assignId = Guid.NewGuid();
             await _context.Database.ExecuteSqlRawAsync(
@@ -381,6 +383,32 @@ namespace HIS.Infrastructure.Services
                 "UPDATE BloodOrderItems SET IssuedQuantity = IssuedQuantity + 1 WHERE Id=@p0", orderItemId);
 
             return true;
+        }
+
+        /// <summary>
+        /// QA-R13 (patient safety): a bag ISSUED for patient A (named on the issue slip) could be assigned to — and
+        /// transfused into — patient B's order. An issued bag may only go to the patient it was issued for.
+        /// Unknown recipient on either side (legacy rows) → no verdict → allowed.
+        /// </summary>
+        private async Task EnsureIssuedToOrderPatientAsync(Guid orderItemId, Guid bloodBagId)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"SELECT
+                    (SELECT TOP 1 ii.PatientId FROM BloodIssueItems ii JOIN BloodIssueReceipts r ON r.Id = ii.ReceiptId
+                     WHERE ii.BloodBagId = @bag ORDER BY r.IssueDate DESC) AS IssuedTo,
+                    (SELECT o.PatientId FROM BloodOrderItems oi JOIN BloodOrders o ON o.Id = oi.OrderId
+                     WHERE oi.Id = @item) AS OrderFor";
+            cmd.Parameters.Add(new SqlParameter("@bag", bloodBagId));
+            cmd.Parameters.Add(new SqlParameter("@item", orderItemId));
+            using var r = await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync()) return;
+            Guid? issuedTo = r.IsDBNull(0) ? null : r.GetGuid(0);
+            Guid? orderFor = r.IsDBNull(1) ? null : r.GetGuid(1);
+            if (issuedTo is Guid a && a != Guid.Empty && orderFor is Guid b && b != Guid.Empty && a != b)
+                throw new InvalidOperationException(
+                    "Túi máu này đã được xuất cho bệnh nhân khác — không gán cho chỉ định của bệnh nhân này được.");
         }
 
         public async Task<bool> UnassignBloodBagAsync(Guid orderItemId, Guid bloodBagId, string reason)

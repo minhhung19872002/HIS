@@ -42,6 +42,8 @@ namespace HIS.API.Dtos.BloodBankComplete;
     public class CrossMatchResultRequest
     {
         public Guid BloodBagId { get; set; }
+        // QA-R13: written via ExecuteSqlRaw into nvarchar(200) → bare SqlException 2628 → 500.
+        [global::System.ComponentModel.DataAnnotations.StringLength(200, ErrorMessage = "Kết quả phản ứng chéo tối đa 200 ký tự.")]
         public string Result { get; set; }
         public string? Note { get; set; }
     }

@@ -75,6 +75,9 @@ public partial class LISCompleteService {
         // R1-2b: per-parameter block — catalog ranges, EvaluateFlag, fallback range from input
         if (dto.Parameters is { Count: > 0 })
         {
+            // QA-R13: a body range with low > high was stored as-is ("100–10") and flagged a normal value "L".
+            if (dto.Parameters.Any(p => p.ReferenceMin.HasValue && p.ReferenceMax.HasValue && p.ReferenceMin > p.ReferenceMax))
+                throw new InvalidOperationException("Khoảng tham chiếu không hợp lệ: giá trị thấp lớn hơn giá trị cao.");
             var oldParams = await _context.ServiceRequestDetailParameters
                 .Where(x => x.ServiceRequestDetailId == d.Id && !x.IsDeleted).ToListAsync();
             if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams); // re-run idempotent

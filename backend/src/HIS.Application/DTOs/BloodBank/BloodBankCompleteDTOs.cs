@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace HIS.Application.DTOs.BloodBank
 {
@@ -44,14 +45,23 @@ namespace HIS.Application.DTOs.BloodBank
     /// </summary>
     public class BloodProductTypeDto
     {
+        // QA-R13: the service saves via ExecuteSqlRaw, so an over-long text / out-of-range number raised a bare
+        // SqlException (not a DbUpdateException the filters map) → 500. Limits mirror the BloodProductTypes columns.
         public Guid Id { get; set; }
+        [StringLength(50, ErrorMessage = "Mã chế phẩm tối đa 50 ký tự.")]
         public string Code { get; set; }
+        [StringLength(200, ErrorMessage = "Tên chế phẩm tối đa 200 ký tự.")]
         public string Name { get; set; }
+        [StringLength(500, ErrorMessage = "Mô tả tối đa 500 ký tự.")]
         public string? Description { get; set; } // optional on save (implicit [Required] under nullable)
         public int ShelfLifeDays { get; set; }
+        [Range(-999.99, 999.99, ErrorMessage = "Nhiệt độ bảo quản phải trong khoảng -999.99 đến 999.99.")]
         public decimal? MinTemperature { get; set; }
+        [Range(-999.99, 999.99, ErrorMessage = "Nhiệt độ bảo quản phải trong khoảng -999.99 đến 999.99.")]
         public decimal? MaxTemperature { get; set; }
+        [Range(0, 99999999.99, ErrorMessage = "Thể tích chuẩn không hợp lệ.")]
         public decimal? StandardVolume { get; set; }
+        [StringLength(50, ErrorMessage = "Đơn vị tối đa 50 ký tự.")]
         public string? Unit { get; set; } // service defaults to "mL"
         public decimal Price { get; set; }
         public decimal InsurancePrice { get; set; }
@@ -312,6 +322,9 @@ namespace HIS.Application.DTOs.BloodBank
     /// </summary>
     public class CreateBloodInventoryDto
     {
+        // QA-R13: 0001-01-01 failed as SqlDateTime overflow inside ExecuteSqlRaw → 500.
+        [Range(typeof(DateTime), "1753-01-01", "9999-12-31", ParseLimitsInInvariantCulture = true,
+            ConvertValueInInvariantCulture = true, ErrorMessage = "Ngày kiểm kê không hợp lệ.")]
         public DateTime InventoryDate { get; set; }
         public string? Note { get; set; } // optional (implicit [Required] under nullable → 400 when omitted)
         public List<CreateBloodInventoryItemDto> Items { get; set; }
@@ -613,14 +626,25 @@ namespace HIS.Application.DTOs.BloodBank
     /// </summary>
     public class BloodSupplierDto
     {
+        // QA-R13: saved via ExecuteSqlRaw → over-long text / pre-1753 date was a bare SqlException → 500.
+        // Limits mirror the BloodSuppliers columns.
         public Guid Id { get; set; }
+        [StringLength(50, ErrorMessage = "Mã nhà cung cấp tối đa 50 ký tự.")]
         public string Code { get; set; }
+        [StringLength(200, ErrorMessage = "Tên nhà cung cấp tối đa 200 ký tự.")]
         public string Name { get; set; }
+        [StringLength(500, ErrorMessage = "Địa chỉ tối đa 500 ký tự.")]
         public string? Address { get; set; } // optional on save (implicit [Required] under nullable)
+        [StringLength(50, ErrorMessage = "Số điện thoại tối đa 50 ký tự.")]
         public string? Phone { get; set; }
+        [StringLength(200, ErrorMessage = "Email tối đa 200 ký tự.")]
         public string? Email { get; set; }
+        [StringLength(200, ErrorMessage = "Người liên hệ tối đa 200 ký tự.")]
         public string? ContactPerson { get; set; }
+        [StringLength(200, ErrorMessage = "Số giấy phép tối đa 200 ký tự.")]
         public string? License { get; set; }
+        [Range(typeof(DateTime), "1753-01-01", "9999-12-31", ParseLimitsInInvariantCulture = true,
+            ConvertValueInInvariantCulture = true, ErrorMessage = "Ngày hết hạn giấy phép không hợp lệ.")]
         public DateTime? LicenseExpiryDate { get; set; }
         public bool IsActive { get; set; }
     }

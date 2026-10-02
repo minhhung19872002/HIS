@@ -32,10 +32,10 @@ namespace HIS.Infrastructure.Services
             var sql = @"SELECT b.BloodType, b.RhFactor, b.ProductTypeId, pt.Name AS ProductTypeName,
                 COUNT(*) AS TotalBags,
                 -- expired bags are not usable stock (issue guard rejects them) — they were counted as available
-                SUM(CASE WHEN b.Status='Available' AND CAST(b.ExpiryDate AS date) >= CAST(GETDATE() AS date) THEN 1 ELSE 0 END) AS AvailableBags,
+                SUM(CASE WHEN b.Status='Available' AND CAST(b.ExpiryDate AS date) >= CAST(@now AS date) THEN 1 ELSE 0 END) AS AvailableBags,
                 SUM(CASE WHEN b.Status='Reserved' THEN 1 ELSE 0 END) AS ReservedBags,
-                SUM(CASE WHEN b.Status='Available' AND b.ExpiryDate <= DATEADD(day,7,GETDATE()) AND b.ExpiryDate > GETDATE() THEN 1 ELSE 0 END) AS ExpiringWithin7Days,
-                SUM(CASE WHEN CAST(b.ExpiryDate AS date) < CAST(GETDATE() AS date) AND b.Status NOT IN ('Destroyed','Expired') THEN 1 ELSE 0 END) AS ExpiredBags,
+                SUM(CASE WHEN b.Status='Available' AND b.ExpiryDate <= DATEADD(day,7,@now) AND b.ExpiryDate > @now THEN 1 ELSE 0 END) AS ExpiringWithin7Days,
+                SUM(CASE WHEN CAST(b.ExpiryDate AS date) < CAST(@now AS date) AND b.Status NOT IN ('Destroyed','Expired') THEN 1 ELSE 0 END) AS ExpiredBags,
                 SUM(b.Volume) AS TotalVolume
                 FROM BloodBags b
                 LEFT JOIN BloodProductTypes pt ON b.ProductTypeId = pt.Id
@@ -50,6 +50,9 @@ namespace HIS.Infrastructure.Services
             sql += " GROUP BY b.BloodType, b.RhFactor, b.ProductTypeId, pt.Name ORDER BY b.BloodType, b.RhFactor";
 
             command.CommandText = sql;
+            // QA-R13: GETDATE() is the DB clock (UTC on RDS/docker). From 00:00 to 07:00 VN a bag that expired
+            // yesterday (VN) still counted as available while the issue/reserve guards (DateTime.Now) refused it.
+            command.Parameters.Add(new SqlParameter("@now", DateTime.Now));
             if (!string.IsNullOrEmpty(bloodType))
                 command.Parameters.Add(new SqlParameter("@bloodType", bloodType));
             if (!string.IsNullOrEmpty(rhFactor))

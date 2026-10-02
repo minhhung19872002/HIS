@@ -250,10 +250,24 @@ public partial class RISCompleteService
         return true;
     }
 
+    /// <summary>
+    /// QA-R13: start/complete had no state check — on an Approved (5) request they rewound it to 2/3 and rewrote
+    /// StartTime/EndTime under a signed-off report (gone from the "đã duyệt" list); on a Cancelled (6) one they
+    /// revived it. A retake while still Completed (3, no report) stays allowed.
+    /// </summary>
+    private static void EnsureExamStepAllowed(int requestStatus)
+    {
+        if (requestStatus == HIS.Core.Constants.RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không thực hiện được.");
+        if (requestStatus >= HIS.Core.Constants.RadiologyRequestStatus.Reported)
+            throw new InvalidOperationException("Ca chụp đã có kết quả — không bắt đầu/kết thúc lại được. Hủy duyệt/hủy kết quả trước nếu cần chụp lại.");
+    }
+
     public async Task<bool> StartExamAsync(Guid orderId)
     {
         var request = await _context.RadiologyRequests.FindAsync(orderId);
         if (request == null) return false;
+        EnsureExamStepAllowed(request.Status); // QA-R13
 
         request.Status = 2; // InProgress
 
@@ -290,6 +304,7 @@ public partial class RISCompleteService
     {
         var request = await _context.RadiologyRequests.FindAsync(orderId);
         if (request == null) return false;
+        EnsureExamStepAllowed(request.Status); // QA-R13
 
         var exam = await _context.RadiologyExams
             .FirstOrDefaultAsync(e => e.RadiologyRequestId == orderId);

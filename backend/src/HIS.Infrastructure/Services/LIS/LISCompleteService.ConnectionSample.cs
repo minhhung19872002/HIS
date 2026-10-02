@@ -165,6 +165,17 @@ public partial class LISCompleteService {
         // QA-R4: a zero/unknown analyzer id wrote orphan mapping rows and answered 200
         if (!await _context.LabAnalyzers.AnyAsync(a => a.Id == analyzerId))
             throw new KeyNotFoundException("Không tìm thấy máy xét nghiệm");
+        // QA-R13: rows with an empty/unknown TestId or a blank analyzer code were stored as-is (1000 orphan rows
+        // pointing at Guid.Empty replaced the real mapping) — there is no FK on ServiceId. Validate the whole list first.
+        mappings ??= new List<UpdateAnalyzerTestMappingDto>();
+        if (mappings.Any(m => m == null || string.IsNullOrWhiteSpace(m.AnalyzerTestCode)))
+            throw new ArgumentException("Mã chỉ số trên máy không được để trống");
+        var serviceIds = mappings.Select(m => m.TestId).Distinct().ToList();
+        if (serviceIds.Contains(Guid.Empty)
+            || await _context.Services.CountAsync(s => serviceIds.Contains(s.Id)) != serviceIds.Count)
+            throw new KeyNotFoundException("Có dòng mapping trỏ tới xét nghiệm không tồn tại");
+        if (mappings.GroupBy(m => m.AnalyzerTestCode.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Mã chỉ số trên máy bị trùng trong danh sách mapping");
 
         var existingMappings = await _context.LabAnalyzerTestMappings.Where(m => m.AnalyzerId == analyzerId).ToListAsync();
         _context.LabAnalyzerTestMappings.RemoveRange(existingMappings);
@@ -439,6 +450,10 @@ public partial class LISCompleteService {
                 if (dto.CollectorUserId.HasValue && dto.CollectorUserId.Value != Guid.Empty)
                     d.CollectedByUserId = dto.CollectorUserId.Value;
             }
+            // QA-R13: the header stayed 0/1 after collection (and after analyzer results), so the OPD/inpatient
+            // cancel — which only checks header Status == 0 — withdrew an order whose tube was taken or whose
+            // result was already approved. 2 = Đang thực hiện; the cancel chain puts it back to 0 when rolled back.
+            if (sr.Status < 2) sr.Status = 2;
 
             await _context.SaveChangesAsync();
 

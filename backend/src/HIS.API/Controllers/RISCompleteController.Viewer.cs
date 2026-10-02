@@ -100,7 +100,9 @@ namespace HIS.API.Controllers
         /// Danh sách phòng CĐHA
         /// </summary>
         [HttpGet("rooms")]
-        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager)]
+        // QA-R13: a room catalog read by /v2/radiology + /v2/ris-dispatcher — imaging techs/doctors got 403 (the
+        // RadiologistManager role has no holders): two error toasts per visit and an empty call-patient room picker.
+        [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Radiology.Read + "|" + HIS.Core.Constants.PermissionCatalog.System.Configure)]
         public async Task<ActionResult<List<RadiologyRoomDto>>> GetRooms(
             [FromQuery] string keyword = null,
             [FromQuery] string roomType = null)

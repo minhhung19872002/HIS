@@ -11,6 +11,7 @@ import {
   fmtVNDg, fmtDMYg, type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   getRadiologyRegister, getUltrasoundRegister, getFunctionalTestRegister,
   getStatistics, getRevenueReport, getConsumptionNormReport, exportReportToExcel,
@@ -75,8 +76,9 @@ const RadiologyReportsV2: React.FC = () => {
         case 'revenue': setRevenue((await getRevenueReport(from, to)).data || null); break;
         case 'consumption': setConsumption((await getConsumptionNormReport(from, to)).data || null); break;
       }
-    } catch {
-      tw('Không tải được báo cáo');
+    } catch (e) {
+      // Most of these registers are manager-only on the server: a 403 must say "no permission", not a generic failure.
+      tw(friendlyErrorMessage(e, 'Không tải được báo cáo'));
     } finally {
       setLoading(false);
     }

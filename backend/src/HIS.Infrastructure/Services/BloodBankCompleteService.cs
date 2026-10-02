@@ -203,7 +203,7 @@ namespace HIS.Infrastructure.Services
 
             var sql = @"SELECT b.Id AS BloodBagId, b.BagCode, b.Barcode, b.BloodType, b.RhFactor,
                 pt.Name AS ProductTypeName, b.Volume, b.CollectionDate, b.ExpiryDate,
-                DATEDIFF(day, GETDATE(), b.ExpiryDate) AS DaysUntilExpiry,
+                DATEDIFF(day, @now, b.ExpiryDate) AS DaysUntilExpiry,
                 b.StorageLocation, b.Status
                 FROM BloodBags b
                 LEFT JOIN BloodProductTypes pt ON b.ProductTypeId = pt.Id
@@ -218,13 +218,15 @@ namespace HIS.Infrastructure.Services
             if (!string.IsNullOrEmpty(status))
                 sql += " AND b.Status = @status";
             if (daysUntilExpiry.HasValue)
-                sql += " AND b.ExpiryDate <= DATEADD(day, @days, GETDATE()) AND b.ExpiryDate > GETDATE()";
-            if (expiredOnly)
-                sql += " AND b.ExpiryDate <= GETDATE() AND b.Status NOT IN ('Destroyed','Transfused')";
+                sql += " AND b.ExpiryDate <= DATEADD(day, @days, @now) AND CAST(b.ExpiryDate AS date) >= CAST(@now AS date)";
+            if (expiredOnly) // day-based, like the stock summary and the guards: usable through its expiry day
+                sql += " AND CAST(b.ExpiryDate AS date) < CAST(@now AS date) AND b.Status NOT IN ('Destroyed','Transfused')";
 
             sql += " ORDER BY b.ExpiryDate ASC";
 
             command.CommandText = sql;
+            // QA-R13: app (VN) clock, not the DB's UTC GETDATE() — same clock as the issue/reserve expiry guards.
+            command.Parameters.Add(new SqlParameter("@now", DateTime.Now));
             if (!string.IsNullOrEmpty(bloodType))
                 command.Parameters.Add(new SqlParameter("@bloodType", bloodType));
             if (!string.IsNullOrEmpty(rhFactor))

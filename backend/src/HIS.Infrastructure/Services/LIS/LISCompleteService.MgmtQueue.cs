@@ -628,8 +628,10 @@ public partial class LISCompleteService {
                 var (min, max) = ranges.Range(cat, result.TestCode,
                     string.IsNullOrWhiteSpace(result.Units) ? cat?.Unit : result.Units);
                 var (critLow, critHigh) = ranges.Critical(cat, result.TestCode, cat?.CriticalLow, cat?.CriticalHigh);
-                var flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag)
-                           ?? LabFlagEvaluator.EvaluateFlag(num, min, max, critLow, critHigh);
+                // QA-R13: a computed critical flag (LL/HH) wins over the analyzer's plain H/L — otherwise no alert.
+                var computedFlag = LabFlagEvaluator.EvaluateFlag(num, min, max, critLow, critHigh);
+                var flag = computedFlag is "LL" or "HH" ? computedFlag
+                           : LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag) ?? computedFlag;
                 var row = await db.ServiceRequestDetailParameters
                     .FirstOrDefaultAsync(x => x.ServiceRequestDetailId == detail.Id
                                            && x.ParameterCode == result.TestCode && !x.IsDeleted);
@@ -684,6 +686,7 @@ public partial class LISCompleteService {
                     detail.Result = string.Join("; ", rows.Select(r => $"{r.ParameterName} {r.Value}"));
                     await db.SaveChangesAsync();
                 }
+                await RaiseLabOrderHeadersAsync(db, new[] { detail.ServiceRequestId }); // QA-R13
                 if (tx != null) await tx.CommitAsync();
 
                 _logger.LogInformation("Analyzer result -> ServiceRequestDetail {Id}: {Code}={Value} [{Flag}]",

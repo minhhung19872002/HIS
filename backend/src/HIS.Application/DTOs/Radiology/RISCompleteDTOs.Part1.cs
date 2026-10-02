@@ -53,7 +53,7 @@ namespace HIS.Application.DTOs.Radiology
     {
         public Guid OrderId { get; set; }
         public Guid RoomId { get; set; }
-        public string Message { get; set; }
+        public string? Message { get; set; } // QA-R13: implicit [Required] → v2 "Gọi BN" (sends no message) was 400
         public bool UseSpeaker { get; set; }
     }
 

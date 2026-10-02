@@ -146,6 +146,7 @@ public partial class LISCompleteService
                 .Where(m => m.AnalyzerId == analyzerId && m.IsActive && !m.IsDeleted && m.ServiceId != null)
                 .ToListAsync();
             var panelSrds = new HashSet<Guid>(); // multi-parameter services touched → summary rebuilt at the end
+            var touchedOrders = new HashSet<Guid>(); // QA-R13: order headers to raise once results are saved
 
             foreach (var result in labResults)
             {
@@ -243,10 +244,17 @@ public partial class LISCompleteService
                     var units = result.Units;
                     if (map != null)
                     {
+                        var converted = false;
                         if (map.ConversionFactor is decimal factor && factor > 0 && factor != 1m
                             && LabFlagEvaluator.TryParse(value) is decimal rawNum)
+                        {
                             value = (rawNum * factor).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                            converted = true;
+                        }
                         if (!string.IsNullOrWhiteSpace(map.Unit)) units = map.Unit;
+                        // QA-R13: a converted value kept the ANALYZER unit (1.2 mg/dL × 88.4 stored as "106.08 mg/dL").
+                        // The mapping screen has no unit field, so after conversion the value is in the catalog unit.
+                        else if (converted) units = cat?.Unit;
                     }
                     // Range rows are matched on the unit AFTER conversion (a row in another unit is skipped).
                     var rangeCode = directMatch ? result.TestCode : paramCode;
@@ -264,7 +272,9 @@ public partial class LISCompleteService
                     var flag = LabFlagEvaluator.EvaluateFlag(num, normalMin, normalMax, criticalLow, criticalHigh);
                     // Normalise cờ HL7 nếu có; fallback tính từ range
                     var hl7Flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag);
-                    var resolvedFlag = hl7Flag ?? flag;
+                    // QA-R13: analyzers usually send only H/L. An "L" for HGB 60 (critical low 70) overrode the computed
+                    // "LL", so no critical-value alert was raised. A critical computed flag always wins.
+                    var resolvedFlag = flag is "LL" or "HH" ? flag : (hl7Flag ?? flag);
 
                     // Single-value service: replace all params (re-run idempotent). Panel (CBC…): upsert only this
                     // parameter — before, every OBX of a panel wiped the previous ones, keeping only the last line.
@@ -324,6 +334,7 @@ public partial class LISCompleteService
                     _context.LabRawResults.Add(rawResult);
 
                     matchedCount++;
+                    touchedOrders.Add(srd.ServiceRequestId);
                 }
                 else
                 {
@@ -364,6 +375,8 @@ public partial class LISCompleteService
                 await _context.SaveChangesAsync();
             }
 
+            await RaiseLabOrderHeadersAsync(_context, touchedOrders);
+
             _logger.LogInformation("Processed {Total} results, matched {Matched}",
                 labResults.Count, matchedCount);
 
@@ -386,6 +399,27 @@ public partial class LISCompleteService
                 Errors = new List<string> { ex.Message }
             };
         }
+    }
+
+    /// <summary>
+    /// QA-R13: same header rule as the manual entry (EnterLabResultAsync) — raise only, never lower, never touch a
+    /// cancelled (4) header: 3 = every active line has a result, else 2. The analyzer path left the header at 0, so
+    /// OPD cancel (guarded on header Status == 0) withdrew orders with approved results.
+    /// </summary>
+    private static async Task RaiseLabOrderHeadersAsync(HISDbContext db, IEnumerable<Guid> serviceRequestIds)
+    {
+        var ids = serviceRequestIds.Distinct().ToList();
+        if (ids.Count == 0) return;
+        var headers = await db.ServiceRequests.Where(r => ids.Contains(r.Id) && r.Status != 4).ToListAsync();
+        foreach (var sr in headers)
+        {
+            var results = await db.ServiceRequestDetails
+                .Where(x => x.ServiceRequestId == sr.Id && !x.IsDeleted && x.Status != 3)
+                .Select(x => x.Result).ToListAsync();
+            var newStatus = results.Count > 0 && results.All(r => !string.IsNullOrEmpty(r)) ? 3 : 2;
+            if (newStatus > sr.Status) sr.Status = newStatus;
+        }
+        await db.SaveChangesAsync();
     }
 
     public async Task<List<UnmappedResultDto>> GetUnmappedResultsAsync(Guid? analyzerId = null)
