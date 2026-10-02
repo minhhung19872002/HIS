@@ -312,7 +312,9 @@ public partial class BusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            var today = DateTime.UtcNow.Date;
+            // QA-R13 (L7): CreatedAt is UTC — "today" must be the VN day's UTC window, not the UTC calendar day
+            // (which starts at 07:00 VN, so the morning's CLS orders were not counted toward the daily limit).
+            var today = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn).FromUtc;
             var todayClsCount = await _context.ServiceRequests
                 .Include(sr => sr.MedicalRecord)
                 .Where(sr => sr.MedicalRecord != null && sr.MedicalRecord.PatientId == patientId

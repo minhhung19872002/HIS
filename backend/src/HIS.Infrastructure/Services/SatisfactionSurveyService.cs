@@ -567,11 +567,13 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
     /// </summary>
     public async Task<byte[]> ExportSurveysAsync(DateTime? from, DateTime? to, Guid? campaignId)
     {
-        var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
-        var toDate = to ?? DateTime.UtcNow;
+        // QA-R13 (L7): from/to are VN days, CreatedAt is UTC — convert the bounds (was shifted by 7 h, and the
+        // "+1 day, <=" end also took the first hour of the following day).
+        var fromUtc = ReportPeriod.ToUtc((from ?? HIS.Core.Common.VnTime.TodayVn.AddDays(-30)).Date);
+        var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(to ?? HIS.Core.Common.VnTime.TodayVn));
 
         var query = _db.SatisfactionSurveyResults
-            .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate.AddDays(1));
+            .Where(r => r.CreatedAt >= fromUtc && r.CreatedAt < toUtc);
         // QA-R3: campaignId was accepted and ignored — "export this campaign" returned every result.
         if (campaignId.HasValue)
             query = query.Where(r => r.CampaignId == campaignId.Value);

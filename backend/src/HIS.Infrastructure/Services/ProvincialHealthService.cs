@@ -226,8 +226,13 @@ public class ProvincialHealthService : IProvincialHealthService
     public async Task<List<InfectiousDiseaseReportDto>> GetInfectiousDiseaseReportsAsync(string? dateFrom, string? dateTo)
     {
         // #156: aggregate THẬT ca có ICD bệnh truyền nhiễm phải báo cáo (IcdCode.IsNotifiable) — không còn stub rỗng.
-        var from = DateTime.TryParse(dateFrom, out var f) ? f.Date : DateTime.UtcNow.Date.AddMonths(-1);
-        var to = DateTime.TryParse(dateTo, out var t) ? t.Date.AddDays(1) : DateTime.UtcNow.Date.AddDays(1);
+        // QA-R13 (L7): the filter days are VN days but Examinations.CreatedAt is UTC — cases seen 00:00–07:00 VN
+        // landed on the previous day's report. Convert the VN-day bounds to the UTC window.
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        var fromDay = DateTime.TryParse(dateFrom, out var f) ? f.Date : todayVn.AddMonths(-1);
+        var toDay = DateTime.TryParse(dateTo, out var t) ? t.Date : todayVn;
+        var from = HIS.Core.Common.VnTime.DayRangeUtc(fromDay).FromUtc;
+        var to = HIS.Core.Common.VnTime.DayRangeUtc(toDay).ToUtc;
 
         var notifiable = await _db.IcdCodes.Where(i => i.IsNotifiable && i.IsActive)
             .ToDictionaryAsync(i => i.Code, i => i.Name);
@@ -263,9 +268,10 @@ public class ProvincialHealthService : IProvincialHealthService
             PatientAge    = r.Dob.HasValue ? Math.Max(0, (int)((DateTime.UtcNow - r.Dob.Value).TotalDays / 365)) : 0,
             PatientGender = r.Gender == 1 ? "Nam" : r.Gender == 2 ? "Nữ" : "Khác",
             PatientAddress = r.Address ?? string.Empty,
-            OnsetDate     = r.StartTime ?? r.CreatedAt,
-            DiagnosisDate = r.CreatedAt,
-            ReportDate    = r.CreatedAt,
+            // CreatedAt is UTC; these DTO fields are serialized offset-less (read as VN local by the page).
+            OnsetDate     = r.StartTime ?? HIS.Core.Common.VnTime.UtcToVn(r.CreatedAt),
+            DiagnosisDate = HIS.Core.Common.VnTime.UtcToVn(r.CreatedAt),
+            ReportDate    = HIS.Core.Common.VnTime.UtcToVn(r.CreatedAt),
             Severity      = string.Empty,
             Outcome       = string.Empty,
             Status        = submittedSet.Contains(r.Id) ? 1 : 0,

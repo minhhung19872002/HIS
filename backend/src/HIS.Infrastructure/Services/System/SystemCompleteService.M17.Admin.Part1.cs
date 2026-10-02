@@ -155,6 +155,15 @@ public partial class SystemCompleteService
 
     public async Task<SystemUserDto> CreateUserAsync(CreateUserDto dto)
     {
+        // QA-R13: every failure below (departmentId = a room id, roleIds = a user id, a 5000-char phone) was an FK /
+        // truncation error swallowed into null, which the controller reports as "Tài khoản đã tồn tại".
+        if (!string.IsNullOrEmpty(dto.Username) && dto.Username.Any(char.IsWhiteSpace))
+            throw new ArgumentException("Tài khoản không được chứa khoảng trắng", nameof(dto.Username));
+        if (dto.DepartmentId.HasValue && !await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+        var requestedRoleIds = (dto.RoleAssignments?.Select(a => a.RoleId) ?? dto.RoleIds ?? new()).Distinct().ToList();
+        if (await _context.Roles.CountAsync(r => requestedRoleIds.Contains(r.Id) && !r.IsDeleted) != requestedRoleIds.Count)
+            throw new ArgumentException("Có vai trò không tồn tại trong danh sách gán", nameof(dto.RoleIds));
         try
         {
             // Check for duplicate username
@@ -237,7 +246,8 @@ public partial class SystemCompleteService
                 Permissions = new List<string>()
             };
         }
-        catch (Exception ex)
+        // too long / FK / SoD conflict → API filter (400), not "already exists"
+        catch (Exception ex) when (ex is not DbUpdateException and not InvalidOperationException)
         {
             _logger.LogError(ex, "Error in CreateUserAsync");
             return null;
@@ -749,6 +759,10 @@ public partial class SystemCompleteService
             .Where(t => t.UserId == user.Id && t.RevokedAt == null && !t.IsDeleted)
             .ToListAsync();
         foreach (var t in tokens) { t.RevokedAt = now; t.ReasonRevoked = reason; t.UpdatedAt = now; }
+        // QA-R13: the sessions themselves stayed Status 0, so "Phiên đăng nhập" still listed a locked/deleted
+        // user as logged in (same bookkeeping as TerminateAllSessionsAsync).
+        var sessions = await _context.UserSessions.Where(s => s.UserId == user.Id && s.Status == 0).ToListAsync();
+        foreach (var s in sessions) { s.Status = 2; s.LogoutTime = now; }
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = now;
     }

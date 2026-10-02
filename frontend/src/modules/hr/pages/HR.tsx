@@ -14,6 +14,7 @@ import {
   Modal,
   Select,
   Tag,
+  TimePicker,
 } from 'antd';
 import {
   getStaff,
@@ -1051,11 +1052,18 @@ const HRV2: React.FC = () => {
     if (submitting) return;
     setSubmitting(true);
     try {
+      // QA-R13: the modal had no start/end fields, so both were "now" → the API always refused (end <= start).
+      // Times are picked on the overtime day (VN wall clock); an end at/before the start runs past midnight.
+      const day = dayjs(values.overtimeDate as string);
+      const at = (t: unknown) => { const v = dayjs(t as Dayjs); return day.hour(v.hour()).minute(v.minute()).second(0).millisecond(0); };
+      const start = at(values.startTime);
+      let end = at(values.endTime);
+      if (!end.isAfter(start)) end = end.add(1, 'day');
       await createOvertime({
         staffId: values.staffId as string,
-        overtimeDate: dayjs(values.overtimeDate as string).format('YYYY-MM-DD'),
-        startTime: dayjs(values.startTime as string).toISOString(),
-        endTime: dayjs(values.endTime as string).toISOString(),
+        overtimeDate: day.format('YYYY-MM-DD'),
+        startTime: start.format('YYYY-MM-DDTHH:mm:ss'),
+        endTime: end.format('YYYY-MM-DDTHH:mm:ss'),
         hours: (values.hours as number) || 0,
         reason: values.reason as string | undefined,
       });
@@ -2257,6 +2265,10 @@ const HRV2: React.FC = () => {
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
           <Form.Item name="overtimeDate" label="Ngày" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item name="startTime" label="Từ giờ" rules={[{ required: true, message: 'Chọn giờ bắt đầu' }]}><TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="endTime" label="Đến giờ" rules={[{ required: true, message: 'Chọn giờ kết thúc' }]}><TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} /></Form.Item>
+          </div>
           <Form.Item name="hours" label="Số giờ" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0.5} max={12} step={0.5} /></Form.Item>
           <Form.Item name="reason" label="Lý do"><Input.TextArea rows={2} /></Form.Item>
         </Form>

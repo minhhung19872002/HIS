@@ -40,7 +40,7 @@ public partial class IvfLabService
             }
 
             entity.CycleId = dto.CycleId;
-            entity.TransferDate = string.IsNullOrEmpty(dto.TransferDate) ? DateTime.UtcNow : DateTime.Parse(dto.TransferDate);
+            entity.TransferDate = string.IsNullOrEmpty(dto.TransferDate) ? DateTime.UtcNow : ParseDate(dto.TransferDate, nameof(dto.TransferDate));
             entity.TransferType = dto.TransferType;
             entity.EmbryoCount = dto.EmbryoCount;
             entity.DoctorId = dto.DoctorId;
@@ -179,7 +179,7 @@ public partial class IvfLabService
 
             entity.PatientId = dto.PatientId;
             entity.SampleCode = dto.SampleCode;
-            entity.CollectionDate = string.IsNullOrEmpty(dto.CollectionDate) ? DateTime.UtcNow : DateTime.Parse(dto.CollectionDate);
+            entity.CollectionDate = string.IsNullOrEmpty(dto.CollectionDate) ? DateTime.UtcNow : ParseDate(dto.CollectionDate, nameof(dto.CollectionDate));
             entity.Volume = dto.Volume;
             entity.Concentration = dto.Concentration;
             entity.Motility = dto.Motility;
@@ -188,7 +188,7 @@ public partial class IvfLabService
             entity.TankCode = dto.TankCode;
             entity.RackPosition = dto.RackPosition;
             entity.BoxCode = dto.BoxCode;
-            entity.ExpiryDate = string.IsNullOrEmpty(dto.ExpiryDate) ? null : DateTime.Parse(dto.ExpiryDate);
+            entity.ExpiryDate = string.IsNullOrEmpty(dto.ExpiryDate) ? null : ParseDate(dto.ExpiryDate, nameof(dto.ExpiryDate));
             entity.StorageFee = dto.StorageFee;
             entity.Notes = dto.Notes;
 
@@ -309,8 +309,8 @@ public partial class IvfLabService
             entity.CycleId = dto.CycleId;
             entity.PatientId = dto.PatientId;
             entity.BiopsyLab = dto.BiopsyLab;
-            entity.SentDate = string.IsNullOrEmpty(dto.SentDate) ? null : DateTime.Parse(dto.SentDate);
-            entity.ResultDate = string.IsNullOrEmpty(dto.ResultDate) ? null : DateTime.Parse(dto.ResultDate);
+            entity.SentDate = string.IsNullOrEmpty(dto.SentDate) ? null : ParseDate(dto.SentDate, nameof(dto.SentDate));
+            entity.ResultDate = string.IsNullOrEmpty(dto.ResultDate) ? null : ParseDate(dto.ResultDate, nameof(dto.ResultDate));
             entity.Result = dto.Result;
             entity.Notes = dto.Notes;
 
@@ -366,11 +366,11 @@ public partial class IvfLabService
     {
         try
         {
-            var reportDate = string.IsNullOrEmpty(date) ? DateTime.UtcNow.Date : DateTime.Parse(date).Date;
+            var reportDate = string.IsNullOrEmpty(date) ? HIS.Core.Common.VnTime.TodayVn : ParseDate(date, nameof(date)).Date; // QA-R13: VN day
             var nextDay = reportDate.AddDays(1);
             var items = new List<IvfDailyReportItemDto>();
 
-            var newCycles = await _context.Set<IvfCycle>().CountAsync(c => !c.IsDeleted && c.CreatedAt >= reportDate && c.CreatedAt < nextDay);
+            var newCycles = await _context.Set<IvfCycle>().CountAsync(c => !c.IsDeleted && c.CreatedAt >= HIS.Core.Common.VnTime.DayRangeUtc(reportDate).FromUtc && c.CreatedAt < HIS.Core.Common.VnTime.DayRangeUtc(reportDate).ToUtc);
             if (newCycles > 0) items.Add(new IvfDailyReportItemDto { ActivityType = "Chu ky moi", Count = newCycles });
 
             var pickups = await _context.Set<IvfOvumPickup>().CountAsync(o => !o.IsDeleted && o.PickupDate >= reportDate && o.PickupDate < nextDay);

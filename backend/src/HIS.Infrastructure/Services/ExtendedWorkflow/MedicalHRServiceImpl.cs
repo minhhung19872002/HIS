@@ -93,6 +93,9 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             throw new ArgumentException("Họ tên nhân viên là bắt buộc", nameof(dto.FullName));
         if (dto.LicenseIssueDate.HasValue && dto.LicenseExpiryDate.HasValue && dto.LicenseExpiryDate < dto.LicenseIssueDate)
             throw new ArgumentException("Ngày hết hạn CCHN phải sau ngày cấp", nameof(dto.LicenseExpiryDate));
+        // QA-R13: a birth date in 2090 was stored (EmployeeProfileService already refuses it).
+        if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày sinh không được ở tương lai", nameof(dto.DateOfBirth));
         MedicalStaff? entity = null;
         if (dto.Id.HasValue)
         {

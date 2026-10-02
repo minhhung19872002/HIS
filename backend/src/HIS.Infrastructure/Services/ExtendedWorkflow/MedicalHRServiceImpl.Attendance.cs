@@ -174,10 +174,20 @@ public partial class MedicalHRServiceImpl
         }
     }
 
+    private static readonly string[] AttendanceStatuses = { "Present", "Absent", "Leave", "Holiday", "HalfDay" };
+
     public async Task<AttendanceRecordDto> RecordAttendanceAsync(SaveAttendanceDto dto)
     {
         if (dto.CheckInTime.HasValue && dto.CheckOutTime.HasValue && dto.CheckOutTime < dto.CheckInTime)
             throw new ArgumentException("Giờ ra phải sau giờ vào", nameof(dto.CheckOutTime));
+        // QA-R13: -1 work hours, an arbitrary status ("Teleported") and "Present" on 9999-12-31 were stored; payroll
+        // generation counts Present/HalfDay days, so these rows change the salary. Same status set as the v2 form.
+        if (dto.WorkHours < 0 || dto.WorkHours > 24 || dto.OvertimeHours < 0 || dto.OvertimeHours > 24)
+            throw new ArgumentException("Số giờ làm / tăng ca phải trong khoảng 0 – 24", nameof(dto.WorkHours));
+        if (dto.Status != null && !AttendanceStatuses.Contains(dto.Status))
+            throw new ArgumentException($"Trạng thái chấm công không hợp lệ: \"{dto.Status}\" (Present/Absent/Leave/Holiday/HalfDay)", nameof(dto.Status));
+        if ((dto.Status ?? "Present") is "Present" or "HalfDay" && dto.WorkDate.Date > VnTime.TodayVn)
+            throw new ArgumentException("Không chấm công có mặt cho ngày trong tương lai", nameof(dto.WorkDate));
         if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
             throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = dto.Id.HasValue ? await _context.AttendanceRecords.FindAsync(dto.Id.Value) : null;
@@ -265,6 +275,9 @@ public partial class MedicalHRServiceImpl
             throw new ArgumentException("Giờ kết thúc làm thêm phải sau giờ bắt đầu", nameof(dto.EndTime));
         if (dto.Hours <= 0 || dto.Hours > 24)
             throw new ArgumentException("Số giờ làm thêm không hợp lệ", nameof(dto.Hours));
+        // QA-R13: 20 h claimed on a 17:00–19:00 window was stored (and paid via the OT report) as-is.
+        if (dto.Hours > (decimal)(dto.EndTime - dto.StartTime).TotalHours + 0.01m)
+            throw new ArgumentException("Số giờ làm thêm vượt quá khoảng thời gian từ giờ bắt đầu đến giờ kết thúc", nameof(dto.Hours));
         if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
             throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = new OvertimeRecord

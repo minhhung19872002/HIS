@@ -54,6 +54,15 @@ public partial class IvfLabService : IIvfLabService
         { 0, "Chờ kết quả" }, { 1, "Dương tính" }, { 2, "Âm tính" }
     };
 
+    // QA-R13: the DTO dates are strings; DateTime.Parse threw FormatException on a bad one → 500. Same parsing,
+    // but an unparseable or pre-1753 value is now a 400 that names the field.
+    private static DateTime ParseDate(string value, string field)
+    {
+        if (!DateTime.TryParse(value, out var d) || d.Year < 1753)
+            throw new ArgumentException($"Ngày không hợp lệ: {value}", field);
+        return d;
+    }
+
     // ---- Couples ----
 
     public async Task<List<IvfCoupleDto>> GetCouplesAsync(IvfCoupleSearchDto? filter = null)
@@ -183,7 +192,7 @@ public partial class IvfLabService : IIvfLabService
             entity.HusbandPatientId = dto.HusbandPatientId;
             entity.InfertilityDurationMonths = dto.InfertilityDurationMonths;
             entity.InfertilityCause = dto.InfertilityCause;
-            entity.MarriageDate = string.IsNullOrEmpty(dto.MarriageDate) ? null : DateTime.Parse(dto.MarriageDate);
+            entity.MarriageDate = string.IsNullOrEmpty(dto.MarriageDate) ? null : ParseDate(dto.MarriageDate, nameof(dto.MarriageDate));
             entity.Notes = dto.Notes;
 
             await _context.SaveChangesAsync();
@@ -329,7 +338,7 @@ public partial class IvfLabService : IIvfLabService
 
             entity.CoupleId = dto.CoupleId;
             entity.CycleNumber = dto.CycleNumber;
-            entity.StartDate = string.IsNullOrEmpty(dto.StartDate) ? DateTime.UtcNow : DateTime.Parse(dto.StartDate);
+            entity.StartDate = string.IsNullOrEmpty(dto.StartDate) ? DateTime.UtcNow : ParseDate(dto.StartDate, nameof(dto.StartDate));
             entity.Protocol = dto.Protocol;
             entity.DoctorId = dto.DoctorId;
             entity.Notes = dto.Notes;
@@ -393,7 +402,7 @@ public partial class IvfLabService : IIvfLabService
             }
 
             entity.CycleId = dto.CycleId;
-            entity.PickupDate = string.IsNullOrEmpty(dto.PickupDate) ? DateTime.UtcNow : DateTime.Parse(dto.PickupDate);
+            entity.PickupDate = string.IsNullOrEmpty(dto.PickupDate) ? DateTime.UtcNow : ParseDate(dto.PickupDate, nameof(dto.PickupDate));
             entity.TotalOvums = dto.TotalOvums;
             entity.MatureOvums = dto.MatureOvums;
             entity.ImmatureOvums = dto.ImmatureOvums;
@@ -555,7 +564,7 @@ public partial class IvfLabService : IIvfLabService
                     && e.CycleId != entity.CycleId && e.StrawCode == strawCode && e.TankCode == dto.TankCode))
                 throw new InvalidOperationException($"Ống '{strawCode}' đang chứa phôi đông lạnh của chu kỳ/cặp đôi khác");
             entity.Status = 3; // Frozen
-            entity.FreezeDate = string.IsNullOrEmpty(dto.FreezeDate) ? DateTime.UtcNow : DateTime.Parse(dto.FreezeDate);
+            entity.FreezeDate = string.IsNullOrEmpty(dto.FreezeDate) ? DateTime.UtcNow : ParseDate(dto.FreezeDate, nameof(dto.FreezeDate));
             entity.StrawCode = strawCode;
             entity.StrawColor = dto.StrawColor;
             entity.BoxCode = dto.BoxCode;
@@ -579,7 +588,7 @@ public partial class IvfLabService : IIvfLabService
             if (entity.Status != 3)
                 throw new InvalidOperationException(
                     $"Phôi đang ở trạng thái '{EmbryoStatusNames.GetValueOrDefault(entity.Status, entity.Status.ToString())}' — chỉ rã đông được phôi đang đông lạnh");
-            var thawDate = string.IsNullOrEmpty(dto.ThawDate) ? DateTime.UtcNow : DateTime.Parse(dto.ThawDate);
+            var thawDate = string.IsNullOrEmpty(dto.ThawDate) ? DateTime.UtcNow : ParseDate(dto.ThawDate, nameof(dto.ThawDate));
             if (entity.FreezeDate.HasValue && thawDate.Date < entity.FreezeDate.Value.Date)
                 throw new ArgumentException("Ngày rã đông không được trước ngày đông lạnh");
             entity.Status = 4; // Thawed

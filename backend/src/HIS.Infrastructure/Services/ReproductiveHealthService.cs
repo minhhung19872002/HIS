@@ -38,9 +38,9 @@ public class ReproductiveHealthService : IReproductiveHealthService
                 if (filter.Status.HasValue)
                     query = query.Where(r => r.Status == filter.Status.Value);
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                    query = query.Where(r => r.CreatedAt >= from);
+                    query = query.Where(r => r.CreatedAt >= HIS.Core.Common.VnTime.DayRangeUtc(from).FromUtc); // QA-R13: VN date vs UTC CreatedAt
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                    query = query.Where(r => r.CreatedAt <= to.AddDays(1));
+                    query = query.Where(r => r.CreatedAt < HIS.Core.Common.VnTime.DayRangeUtc(to).ToUtc);
             }
 
             return await query
