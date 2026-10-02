@@ -20,6 +20,16 @@ const DEFAULT_TIMEOUT_MIN = 10;
 const WARN_BEFORE_MS = 15 * 1000;
 const CHECK_INTERVAL_MS = 5 * 1000;
 const MAX_ATTEMPTS = 3;
+// QA-R15: the lock lived only in React state — pressing F5 on a locked workstation removed it and showed
+// the patient record again without a password. Persist it per tab (sessionStorage survives a reload),
+// keyed to the user id so a lock left by a session that ended elsewhere does not greet the next login.
+const LOCK_KEY = 'his-idle-locked';
+const readLock = (userId?: string): boolean => {
+  try { return !!userId && sessionStorage.getItem(LOCK_KEY) === userId; } catch { return false; }
+};
+const writeLock = (userId?: string): void => {
+  try { if (userId) sessionStorage.setItem(LOCK_KEY, userId); else sessionStorage.removeItem(LOCK_KEY); } catch { /* private-mode */ }
+};
 
 function resolveTimeoutMs(): number {
   const raw = storage.getRaw('his-idle-timeout-min');
@@ -29,7 +39,7 @@ function resolveTimeoutMs(): number {
 
 const IdleLockScreen: React.FC = () => {
   const { user, logout } = useAuth();
-  const [locked, setLocked] = useState(false);
+  const [locked, setLocked] = useState(() => readLock(user?.id));
   const [password, setPassword] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -43,6 +53,7 @@ const IdleLockScreen: React.FC = () => {
     fullName.split(' ').filter(Boolean).slice(-2).map((x) => x[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   const doLogout = useCallback(() => {
+    writeLock();
     logout();
     window.location.href = '/login';
   }, [logout]);
@@ -66,6 +77,7 @@ const IdleLockScreen: React.FC = () => {
       const idle = Date.now() - lastActivityRef.current;
       if (idle >= timeoutMs) {
         window.dispatchEvent(new CustomEvent('IDLE_LOCK_IMMINENT'));
+        writeLock(user?.id);
         setLocked(true);
       } else if (idle >= timeoutMs - WARN_BEFORE_MS && !warnedRef.current) {
         warnedRef.current = true;
@@ -73,7 +85,7 @@ const IdleLockScreen: React.FC = () => {
       }
     }, CHECK_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [locked, timeoutMs]);
+  }, [locked, timeoutMs, user?.id]);
 
   // Focus ô mật khẩu khi vừa khóa.
   useEffect(() => {
@@ -92,6 +104,7 @@ const IdleLockScreen: React.FC = () => {
       try {
         const ok = await authApi.verifyPassword(user.id, password);
         if (ok) {
+          writeLock();
           setLocked(false);
           setPassword('');
           setAttempts(0);

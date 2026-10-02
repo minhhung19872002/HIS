@@ -85,9 +85,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             storage.remove(STORAGE_KEYS.token);
             storage.remove(STORAGE_KEYS.user);
           }
-        } catch {
-          storage.remove(STORAGE_KEYS.token);
-          storage.remove(STORAGE_KEYS.user);
+        } catch (e) {
+          // QA-R15: only a real auth refusal clears the session. A 502/timeout while the API redeploys used to wipe
+          // `user`, and the cross-tab listener then logged every other tab out (unsaved forms lost).
+          const status = (e as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 404) {
+            storage.remove(STORAGE_KEYS.token);
+            storage.remove(STORAGE_KEYS.user);
+          }
         }
       }
       setIsLoading(false);
@@ -95,6 +100,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     initAuth();
   }, []);
+
+  // QA-R15 multi-tab: localStorage (token/user) is shared by every tab. Logging out — or in as ANOTHER
+  // account — in one tab left the others showing the old user while their next save went out with the
+  // new account's token (wrong attribution). The 'storage' event only fires in the OTHER tabs.
+  useEffect(() => {
+    if (!user) return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.storageArea !== localStorage || (e.key !== null && e.key !== STORAGE_KEYS.user)) return;
+      let nextId: string | undefined;
+      try { nextId = e.key === null || !e.newValue ? undefined : JSON.parse(e.newValue)?.id; } catch { nextId = undefined; }
+      if (nextId && nextId === user.id) return; // same account (re-login / refresh) → nothing to do
+      window.location.href = nextId ? window.location.pathname + window.location.search : '/login';
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [user]);
 
   const checkExpiryAlertsOnLogin = () => {
     apiClient.get('/pharmacy/expiry-alerts/on-login').then(res => {
@@ -138,6 +159,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // AUTHZ-2 (#368): lưu refresh token thật — interceptor apiClient auto-refresh khi 401
           if (payload.refreshToken) storage.set(STORAGE_KEYS.refreshToken, payload.refreshToken);
           storage.set(STORAGE_KEYS.user, payload.user);
+          // QA-R15: a fresh login supersedes an idle lock left behind by a forced logout in this tab.
+          try { sessionStorage.removeItem('his-idle-locked'); } catch { /* private mode */ }
           await Promise.all([loadPermissions(), loadEnabledModules()]); // #378+#405
           setUser(payload.user);
           // #216 TC-PERM-015: bị buộc đổi mật khẩu → không hiện cảnh báo hạn dùng, không vào dashboard.

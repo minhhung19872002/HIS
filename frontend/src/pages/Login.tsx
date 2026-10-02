@@ -27,7 +27,7 @@ const Login: React.FC = () => {
       const reason = sessionStorage.getItem('logout_reason');
       if (reason === 'SESSION_INVALIDATED') {
         sessionStorage.removeItem('logout_reason');
-        message.warning('Tài khoản của bạn vừa đăng nhập ở nơi khác — phiên này đã bị đăng xuất.', 8);
+        message.warning('Phiên đăng nhập đã bị chấm dứt (tài khoản đăng nhập ở nơi khác, quản trị viên đặt lại mật khẩu hoặc kết thúc phiên). Vui lòng đăng nhập lại.', 8);
       } else if (reason === 'PASSWORD_CHANGED') {
         // #216 TC-PERM-015: đổi mật khẩu xong thì mọi phiên cũ bị thu hồi (SecurityStamp xoay) →
         // về đây đăng nhập lại bằng mật khẩu mới. Nói rõ để người dùng không tưởng bị lỗi.

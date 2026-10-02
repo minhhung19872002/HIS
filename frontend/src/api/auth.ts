@@ -63,7 +63,13 @@ export const authApi = {
     if (!tk || !refreshToken) return; // localStorage-mode: cần token để thu hồi
     axios.post(`${API_URL}/auth/logout`, { refreshToken },
       { headers: { Authorization: `Bearer ${tk}` } },
-    ).catch(() => { /* logout best-effort — stamp/reuse-detection che phần còn lại */ });
+    ).catch((e) => {
+      // QA-R15: access token already expired (idle > 30', idle-lock logout) → [Authorize] /logout answers 401
+      // and the refresh token stayed valid 14 days. Revoke it by the token itself (same as cookie-mode #437).
+      if (e?.response?.status === 401) {
+        axios.post(`${API_URL}/auth/logout-by-token`, { refreshToken }).catch(() => { /* best-effort */ });
+      }
+    });
   },
 
   /** Xác thực lại mật khẩu user hiện tại (dùng cho idle-lock / phê duyệt nhạy cảm). */

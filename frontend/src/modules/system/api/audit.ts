@@ -67,16 +67,12 @@ export const exportAuditLogs = (params: AuditLogSearchDto): void => {
   if (params.entityType) qs.set('entityType', params.entityType);
   if (params.keyword) qs.set('keyword', params.keyword);
   if (params.userId) qs.set('userId', params.userId);
-  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:5106/api').replace(/\/+$/, '');
-  const token = localStorage.getItem('token');
-  // Build URL with auth token as query param for file download (Bearer header not applicable on window.open)
-  const url = `${base}/audit/logs/export?${qs.toString()}`;
+  // QA-R15: go through apiClient (was a raw fetch with the localStorage token) so an expired 30' access
+  // token is refreshed instead of the export silently doing nothing.
   const a = document.createElement('a');
-  a.href = url;
   a.setAttribute('download', '');
-  // Use fetch + blob so Bearer header is sent correctly
-  fetch(url, { headers: { Authorization: `Bearer ${token ?? ''}` } })
-    .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+  apiClient.get<Blob>(`/audit/logs/export?${qs.toString()}`, { responseType: 'blob', timeout: 120_000 })
+    .then(r => r.data)
     .then(blob => {
       const objUrl = URL.createObjectURL(blob);
       a.href = objUrl;

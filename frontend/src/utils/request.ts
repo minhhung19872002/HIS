@@ -3,6 +3,7 @@ import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'a
 import { message } from 'antd';
 import { API_URL } from '../config/api.config';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
+import { refreshAccessToken } from '../services/apiClient';
 
 // Create axios instance
 const request: AxiosInstance = axios.create({
@@ -41,16 +42,33 @@ request.interceptors.response.use(
     // Raw data from API - wrap in standard format
     return { success: true, data: data };
   },
-  (error) => {
+  async (error) => {
     if (error.response) {
       const { status, data } = error.response;
+
+      // QA-R15: this instance (OPD examination / insurance / data-inheritance APIs) had no auto-refresh —
+      // once the 30' access token expired, the next save bounced the doctor to /login and lost the form.
+      // Same single-flight refresh + one replay as apiClient (a 401 never reached the controller → no double write).
+      const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+      if (status === 401 && original && !original._retried) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          original._retried = true;
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return request(original);
+        }
+      }
 
       switch (status) {
         case 401:
           // Unauthorized - redirect to login
           message.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+          if (data?.code === 'SESSION_INVALIDATED') {
+            try { sessionStorage.setItem('logout_reason', 'SESSION_INVALIDATED'); } catch { /* private-mode */ }
+          }
           storage.remove(STORAGE_KEYS.token);
           storage.remove(STORAGE_KEYS.user);
+          storage.remove(STORAGE_KEYS.refreshToken);
           window.location.href = '/login';
           break;
         case 403:

@@ -39,11 +39,24 @@ export function refreshAccessToken(): Promise<string | null> {
         }
         return null;
       } catch {
-        return null;
+        // QA-R15: multi-tab — another tab may have rotated this SAME refresh token a moment earlier
+        // (server answers rotated_race 401). Adopt that tab's result instead of logging this tab out
+        // (which also wiped the winner's fresh token from the shared localStorage).
+        return adoptOtherTabRefresh(rt);
       }
     })().finally(() => { refreshInFlight = null; });
   }
   return refreshInFlight;
+}
+
+async function adoptOtherTabRefresh(sent: string | null): Promise<string | null> {
+  if (REFRESH_COOKIE_MODE || !sent) return null;
+  for (let i = 0; i < 10; i++) {
+    const cur = localStorage.getItem('refreshToken');
+    if (cur && cur !== sent) return localStorage.getItem('token');
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return null;
 }
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
@@ -96,19 +109,11 @@ apiClient.interceptors.response.use(
       // không redirect về /login chính kể cả khi call nền (notification poll) bị 401.
       const onInspectorPortal = window.location.pathname.startsWith('/inspector-portal');
       if (!onInspectorPortal) {
-        // #384: phiên bị chấm dứt (đăng nhập nơi khác last-wins / đổi mật khẩu / admin đá) —
-        // refresh token cũng đã bị thu hồi → bỏ qua refresh, lưu lý do cho trang /login hiển thị.
+        // #384: phiên bị chấm dứt (đăng nhập nơi khác last-wins / đổi mật khẩu / admin đá).
+        // QA-R15: vẫn THỬ refresh trước — admin bớt vai trò cũng xoay stamp nhưng GIỮ refresh token
+        // (refresh đọc lại vai trò từ DB) → người dùng không bị đá ra /login mất form. Khi refresh token
+        // đã bị thu hồi thật, refresh fail mềm và nhánh cuối lưu lý do cho trang /login hiển thị.
         const bodyCode = (error.response?.data as { code?: string } | undefined)?.code;
-        if (bodyCode === 'SESSION_INVALIDATED') {
-          try { sessionStorage.setItem('logout_reason', 'SESSION_INVALIDATED'); } catch { /* private-mode */ }
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('refreshToken');
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-          return Promise.reject(error);
-        }
         const original = error.config as RetriableConfig | undefined;
         const url = String(original?.url || '');
         // Không refresh cho chính các endpoint auth (login sai mật khẩu, OTP sai…)
@@ -124,6 +129,9 @@ apiClient.interceptors.response.use(
           }
         }
         // Hết đường cứu (không có/refresh fail/đã retry) → behavior cũ: xoá phiên + /login
+        if (bodyCode === 'SESSION_INVALIDATED') {
+          try { sessionStorage.setItem('logout_reason', 'SESSION_INVALIDATED'); } catch { /* private-mode */ }
+        }
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('refreshToken');
