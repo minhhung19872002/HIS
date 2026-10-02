@@ -39,6 +39,9 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             throw new ArgumentException("Tên thiết bị là bắt buộc", nameof(dto.Name));
         if (dto.PurchasePrice is < 0m)
             throw new ArgumentException("Giá mua không hợp lệ", nameof(dto.PurchasePrice));
+        // QA-R13: a purchase date of 9999-12-31 was stored as typed.
+        if (dto.PurchaseDate.HasValue && dto.PurchaseDate.Value.Date > DateTime.Today)
+            throw new ArgumentException("Ngày mua không được ở tương lai", nameof(dto.PurchaseDate));
         // No FK on MedicalEquipments.DepartmentId: a zero-GUID / unknown department was accepted and the
         // device showed a blank "Khoa · Phòng" on the v2 list.
         if (dto.DepartmentId.HasValue

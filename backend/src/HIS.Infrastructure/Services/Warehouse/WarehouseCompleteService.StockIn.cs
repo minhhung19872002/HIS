@@ -26,11 +26,43 @@ public partial class WarehouseCompleteService {
         {
             if (item.Quantity <= 0)
                 throw new InvalidOperationException("Số lượng nhập mỗi dòng phải lớn hơn 0.");
+            // QA-R13: stock quantities are mapped as decimal(18,2) — 0.001 was saved as a 0-quantity line (amount 1).
+            if (decimal.Round(item.Quantity, 2) != item.Quantity)
+                throw new InvalidOperationException("Số lượng nhập tối đa 2 chữ số thập phân.");
             if (item.UnitPrice < 0)
                 throw new InvalidOperationException("Đơn giá nhập không được âm.");
             if (!medicinesMap.ContainsKey(item.ItemId))
                 throw new InvalidOperationException($"Thuốc {item.ItemId} không tồn tại trong danh mục.");
+            // QA-R13: a manufacture date after the expiry date was stored as typed.
+            if (item.ManufactureDate.HasValue && item.ExpiryDate.HasValue && item.ManufactureDate.Value.Date > item.ExpiryDate.Value.Date)
+                throw new InvalidOperationException($"Lô {item.BatchNumber ?? "(không số lô)"}: ngày sản xuất sau hạn dùng.");
         }
+    }
+
+    /// <summary>
+    /// QA-R13: the receipt date was stored as sent — 0001-01-01 / an omitted date hid the receipt from every dated
+    /// report, and a future date (9999-12-31) made the stock card subtract the lot from the opening balance of every
+    /// period (opening = current − movements since period start, but the line is never listed). Same rule as issues.
+    /// </summary>
+    private static void NormalizeReceiptDate(CreateStockReceiptDto dto)
+    {
+        if (dto.ReceiptDate == default)
+            dto.ReceiptDate = DateTime.Now;
+        else if (dto.ReceiptDate.Date > DateTime.Today)
+            throw new InvalidOperationException("Ngày nhập không được ở tương lai.");
+        else if (dto.ReceiptDate.Year < 2000)
+            throw new InvalidOperationException("Ngày nhập không hợp lệ.");
+    }
+
+    /// <summary>
+    /// QA-R13: SupplierId was copied into SupplierCode without a lookup — a patient / medicine id was accepted and the
+    /// receipt then showed up in "Công nợ NCC" as a nameless supplier with SupplierId = Guid.Empty.
+    /// </summary>
+    private async Task EnsureSupplierExistsAsync(Guid? supplierId)
+    {
+        if (supplierId is Guid id && id != Guid.Empty
+            && !await _context.Suppliers.AsNoTracking().AnyAsync(s => s.Id == id))
+            throw new KeyNotFoundException("Nhà cung cấp không tồn tại");
     }
 
     private static void EnsureValidReceiptRates(CreateStockReceiptDto dto)
@@ -61,6 +93,8 @@ public partial class WarehouseCompleteService {
             throw new KeyNotFoundException("Warehouse not found");
         if (dto.Items == null || dto.Items.Count == 0)
             throw new InvalidOperationException("Phiếu nhập phải có ít nhất 1 dòng thuốc.");
+        NormalizeReceiptDate(dto);
+        await EnsureSupplierExistsAsync(dto.SupplierId);
 
         await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var importReceipt = new ImportReceipt
@@ -215,6 +249,8 @@ public partial class WarehouseCompleteService {
             throw new KeyNotFoundException("Stock receipt not found");
         if (receipt.Status != 0)
             throw new InvalidOperationException("Chỉ có thể cập nhật phiếu ở trạng thái Mới tạo");
+        NormalizeReceiptDate(dto);
+        await EnsureSupplierExistsAsync(dto.SupplierId);
 
         // Update header fields
         receipt.ReceiptDate = dto.ReceiptDate;
@@ -338,6 +374,8 @@ public partial class WarehouseCompleteService {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
+        NormalizeReceiptDate(dto);
+        await EnsureSupplierExistsAsync(dto.SupplierId);
 
         await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var importReceipt = new ImportReceipt
@@ -808,7 +846,10 @@ public partial class WarehouseCompleteService {
 
             // Pre-push review: an inactive supplier can still be owed money — keep it in the map so its receipts,
             // returns and payments are matched (the over-payment check reads this payable).
-            var supplierMap = await _context.Suppliers
+            // QA-R13: ... and a soft-deleted one too (the global filter hid it: its payments stopped being subtracted and
+            // the debt showed as a nameless row at the full receipt total).
+            var supplierMap = await _context.Suppliers.IgnoreQueryFilters()
+                .OrderBy(s => s.IsDeleted) // a live supplier wins a shared catalog code
                 .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
                 .ToListAsync();
 
@@ -884,7 +925,8 @@ public partial class WarehouseCompleteService {
         if ((dto.PaymentMethod?.Length ?? 0) > 50 || (dto.ReferenceNumber?.Length ?? 0) > 100 || (dto.Notes?.Length ?? 0) > 1000)
             throw new ArgumentException("Hình thức (≤50), số chứng từ (≤100) hoặc ghi chú (≤1000 ký tự) quá dài.");
 
-        var supplier = await _context.Suppliers.AsNoTracking()
+        // QA-R13: a deleted supplier can still be owed money — its debt must stay payable.
+        var supplier = await _context.Suppliers.AsNoTracking().IgnoreQueryFilters()
             .Where(s => s.Id == dto.SupplierId)
             .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
             .FirstOrDefaultAsync()
@@ -999,24 +1041,32 @@ public partial class WarehouseCompleteService {
             var createdByUser = await _context.Users.FindAsync(Guid.TryParse(receipt.CreatedBy, out var uid) ? uid : Guid.Empty);
             var approvedByUser = receipt.ApprovedBy.HasValue ? await _context.Users.FindAsync(receipt.ApprovedBy.Value) : null;
 
-            var importTypeName = receipt.ImportType switch
-            {
-                1 => "Nhap NCC",
-                2 => "Chuyen kho",
-                3 => "Hoan tra khoa",
-                4 => "Kiem ke tang",
-                5 => "Vien tro",
-                _ => ""
-            };
+            // QA-R13: the local label table disagreed with the import types (2 printed "Chuyen kho", 3 "Hoan tra khoa",
+            // 4 "Kiem ke tang", 6 blank) — use the same labels as the stock card.
+            var importTypeName = ImportTypeLabel(receipt.ImportType);
 
-            var metaLabels = new[] { "Kho nhap", "Loai nhap", "NCC", "So hoa don", "Ngay hoa don", "Ghi chu" };
+            // QA-R13: the supplier is stored as its id in SupplierCode (SupplierName stays null) — "NCC:" printed blank,
+            // and the payable (after discount + VAT) never appeared on the slip, only the goods total.
+            var supplierName = receipt.SupplierName;
+            if (supplierName == null && !string.IsNullOrEmpty(receipt.SupplierCode))
+            {
+                Guid? sid = Guid.TryParse(receipt.SupplierCode, out var g) ? g : null;
+                supplierName = await _context.Suppliers.AsNoTracking().IgnoreQueryFilters()
+                    .Where(s => (sid.HasValue && s.Id == sid.Value) || s.SupplierCode == receipt.SupplierCode)
+                    .Select(s => s.SupplierName).FirstOrDefaultAsync();
+            }
+
+            var metaLabels = new[] { "Kho nhap", "Loai nhap", "NCC", "So hoa don", "Ngay hoa don", "Chiet khau", "VAT", "Tong thanh toan", "Ghi chu" };
             var metaValues = new[]
             {
                 receipt.Warehouse?.WarehouseName ?? "",
                 importTypeName,
-                receipt.SupplierName ?? "",
+                supplierName ?? "",
                 receipt.InvoiceNumber ?? "",
                 receipt.InvoiceDate?.ToString("dd/MM/yyyy") ?? "",
+                receipt.Discount.ToString("#,##0"),
+                receipt.Vat.ToString("#,##0"),
+                receipt.FinalAmount.ToString("#,##0"),
                 receipt.Note ?? ""
             };
 

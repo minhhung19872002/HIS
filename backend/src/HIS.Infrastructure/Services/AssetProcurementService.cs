@@ -101,9 +101,9 @@ public class AssetProcurementService : IAssetProcurementService
                            || (r.DepartmentName != null && r.DepartmentName.Contains(kw)));
         }
         if (!string.IsNullOrWhiteSpace(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-            q = q.Where(r => r.CreatedAt >= from);
+            q = q.Where(r => r.CreatedAt >= HIS.Core.Common.VnTime.DayRangeUtc(from).FromUtc); // QA-R13: VN date vs UTC CreatedAt
         if (!string.IsNullOrWhiteSpace(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-            q = q.Where(r => r.CreatedAt <= to.AddDays(1));
+            q = q.Where(r => r.CreatedAt < HIS.Core.Common.VnTime.DayRangeUtc(to).ToUtc);
 
         var total = await q.CountAsync();
         var items = await q

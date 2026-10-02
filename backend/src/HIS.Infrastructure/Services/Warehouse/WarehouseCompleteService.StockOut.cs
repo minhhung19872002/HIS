@@ -813,6 +813,9 @@ public partial class WarehouseCompleteService {
         if (receipt.ExportType == 4 && receipt.Note != null && receipt.Note.StartsWith("[DIEU_CHUYEN:"))
             throw new InvalidOperationException(
                 "Phiếu xuất này thuộc một phiếu điều chuyển kho đã được kho nhận xác nhận — không hủy riêng được.");
+        if (receipt.ExportType == 12 && receipt.Status == 1)
+            await EnsureNoApprovedPatientReturnAsync(receipt.MedicalRecordId, receipt.PatientId,
+                receipt.Details.Where(d => !d.IsDeleted).Select(d => d.MedicineId), receipt.CreatedAt);
 
         await using var tx = await SqlAppLock.BeginAsync(_context);
         if (tx != null)
@@ -896,6 +899,29 @@ public partial class WarehouseCompleteService {
                 + "Muốn phát tại quầy thì hủy phiếu bán trước.");
     }
 
+    /// <summary>
+    /// QA-R13: a patient return ("Duyệt hoàn trả", PharmacyApproval type 5) already put part of a dispensing back into
+    /// its lot; cancelling that dispensing afterwards returned the FULL quantity again (measured: dispensed 10, returned
+    /// 3, cancel → lot +13, i.e. 3 phantom units; same for a ward-cabinet issue). Refuse until the return is revoked.
+    /// </summary>
+    private async Task EnsureNoApprovedPatientReturnAsync(Guid? medicalRecordId, Guid? patientId,
+        IEnumerable<Guid?> medicineIds, DateTime since)
+    {
+        var meds = medicineIds.Where(m => m.HasValue).Select(m => m!.Value).Distinct().ToList();
+        if (meds.Count == 0 || (!medicalRecordId.HasValue && !patientId.HasValue)) return;
+        var returned = await _context.PharmacyApprovalItems.AsNoTracking().AnyAsync(i =>
+            !i.IsExcluded && i.ApprovedQuantity > 0 && i.MedicineId != null && meds.Contains(i.MedicineId.Value)
+            && i.PharmacyApproval.ApprovalType == 5 && i.PharmacyApproval.Status == 3 && !i.PharmacyApproval.IsDeleted
+            && i.PharmacyApproval.ApprovedAt >= since
+            && (i.PharmacyApproval.MedicalRecordId.HasValue
+                ? i.PharmacyApproval.MedicalRecordId == medicalRecordId
+                : i.PharmacyApproval.PatientId == patientId));
+        if (returned)
+            throw new InvalidOperationException(
+                "Bệnh nhân đã hoàn trả một phần thuốc của lần cấp phát này (phiếu duyệt hoàn trả đã duyệt) — "
+                + "thu hồi phiếu hoàn trả trước rồi mới hủy, tránh nhập kho hai lần.");
+    }
+
     /// <summary>Tag trong ImportReceipt.Note liên kết phiếu nhập đối ứng với phiếu xuất chuyển kho (không có cột FK).</summary>
     private static string TransferTag(Guid exportReceiptId) => $"[CK:{exportReceiptId}]";
 
@@ -975,6 +1001,9 @@ public partial class WarehouseCompleteService {
     {
         if (item.Quantity <= 0)
             throw new InvalidOperationException("Số lượng xuất mỗi dòng phải lớn hơn 0.");
+        // QA-R13: EF maps stock quantities as decimal(18,2) — a 0.001 issue saved a 0-quantity line and left the lot unchanged.
+        if (decimal.Round(item.Quantity, 2) != item.Quantity)
+            throw new InvalidOperationException("Số lượng xuất tối đa 2 chữ số thập phân.");
 
         var allowExpired = exportType is 5 or 7 or 9 or 10;
         var today = DateTime.Today;

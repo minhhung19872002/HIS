@@ -158,7 +158,8 @@ public partial class HospitalPharmacyService
     public async Task<RetailSaleDetailDto> CreateSaleAsync(CreateRetailSaleDto dto)
     {
         // Auto-generate sale code: NT-YYYYMMDD-NNNN
-        var today = DateTime.UtcNow;
+        // QA-R13: the code carried the UTC date — a sale at 00:03 on 03/10 (VN) was numbered NT-20261002-…
+        var today = HIS.Core.Common.VnTime.NowVn;
         var dateStr = today.ToString("yyyyMMdd");
         var todayCount = await _context.RetailSales
             .Where(s => s.SaleCode.StartsWith($"NT-{dateStr}"))
@@ -195,10 +196,17 @@ public partial class HospitalPharmacyService
                     "Đơn thuốc này đã được cấp phát tại quầy (có phiếu xuất kho) — không bán theo đơn được. "
                     + "Muốn chuyển sang bán thì hủy phát trước.");
         }
+        // QA-R13: RetailSales.PatientId has no FK — a counter sale stored any GUID (measured: a warehouse id) as the
+        // buyer, an orphan link that patient history / reports then join on.
+        else if (dto.PatientId.HasValue && dto.PatientId.Value != Guid.Empty
+            && !await _context.Patients.AsNoTracking().AnyAsync(p => p.Id == dto.PatientId.Value))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
 
         // QA0915: qty âm (−10) từng CỘNG tồn kho qua phiếu bán; qty 0 tạo dòng rỗng.
         if (dto.Items.Any(i => i.Quantity <= 0))
             throw new InvalidOperationException("Số lượng bán mỗi dòng phải lớn hơn 0.");
+        if (dto.Items.Any(i => decimal.Round(i.Quantity, 2) != i.Quantity)) // QA-R13: decimal(18,2) storage
+            throw new InvalidOperationException("Số lượng bán tối đa 2 chữ số thập phân.");
         if (dto.Items.Any(i => i.UnitPrice < 0 || i.DiscountAmount < 0) || dto.DiscountAmount < 0)
             throw new InvalidOperationException("Đơn giá / chiết khấu không được âm.");
 

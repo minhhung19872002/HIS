@@ -818,6 +818,29 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteSupplierAsync(Guid supplierId)
     {
+        // QA-R13: a supplier still owed money was soft-deleted — "Công nợ NCC" then showed a nameless row with the full
+        // receipt total (its payments no longer matched) and the debt could not be paid any more. Same idea as
+        // DeleteMedicineAsync: settle first, or set the supplier inactive instead of deleting it.
+        var supplier = await _context.Suppliers.AsNoTracking()
+            .Where(s => s.Id == supplierId).Select(s => new { s.Id, s.SupplierCode }).FirstOrDefaultAsync();
+        if (supplier != null)
+        {
+            var idText = supplier.Id.ToString();
+            var receiptQuery = _context.ImportReceipts.AsNoTracking()
+                .Where(r => !r.IsDeleted && r.ImportType == 1 && (r.SupplierCode == idText || r.SupplierCode == supplier.SupplierCode));
+            if (await receiptQuery.AnyAsync(r => r.Status == 0))
+                throw new InvalidOperationException("Nhà cung cấp còn phiếu nhập chờ duyệt — xử lý phiếu trước khi xóa.");
+            var received = await receiptQuery.Where(r => r.Status == 1).SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+            var returned = await _context.ExportReceipts.AsNoTracking()
+                .Where(e => !e.IsDeleted && e.ExportType == 5 && e.Status == 1 && e.SupplierId == supplierId)
+                .SumAsync(e => (decimal?)e.TotalAmount) ?? 0m;
+            var paid = await _context.SupplierPayments.AsNoTracking()
+                .Where(p => !p.IsDeleted && p.SupplierId == supplierId)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+            if (received - returned - paid > 0)
+                throw new InvalidOperationException(
+                    $"Nhà cung cấp còn công nợ {received - returned - paid:N0} — thanh toán xong hoặc chuyển sang ngừng hoạt động thay vì xóa.");
+        }
         return await SoftDeleteEntityAsync<Supplier>(supplierId);
     }
 

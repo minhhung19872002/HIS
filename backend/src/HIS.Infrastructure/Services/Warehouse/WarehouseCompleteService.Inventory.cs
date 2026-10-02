@@ -495,7 +495,7 @@ public partial class WarehouseCompleteService {
     public async Task<List<ExpiryWarningDto>> GetExpiryWarningsAsync(Guid? warehouseId, int monthsAhead)
     {
         if (monthsAhead < 1) monthsAhead = 3;
-        var horizon = DateTime.UtcNow.Date.AddMonths(monthsAhead);
+        var horizon = HIS.Core.Common.VnTime.TodayVn.AddMonths(monthsAhead); // QA-R13: VN day, not UTC (00:00-07:00 VN was "yesterday")
         try
         {
             // Project explicitly to avoid pulling all Supply columns (schema drift
@@ -528,7 +528,7 @@ public partial class WarehouseCompleteService {
                 })
                 .ToListAsync();
 
-            var today = DateTime.UtcNow.Date;
+            var today = HIS.Core.Common.VnTime.TodayVn;
             return rows.Select(i =>
             {
                 var days = i.ExpiryDate!.Value.Date.Subtract(today).Days;
@@ -597,7 +597,7 @@ public partial class WarehouseCompleteService {
             })
             .ToListAsync();
 
-        var today = DateTime.UtcNow.Date;
+        var today = HIS.Core.Common.VnTime.TodayVn; // QA-R13: expiry dates are VN calendar dates
         return batches.Select(b =>
         {
             var move = movements.FirstOrDefault(m =>
@@ -629,7 +629,7 @@ public partial class WarehouseCompleteService {
     public async Task<List<UnclaimedPrescriptionDto>> GetUnclaimedPrescriptionsAsync(Guid warehouseId, int daysOld)
     {
         if (daysOld < 1) daysOld = 7;
-        var threshold = DateTime.UtcNow.AddDays(-daysOld);
+        var threshold = HIS.Core.Common.VnTime.NowVn.AddDays(-daysOld); // QA-R13: PrescriptionDate is VN local
         var prescriptions = await _context.Prescriptions
             .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
             .Include(p => p.Doctor)
@@ -643,7 +643,7 @@ public partial class WarehouseCompleteService {
             .Take(200)
             .ToListAsync();
 
-        var now = DateTime.UtcNow.Date;
+        var now = HIS.Core.Common.VnTime.TodayVn;
         return prescriptions.Select(p => new UnclaimedPrescriptionDto
         {
             PrescriptionId = p.Id,

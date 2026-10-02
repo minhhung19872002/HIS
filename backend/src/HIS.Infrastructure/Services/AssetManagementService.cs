@@ -31,9 +31,9 @@ public partial class AssetManagementService : IAssetManagementService
         if (filter.Status.HasValue) query = query.Where(t => t.Status == filter.Status.Value);
         if (filter.TenderType.HasValue) query = query.Where(t => t.TenderType == filter.TenderType.Value);
         if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-            query = query.Where(t => t.CreatedAt >= from);
+            query = query.Where(t => t.CreatedAt >= HIS.Core.Common.VnTime.DayRangeUtc(from).FromUtc); // QA-R13: VN date vs UTC CreatedAt
         if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-            query = query.Where(t => t.CreatedAt <= to.AddDays(1));
+            query = query.Where(t => t.CreatedAt < HIS.Core.Common.VnTime.DayRangeUtc(to).ToUtc);
 
         var totalCount = await query.CountAsync();
 

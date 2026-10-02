@@ -515,6 +515,12 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException("Không tìm thấy phiếu xuất cho đơn thuốc này");
         }
 
+        var rxRecord = await _context.Prescriptions.AsNoTracking()
+            .Where(p => p.Id == prescriptionId).Select(p => (Guid?)p.MedicalRecordId).FirstOrDefaultAsync();
+        await EnsureNoApprovedPatientReturnAsync(rxRecord ?? exportReceipts[0].MedicalRecordId, exportReceipts[0].PatientId,
+            exportReceipts.SelectMany(e => e.Details.Where(d => !d.IsDeleted).Select(d => d.MedicineId)),
+            exportReceipts.Min(e => e.CreatedAt));
+
         // QA-R7: two concurrent cancels both read the vouchers as live and returned the stock twice — claim them first.
         await using var tx = await SqlAppLock.BeginAsync(_context);
         if (tx != null)

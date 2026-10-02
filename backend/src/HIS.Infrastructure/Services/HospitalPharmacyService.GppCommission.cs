@@ -256,7 +256,7 @@ public partial class HospitalPharmacyService
     {
         try
         {
-            var today = DateTime.UtcNow.Date;
+            var today = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn).FromUtc; // QA-R13: VN day start (UtcNow.Date began at 07:00 VN)
             var todaySales = await _context.RetailSales
                 .Where(s => !s.IsDeleted && s.Status == "Completed" && s.CreatedAt >= today)
                 .ToListAsync();

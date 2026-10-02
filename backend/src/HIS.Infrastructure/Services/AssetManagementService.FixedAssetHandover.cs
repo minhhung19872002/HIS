@@ -69,6 +69,9 @@ public partial class AssetManagementService
             throw new ArgumentException("Thời gian khấu hao không được âm.");
         if (dto.Status < 1 || dto.Status > 6)
             throw new ArgumentException("Trạng thái tài sản không hợp lệ (1-6).");
+        // QA-R13: purchase date 9999-12-31 was stored — the asset is then never depreciated (PurchaseDate < period end).
+        if (dto.PurchaseDate.Date > DateTime.Today)
+            throw new ArgumentException("Ngày mua không được ở tương lai.");
         if (dto.DepreciationMethod != 1 && dto.DepreciationMethod != 2)
             throw new ArgumentException("Phương pháp khấu hao không hợp lệ.");
         var isUpdate = dto.Id.HasValue && dto.Id.Value != Guid.Empty;

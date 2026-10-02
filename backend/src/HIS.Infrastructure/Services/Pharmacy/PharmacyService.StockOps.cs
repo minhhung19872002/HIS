@@ -486,6 +486,11 @@ public partial class PharmacyService
     {
         if (fromWarehouseId == toWarehouseId)
             throw new InvalidOperationException("Kho gửi và kho nhận phải khác nhau");
+        // QA-R13: an unknown warehouse id (e.g. a medicine id) hit FK_WarehouseTransfers_Warehouses → 500.
+        var knownWarehouses = await _context.Warehouses.AsNoTracking()
+            .CountAsync(w => (w.Id == fromWarehouseId || w.Id == toWarehouseId) && !w.IsDeleted);
+        if (knownWarehouses != 2)
+            throw new InvalidOperationException("Kho gửi hoặc kho nhận không tồn tại");
 
         var transfer = new WarehouseTransfer
         {
@@ -505,6 +510,8 @@ public partial class PharmacyService
         {
             if (items.Any(i => i.Quantity <= 0))
                 throw new InvalidOperationException("Số lượng mỗi dòng thuốc phải lớn hơn 0");
+            if (items.Any(i => decimal.Round(i.Quantity, 2) != i.Quantity)) // QA-R13: decimal(18,2) storage
+                throw new InvalidOperationException("Số lượng tối đa 2 chữ số thập phân");
 
             // Resolve v1-legacy MedicationCode → MedicineId
             var codes = items.Where(i => !i.MedicineId.HasValue && !string.IsNullOrWhiteSpace(i.MedicationCode))
