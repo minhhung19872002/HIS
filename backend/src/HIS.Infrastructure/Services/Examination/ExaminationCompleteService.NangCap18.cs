@@ -115,11 +115,21 @@ public partial class ExaminationCompleteService
 
         // Check PracticeLicenses table for valid license matching doctor
         var now = DateTime.Now;
-        var license = await _context.PracticeLicenses
+        // QA-R14: a NULL doctor field compared with "==" matched every licence whose column is NULL (EF null
+        // semantics) — a doctor with no licence number and no employee code was reported "hợp lệ" with another
+        // person's CCHN (13 doctor licences have Cccd NULL) and passed the start-exam CCHN gate. Compare only
+        // non-empty values, and prefer the doctor's own licence code over a name/ID-number match.
+        var fullName = string.IsNullOrWhiteSpace(doctor.FullName) ? null : doctor.FullName;
+        var licenseNo = string.IsNullOrWhiteSpace(doctor.LicenseNumber) ? null : doctor.LicenseNumber;
+        var employeeCode = string.IsNullOrWhiteSpace(doctor.EmployeeCode) ? null : doctor.EmployeeCode;
+        var license = (fullName ?? licenseNo ?? employeeCode) == null ? null : await _context.PracticeLicenses
             .Where(l => !l.IsDeleted
-                && (l.HolderName == doctor.FullName || l.LicenseCode == doctor.LicenseNumber || l.Cccd == doctor.EmployeeCode)
+                && ((fullName != null && l.HolderName == fullName)
+                    || (licenseNo != null && l.LicenseCode == licenseNo)
+                    || (employeeCode != null && l.Cccd == employeeCode))
                 && l.LicenseType == "doctor")
-            .OrderByDescending(l => l.ExpiryDate)
+            .OrderByDescending(l => licenseNo != null && l.LicenseCode == licenseNo)
+            .ThenByDescending(l => l.ExpiryDate)
             .FirstOrDefaultAsync();
 
         // Also check User.LicenseNumber field directly
@@ -128,6 +138,37 @@ public partial class ExaminationCompleteService
             license = await _context.PracticeLicenses
                 .Where(l => !l.IsDeleted && l.LicenseCode == doctor.LicenseNumber)
                 .FirstOrDefaultAsync();
+        }
+
+        // QA-R14 (prod safety): doctors who only passed through the old NULL match must not be locked out of
+        // start-exam overnight — keep the legacy match as a FLAGGED fallback so admins can link the real CCHN.
+        var legacyMatch = false;
+        if (license == null)
+        {
+            license = await _context.PracticeLicenses
+                .Where(l => !l.IsDeleted
+                    && (l.HolderName == doctor.FullName || l.LicenseCode == doctor.LicenseNumber || l.Cccd == doctor.EmployeeCode)
+                    && l.LicenseType == "doctor")
+                .OrderByDescending(l => l.ExpiryDate)
+                .FirstOrDefaultAsync();
+            legacyMatch = license != null;
+        }
+
+        // Same safety net when the doctor's own licence row is expired/suspended but the old (lenient) match found a
+        // valid one — e.g. renewed under a new number while User.LicenseNumber still holds the old code.
+        if (license != null && !legacyMatch && (license.Status != 0 || (license.ExpiryDate.HasValue && license.ExpiryDate.Value < now)))
+        {
+            var legacy = await _context.PracticeLicenses
+                .Where(l => !l.IsDeleted
+                    && (l.HolderName == doctor.FullName || l.LicenseCode == doctor.LicenseNumber || l.Cccd == doctor.EmployeeCode)
+                    && l.LicenseType == "doctor")
+                .OrderByDescending(l => l.ExpiryDate)
+                .FirstOrDefaultAsync();
+            if (legacy != null && legacy.Status == 0 && (!legacy.ExpiryDate.HasValue || legacy.ExpiryDate.Value >= now))
+            {
+                license = legacy;
+                legacyMatch = true;
+            }
         }
 
         if (license == null)
@@ -181,7 +222,9 @@ public partial class ExaminationCompleteService
             LicenseNumber = license.LicenseCode,
             LicenseExpiry = license.ExpiryDate,
             LicenseStatus = "active",
-            Message = "Chứng chỉ hành nghề hợp lệ"
+            Message = legacyMatch
+                ? "CẢNH BÁO: chưa liên kết được CCHN của chính bác sĩ (đang khớp tạm theo dữ liệu thiếu) — cập nhật số CCHN trong hồ sơ người dùng."
+                : "Chứng chỉ hành nghề hợp lệ"
         };
     }
 

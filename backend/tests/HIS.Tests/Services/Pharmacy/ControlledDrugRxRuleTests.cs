@@ -20,6 +20,17 @@ public class ControlledDrugRxRuleTests
         => Assert.Equal(expected, ControlledDrugRxRule.ParseMode(value));
 
     [Fact]
+    public void QA_R14_ordinary_course_over_30_or_90_days_is_reported_controlled_lines_are_not()
+    {
+        Assert.Empty(ControlledDrugRxRule.OrdinaryDaysFindings(new[] { Normal("Amoxicillin", 30), Normal("X", null) }));
+        var f = ControlledDrugRxRule.OrdinaryDaysFindings(new[] { Normal("Amlodipin", 60), Normal("Metformin", 365), Narcotic("Morphin", 60) });
+        Assert.Equal(2, f.Count);
+        Assert.Contains("30 ngày", f[0]);
+        Assert.Contains("90 ngày", f[1]);
+        Assert.DoesNotContain(f, s => s.Contains("Morphin"));
+    }
+
+    [Fact]
     public void Ordinary_only_or_single_category_prescriptions_are_fine()
     {
         Assert.Null(ControlledDrugRxRule.MixFinding(new[] { Normal("Paracetamol"), Normal("Vitamin C") }));

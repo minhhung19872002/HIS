@@ -32,6 +32,30 @@ public class FreeTextAllergyMatchTests
             "Amoxicilin (dưới dạng Amoxicilin trihydrat); Acid Clavulanic (dưới dạng Kali clavulanat)"));
     }
 
+    // QA-R14: allergy recorded as a drug CLASS must match member drugs (free text and structured allergen name).
+    [Theory]
+    [InlineData("Dị ứng nhóm Penicillin (phát ban)", "Amoxicillin 500mg", "Amoxicillin")]
+    [InlineData("Dị ứng nhóm Penicillin", "Visulin 1g/0,5g", "Ampicilin + sulbactam")]
+    [InlineData("Dị ứng kháng sinh nhóm beta-lactam", "Gogo 200", "Cefixim")]
+    [InlineData("Dị ứng Cephalosporin", "Medivernol 1g", "Ceftriaxone (dưới dạng ceftriaxone sodium)")]
+    [InlineData("dị ứng sulfa", "Cotrimoxazol 480mg", "Sulfamethoxazol; Trimethoprim")]
+    [InlineData("Dị ứng beta lactam", "Meronem 1g", "Meropenem")]
+    public void Detects_drug_class_allergy(string note, string medicineName, string ingredient)
+    {
+        Assert.NotNull(PrescriptionSafetyGuard.FreeTextAllergyHit(note, medicineName, ingredient));
+        Assert.True(PrescriptionSafetyGuard.MentionsAllergen(medicineName, ingredient, note));
+    }
+
+    [Theory]
+    [InlineData("Dị ứng nhóm Penicillin", "Azithromycin 250mg", "Azithromycin")]
+    [InlineData("Dị ứng Cephalosporin", "Amoxicillin 500mg", "Amoxicillin")]   // no penicillin↔cephalosporin cross-block
+    [InlineData("dị ứng sulfa", "Magnesi sulfat 15%", "Magnesi sulfat")]
+    [InlineData("Dị ứng nhóm Penicillin", "Gentamicin 80mg", "Gentamicin")]
+    public void Drug_class_allergy_does_not_match_other_classes(string note, string medicineName, string ingredient)
+    {
+        Assert.Null(PrescriptionSafetyGuard.DrugClassAllergyHit(note, medicineName, ingredient));
+    }
+
     [Fact]
     public void Generic_salt_words_do_not_create_matches()
     {

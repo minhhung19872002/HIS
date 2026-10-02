@@ -162,6 +162,7 @@ public partial class ExaminationCompleteService
             dto.OverrideReason);
         await EnforceDoseRangeAsync(examination.MedicalRecord.PatientId, prescription.Details, dto.OverrideReason);
         var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, dto.OverrideReason); // QA-R12
+        controlledWarnings.AddRange(await DuplicateIngredientWarningsAsync(examination.MedicalRecord.PatientId, prescription)); // QA-R14
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -262,6 +263,7 @@ public partial class ExaminationCompleteService
             dto.OverrideReason);
         await EnforceDoseRangeAsync(updPatientId, prescription.Details, dto.OverrideReason);
         var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, dto.OverrideReason); // QA-R12
+        controlledWarnings.AddRange(await DuplicateIngredientWarningsAsync(updPatientId, prescription)); // QA-R14
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -334,6 +336,7 @@ public partial class ExaminationCompleteService
         await EnforceDoseRangeAsync(prescription.MedicalRecord.PatientId, prescription.Details, overrideReason);
         // QA-R12: a draft saved under Warn is re-checked here — Block mode refuses to issue it.
         var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, overrideReason);
+        controlledWarnings.AddRange(await DuplicateIngredientWarningsAsync(prescription.MedicalRecord.PatientId, prescription)); // QA-R14
         if (!string.IsNullOrWhiteSpace(overrideReason))
             prescription.Instructions =
                 $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {overrideReason}]".Trim();
@@ -705,6 +708,20 @@ public partial class ExaminationCompleteService
                 d.Medicine?.MedicineName ?? string.Empty, d.Medicine?.IsNarcotic == true,
                 d.Medicine?.IsPsychotropic == true, d.Medicine?.IsPrecursor == true, d.Days)).ToList(),
             checkDays: true, overrideReason);
+
+    /// <summary>QA-R14: duplicate active ingredient within the prescription / vs the patient's other prescriptions
+    /// of the last 24 h — warning only (see PrescriptionSafetyGuard). Details must carry their Medicine.</summary>
+    private async Task<List<string>> DuplicateIngredientWarningsAsync(Guid patientId, Prescription prescription)
+    {
+        var warnings = await PrescriptionSafetyGuard.FindDuplicateIngredientWarningsAsync(_context, patientId, prescription.Id,
+            prescription.ReplacesPrescriptionId,
+            prescription.Details.Select(d => (d.MedicineId, d.Medicine?.MedicineName ?? string.Empty, d.Medicine?.ActiveIngredient)).ToList());
+        // Ordinary-drug course length (> 30 / > 90 days) — warning only.
+        warnings.AddRange(HIS.Core.Common.ControlledDrugRxRule.OrdinaryDaysFindings(prescription.Details
+            .Select(d => new HIS.Core.Common.ControlledDrugRxRule.Line(d.Medicine?.MedicineName ?? string.Empty,
+                d.Medicine?.IsNarcotic == true, d.Medicine?.IsPsychotropic == true, d.Medicine?.IsPrecursor == true, d.Days)).ToList()));
+        return warnings;
+    }
 
     public async Task<List<PrescriptionWarningDto>> CheckContraindicationsAsync(Guid patientId, List<Guid> medicineIds)
     {

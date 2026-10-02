@@ -97,13 +97,120 @@ public static class PrescriptionSafetyGuard
         return blocks;
     }
 
+    /// <summary>
+    /// QA-R14: duplicate ACTIVE INGREDIENT (TT 52/2017/TT-BYT — không kê trùng hoạt chất) was never checked on save:
+    /// "Paracetamol 500mg" + "Efferalgan" on one prescription, or a second prescription of the same patient within
+    /// 24 h repeating an ingredient, went through silently (paracetamol overdose risk). WARNING only — never blocks.
+    /// Ingredients are compared by their distinctive keyword (see <see cref="DrugKeywords"/>, trade name excluded);
+    /// a line without an ingredient falls back to the medicine id. Also reports severe interactions (Severity ≥ 3)
+    /// with drugs on those other prescriptions.
+    /// </summary>
+    public static async Task<List<string>> FindDuplicateIngredientWarningsAsync(HISDbContext db, Guid patientId,
+        Guid prescriptionId, Guid? replacesPrescriptionId,
+        IReadOnlyCollection<(Guid MedicineId, string MedicineName, string? ActiveIngredient)> lines)
+    {
+        var warnings = new List<string>();
+        if (lines == null || lines.Count == 0) return warnings;
+        static IEnumerable<string> Keys((Guid MedicineId, string MedicineName, string? ActiveIngredient) l)
+        {
+            var k = DrugKeywords(string.Empty, l.ActiveIngredient).ToList();
+            return k.Count > 0 ? k : new List<string> { "id:" + l.MedicineId };
+        }
+
+        foreach (var g in lines.SelectMany(l => Keys(l).Select(k => (Key: k, Line: l))).GroupBy(x => x.Key))
+        {
+            if (g.Count() < 2) continue;
+            var label = g.Key.StartsWith("id:", StringComparison.Ordinal) ? g.First().Line.MedicineName : g.Key;
+            warnings.Add($"Trùng hoạt chất {label} trong cùng đơn: {string.Join(" + ", g.Select(x => x.Line.MedicineName))}"
+                         + " — kiểm tra tổng liều/ngày (TT 52/2017/TT-BYT).");
+        }
+
+        if (patientId == Guid.Empty) return warnings;
+        var since = DateTime.Now.AddHours(-24); // PrescriptionDate is written with DateTime.Now
+        var others = await db.Prescriptions.AsNoTracking()
+            .Where(p => !p.IsDeleted && p.Id != prescriptionId && p.Id != replacesPrescriptionId
+                        && p.MedicalRecord.PatientId == patientId && p.PrescriptionDate >= since
+                        && (p.Status == HIS.Core.Constants.PrescriptionStatus.PendingApproval
+                            || p.Status == HIS.Core.Constants.PrescriptionStatus.Approved
+                            || p.Status == HIS.Core.Constants.PrescriptionStatus.Dispensed
+                            || p.Status == HIS.Core.Constants.PrescriptionStatus.PartialDispensed))
+            .SelectMany(p => p.Details.Where(d => !d.IsDeleted).Select(d => new
+            {
+                p.PrescriptionCode, d.MedicineId, d.Medicine.MedicineName, d.Medicine.ActiveIngredient
+            }))
+            .Take(500)
+            .ToListAsync();
+        foreach (var l in lines)
+        {
+            var keys = Keys(l).ToHashSet(StringComparer.Ordinal);
+            var hit = others.FirstOrDefault(o => Keys((o.MedicineId, o.MedicineName, o.ActiveIngredient)).Any(keys.Contains));
+            if (hit != null)
+                warnings.Add($"{l.MedicineName}: trùng hoạt chất với {hit.MedicineName} trong đơn {hit.PrescriptionCode} đã kê"
+                             + " trong 24 giờ qua — tránh dùng trùng/quá liều.");
+        }
+
+        // A severe interaction split over two prescriptions (clarithromycin today, colchicine on a second
+        // prescription of the same visit) passed the per-prescription guard — surface it as a warning.
+        var newIds = lines.Select(l => l.MedicineId).Distinct().ToList();
+        var otherIds = others.Select(o => o.MedicineId).Distinct().ToList();
+        if (otherIds.Count > 0)
+        {
+            var severe = await db.DrugInteractions.AsNoTracking()
+                .Where(d => !d.IsDeleted && d.IsActive && d.Severity >= 3
+                            && ((newIds.Contains(d.Medicine1Id) && otherIds.Contains(d.Medicine2Id))
+                                || (newIds.Contains(d.Medicine2Id) && otherIds.Contains(d.Medicine1Id))))
+                .ToListAsync();
+            foreach (var it in severe)
+            {
+                var mine = lines.FirstOrDefault(l => l.MedicineId == it.Medicine1Id || l.MedicineId == it.Medicine2Id);
+                var other = others.FirstOrDefault(o => (o.MedicineId == it.Medicine1Id || o.MedicineId == it.Medicine2Id) && o.MedicineId != mine.MedicineId);
+                if (other == null) continue;
+                warnings.Add($"[Tương tác] {mine.MedicineName} + {other.MedicineName} (đơn {other.PrescriptionCode} trong 24 giờ qua): {it.Description}");
+            }
+        }
+        return warnings.Distinct().ToList();
+    }
+
     /// <summary>Allergen name matches the drug's trade name or any of its active ingredients (normalized).</summary>
     public static bool MentionsAllergen(string medicineName, string? activeIngredient, string allergenName)
     {
         var allergen = NormalizeDrugText(allergenName);
         if (allergen.Length < 3) return false;
         return NormalizeDrugText(medicineName).Contains(allergen, StringComparison.Ordinal)
-            || (activeIngredient != null && NormalizeDrugText(activeIngredient).Contains(allergen, StringComparison.Ordinal));
+            || (activeIngredient != null && NormalizeDrugText(activeIngredient).Contains(allergen, StringComparison.Ordinal))
+            || DrugClassAllergyHit(allergenName, medicineName, activeIngredient) != null;
+    }
+
+    /// <summary>
+    /// QA-R14: allergy recorded as a DRUG CLASS ("Dị ứng nhóm Penicillin", "beta-lactam", "Cephalosporin", "sulfa")
+    /// never matched a member drug — amoxicillin was issued to a patient with a documented penicillin allergy.
+    /// Returns the class label when a keyword of the drug belongs to a class named in the allergy text, else null.
+    /// Classes are recognised by the INN stem (normalized, doubled letters collapsed): penicillins "…cilin",
+    /// cephalosporins "cef…/ceph…", carbapenems "…penem", sulfonamides "sulfameth…/sulfadiaz…/cotrimox…".
+    /// </summary>
+    public static string? DrugClassAllergyHit(string? allergyText, string medicineName, string? activeIngredient)
+    {
+        if (string.IsNullOrWhiteSpace(allergyText)) return null;
+        var text = NormalizeDrugText(allergyText);
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var betaLactam = text.Contains("beta lactam", StringComparison.Ordinal) || words.Any(w => w.StartsWith("betalactam", StringComparison.Ordinal));
+        var penicillin = betaLactam || words.Any(w => w.StartsWith("penicil", StringComparison.Ordinal));
+        var cephalosporin = betaLactam || words.Any(w => w.StartsWith("cephalospor", StringComparison.Ordinal) || w.StartsWith("cefalospor", StringComparison.Ordinal));
+        var carbapenem = betaLactam || words.Any(w => w.StartsWith("carbapenem", StringComparison.Ordinal));
+        var sulfonamide = words.Any(w => w == "sulfa" || w.StartsWith("sulfonamid", StringComparison.Ordinal) || w.StartsWith("sulfamid", StringComparison.Ordinal));
+        if (!(penicillin || cephalosporin || carbapenem || sulfonamide)) return null;
+
+        foreach (var k in DrugKeywords(medicineName, activeIngredient))
+        {
+            if (penicillin && k.Contains("cilin", StringComparison.Ordinal)) return $"{k} (nhóm penicilin)";
+            if (cephalosporin && (k.StartsWith("cef", StringComparison.Ordinal) || k.StartsWith("ceph", StringComparison.Ordinal))) return $"{k} (nhóm cephalosporin)";
+            if (carbapenem && k.EndsWith("penem", StringComparison.Ordinal)) return $"{k} (nhóm carbapenem)";
+            if (sulfonamide && (k.StartsWith("sulfameth", StringComparison.Ordinal) || k.StartsWith("sulfadiaz", StringComparison.Ordinal)
+                                || k.StartsWith("sulfasalaz", StringComparison.Ordinal) || k.StartsWith("sulfadox", StringComparison.Ordinal)
+                                || k.StartsWith("cotrimox", StringComparison.Ordinal)))
+                return $"{k} (nhóm sulfonamid)";
+        }
+        return null;
     }
 
     private static readonly HashSet<string> NonSpecificWords = new(StringComparer.Ordinal)
@@ -146,7 +253,8 @@ public static class PrescriptionSafetyGuard
             .Where(w => w.Length >= 5 && !NonSpecificWords.Contains(w)).ToList();
         if (words.Count == 0) return null;
         return DrugKeywords(medicineName, activeIngredient)
-            .FirstOrDefault(k => words.Any(w => w.StartsWith(k, StringComparison.Ordinal) || k.StartsWith(w, StringComparison.Ordinal)));
+            .FirstOrDefault(k => words.Any(w => w.StartsWith(k, StringComparison.Ordinal) || k.StartsWith(w, StringComparison.Ordinal)))
+            ?? DrugClassAllergyHit(allergyText, medicineName, activeIngredient); // QA-R14: "dị ứng nhóm penicillin"
     }
 
     /// <summary>Lower-case, strip Vietnamese diacritics (đ→d), non-letters → space, collapse doubled letters

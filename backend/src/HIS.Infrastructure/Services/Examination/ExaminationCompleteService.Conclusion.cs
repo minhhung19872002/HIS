@@ -62,6 +62,7 @@ public partial class ExaminationCompleteService
         }
 
         EnsureFollowUpDateSane(dto.NextAppointmentDate, examination.FollowUpDate); // QA-R13
+        await EnsureIcdCodesKnownAsync(new[] { dto.FinalDiagnosisCode }, examination); // QA-R14
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
         examination.FollowUpDate = dto.NextAppointmentDate;
@@ -158,6 +159,7 @@ public partial class ExaminationCompleteService
         if (examination.Status == 5) throw new InvalidOperationException("Phiếu khám đã hủy, không thể sửa kết luận");
         if (examination.Status < 4) throw new InvalidOperationException("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
         EnsureFollowUpDateSane(dto.NextAppointmentDate, examination.FollowUpDate); // QA-R13
+        await EnsureIcdCodesKnownAsync(new[] { dto.FinalDiagnosisCode }, examination); // QA-R14
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
@@ -199,6 +201,16 @@ public partial class ExaminationCompleteService
         if (examination.Status == ExaminationStatus.Completed)
             throw new InvalidOperationException("Lượt khám đã có kết luận. Mở lại kết luận trước khi chuyển nhập viện.");
         EnsureCanConclude(examination);
+        // QA-R14: an admission request with no department, no reason and no diagnosis concluded the visit (the v2
+        // screen requires department + reason; the API did not). The admission desk then had nowhere to admit to.
+        if (dto.DepartmentId == Guid.Empty)
+            throw new ArgumentException("Chưa chọn khoa nhập viện.", nameof(dto.DepartmentId));
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new ArgumentException("Chưa nhập lý do nhập viện.", nameof(dto.Reason));
+        if (!dto.IsEmergency && string.IsNullOrWhiteSpace(dto.DiagnosisCode) && string.IsNullOrWhiteSpace(examination.MainIcdCode))
+            throw new InvalidOperationException("Chưa có chẩn đoán (ICD-10) — nhập chẩn đoán trước khi chỉ định nhập viện.");
+        if (!await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa nhập viện.");
 
         examination.ConclusionType = 3; // Hospitalization
         examination.ConclusionNote = dto.Reason;
@@ -230,6 +242,14 @@ public partial class ExaminationCompleteService
         if (examination.Status == ExaminationStatus.Completed)
             throw new InvalidOperationException("Lượt khám đã có kết luận. Mở lại kết luận trước khi chuyển viện.");
         EnsureCanConclude(examination);
+        // QA-R14: a referral with no destination, no reason and no diagnosis concluded the visit and printed an empty
+        // giấy chuyển tuyến (the v2 screen requires facility + reason; the API did not).
+        if (string.IsNullOrWhiteSpace(dto.FacilityName))
+            throw new ArgumentException("Chưa nhập cơ sở chuyển đến.", nameof(dto.FacilityName));
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new ArgumentException("Chưa nhập lý do chuyển viện.", nameof(dto.Reason));
+        if (string.IsNullOrWhiteSpace(dto.DiagnosisCode) && string.IsNullOrWhiteSpace(examination.MainIcdCode))
+            throw new InvalidOperationException("Chưa có chẩn đoán (ICD-10) — nhập chẩn đoán trước khi chuyển viện.");
 
         examination.ConclusionType = 4; // Transfer
         // Persist từng trường riêng thay vì gộp chuỗi vào ConclusionNote
@@ -546,6 +566,8 @@ public partial class ExaminationCompleteService
         };
     }
 
+    private const int MaxOutpatientSickLeaveDays = 30;
+
     private sealed record IssuedLeave(Guid Id, Guid ExaminationId, int Days, DateTime FromDate,
                                       DateTime ToDate, int? GestationalWeeks, string? Reason,
                                       string? DoctorName, DateTime IssuedAt);
@@ -582,6 +604,14 @@ public partial class ExaminationCompleteService
         if (days != span)
             throw new InvalidOperationException(
                 $"Số ngày nghỉ ({days}) không khớp khoảng {fromDate:dd/MM/yyyy}-{toDate:dd/MM/yyyy} ({span} ngày).");
+        // QA-R14: a 120-day outpatient sick-leave certificate was issued. TT 56/2017/TT-BYT (amended by TT 18/2022):
+        // outpatient sick leave is at most 30 days per certificate, and the certificate carries the diagnosis
+        // (it was issued with an empty diagnosis when the doctor had not entered one yet).
+        if (!isMaternity && days > MaxOutpatientSickLeaveDays)
+            throw new InvalidOperationException(
+                $"Giấy nghỉ ốm ngoại trú tối đa {MaxOutpatientSickLeaveDays} ngày cho một lần cấp (TT 56/2017/TT-BYT) — đang kê {days} ngày.");
+        if (string.IsNullOrWhiteSpace(examination.MainIcdCode))
+            throw new InvalidOperationException("Chưa có chẩn đoán chính (ICD-10) — nhập chẩn đoán trước khi cấp giấy nghỉ.");
 
         var loai = isMaternity ? "thai sản" : "ốm";
         var daCap = isMaternity
@@ -662,6 +692,13 @@ public partial class ExaminationCompleteService
                 .FirstOrDefaultAsync(e => e.Id == examinationId);
             if (examination == null) return Array.Empty<byte>();
 
+            // QA-R14 (print vs data): the form ignored the certificate actually issued (number, days, period) and
+            // printed "Số ngày nghỉ: ..." / "Đến ngày: ..." or a period derived from the follow-up date.
+            var issued = await _context.SickLeaves.AsNoTracking()
+                .Where(x => x.ExaminationId == examinationId && !x.IsDeleted)
+                .OrderByDescending(x => x.IssuedAt)
+                .FirstOrDefaultAsync();
+
             var patient = examination.MedicalRecord.Patient;
             var conclusionTypeText = examination.ConclusionType switch
             {
@@ -689,19 +726,20 @@ public partial class ExaminationCompleteService
                 patient.Address ?? "",
                 patient.Workplace ?? "",
                 patient.InsuranceNumber ?? "",
-                $"{examination.MainDiagnosis} ({examination.MainIcdCode})",
-                examination.MainIcdCode ?? "",
-                examination.FollowUpDate.HasValue
+                issued != null ? $"{issued.DiagnosisName} ({issued.DiagnosisCode})" : $"{examination.MainDiagnosis} ({examination.MainIcdCode})",
+                issued?.DiagnosisCode ?? examination.MainIcdCode ?? "",
+                issued != null ? issued.Days.ToString()
+                    : examination.FollowUpDate.HasValue
                     ? ((examination.FollowUpDate.Value - DateTime.Now).Days).ToString()
                     : "...",
-                DateTime.Now.ToString("dd/MM/yyyy"),
-                examination.FollowUpDate?.ToString("dd/MM/yyyy") ?? ".../.../......",
+                (issued?.FromDate ?? DateTime.Now).ToString("dd/MM/yyyy"),
+                issued?.ToDate.ToString("dd/MM/yyyy") ?? examination.FollowUpDate?.ToString("dd/MM/yyyy") ?? ".../.../......",
                 conclusionTypeText
             };
 
             var html = BuildVoucherReport(
                 "GIAY CHUNG NHAN NGHI OM",
-                $"GNO{DateTime.Now:yyyyMMdd}-{examinationId.ToString()[..8].ToUpper()}",
+                issued?.CertificateNumber ?? $"GNO{DateTime.Now:yyyyMMdd}-{examinationId.ToString()[..8].ToUpper()}",
                 DateTime.Now, labels, values, examination.Doctor?.FullName);
             return Encoding.UTF8.GetBytes(html);
         }

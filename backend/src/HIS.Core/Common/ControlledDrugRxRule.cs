@@ -63,4 +63,24 @@ public static class ControlledDrugRxRule
         }
         return findings;
     }
+
+    /// <summary>QA-R14: an ordinary outpatient course is at most 30 days (TT 52/2017/TT-BYT Điều 7, amended by
+    /// TT 04/2022/TT-BYT: up to 90 days only for chronic diseases on the Ministry's list). Lines over 365 days
+    /// were accepted silently. Warning findings only — the prescriber decides (chronic course).</summary>
+    public const int OrdinaryMaxDays = 30;
+    public const int ChronicMaxDays = 90;
+
+    public static List<string> OrdinaryDaysFindings(IReadOnlyCollection<Line> lines)
+    {
+        var findings = new List<string>();
+        if (lines == null) return findings;
+        foreach (var l in lines)
+        {
+            if (Category(l) != null || l.Days is not int days || days <= OrdinaryMaxDays) continue;
+            findings.Add(days > ChronicMaxDays
+                ? $"{l.MedicineName} kê {days} ngày > {ChronicMaxDays} ngày — vượt mức tối đa kể cả bệnh mạn tính (TT 52/2017, TT 04/2022/TT-BYT)."
+                : $"{l.MedicineName} kê {days} ngày > {OrdinaryMaxDays} ngày — chỉ bệnh mạn tính thuộc danh mục (TT 04/2022/TT-BYT) mới được kê tới {ChronicMaxDays} ngày.");
+        }
+        return findings;
+    }
 }

@@ -78,6 +78,7 @@ public partial class ExaminationCompleteService
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        await EnsureIcdCodesKnownAsync(new[] { dto.IcdCode }, examination); // QA-R14
 
         if (dto.IsPrimary)
         {
@@ -141,6 +142,7 @@ public partial class ExaminationCompleteService
             && (!string.IsNullOrWhiteSpace(examination.MainIcdCode) || !string.IsNullOrWhiteSpace(examination.SubIcdCodes));
         if (!looksUnloaded)
         {
+            await EnsureIcdCodesKnownAsync(secondaries.Select(d => d.IcdCode).Prepend(dto.PrimaryIcdCode), examination); // QA-R14
             // QA-R13: "   " was stored as the primary ICD — it passed the completion check (IsNullOrEmpty) and the
             // visit concluded with a blank diagnosis. Store trimmed codes, whitespace = none.
             examination.MainIcdCode = string.IsNullOrWhiteSpace(dto.PrimaryIcdCode) ? null : dto.PrimaryIcdCode.Trim();
@@ -153,6 +155,27 @@ public partial class ExaminationCompleteService
         await _unitOfWork.SaveChangesAsync();
 
         return await GetDiagnosesAsync(examinationId);
+    }
+
+    /// <summary>
+    /// QA-R14 (TT 46/2018 + BHYT XML: ICD-10 must be a catalog code): any string ("QA-R14X") was stored as the main
+    /// ICD and the visit concluded with it. Only NEW codes are checked (codes already on the exam pass unchanged, so
+    /// the 30 s auto-save never fails on an old record); the v2 picker only offers catalog codes. Inactive catalog
+    /// rows still count as known.
+    /// </summary>
+    private async Task EnsureIcdCodesKnownAsync(IEnumerable<string?> codes, Examination examination)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(examination.MainIcdCode)) existing.Add(examination.MainIcdCode.Trim());
+        foreach (var c in (examination.SubIcdCodes ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            existing.Add(c);
+        var toCheck = codes.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c!.Trim())
+            .Where(c => !existing.Contains(c)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (toCheck.Count == 0) return;
+        var known = await _context.IcdCodes.IgnoreQueryFilters().Where(i => toCheck.Contains(i.Code)).Select(i => i.Code).ToListAsync();
+        var unknown = toCheck.Where(c => !known.Contains(c, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (unknown.Count > 0)
+            throw new ArgumentException($"Mã ICD-10 không có trong danh mục: {string.Join(", ", unknown)}. Chọn mã từ danh mục ICD-10 (TT 46/2018/TT-BYT).", "IcdCode");
     }
 
     public async Task<DiagnosisFullDto> SetPrimaryDiagnosisAsync(Guid diagnosisId)

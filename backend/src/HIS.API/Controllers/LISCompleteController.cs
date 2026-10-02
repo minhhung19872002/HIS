@@ -513,7 +513,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ProcessCriticalValue([FromBody] ProcessCriticalValueDto dto)
         {
             // QA-R4: unknown alert id answered 200 — the caller believed the critical value was handled
-            if (!await _lisService.ProcessCriticalValueAsync(dto))
+            if (!await _lisService.ProcessCriticalValueAsync(dto, GetUserId()))
                 return NotFound(ApiResponse.Fail("Không tìm thấy cảnh báo giá trị nguy hiểm"));
             return Ok();
         }
@@ -541,7 +541,7 @@ namespace HIS.API.Controllers
             Guid alertId,
             [FromBody] AcknowledgeCriticalValueDto dto)
         {
-            if (!await _lisService.AcknowledgeCriticalValueAsync(alertId, dto))
+            if (!await _lisService.AcknowledgeCriticalValueAsync(alertId, dto, GetUserId()))
                 return NotFound(ApiResponse.Fail("Không tìm thấy cảnh báo giá trị nguy hiểm"));
             return Ok();
         }

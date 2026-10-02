@@ -362,6 +362,29 @@ public partial class InpatientCompleteService {
         if (dto.BedId.HasValue)
             await EnsureBedAvailableAsync(dto.BedId.Value, null, dto.DepartmentId);
 
+        // QA-R14: admission diagnosis/reason were stored empty when the admit form left them blank (the v2 form does
+        // not require them) although the OPD doctor had already recorded them on the admission request. Carry them
+        // over from the visit's hospitalization request / main ICD instead of admitting with no diagnosis.
+        if (string.IsNullOrWhiteSpace(dto.DiagnosisOnAdmission) || string.IsNullOrWhiteSpace(dto.ReasonForAdmission))
+        {
+            var opd = await _context.Examinations.AsNoTracking()
+                .Where(e => e.MedicalRecordId == medicalRecord.Id && !e.IsDeleted && e.Status != ExaminationStatus.Cancelled)
+                .OrderByDescending(e => e.ConclusionType == 3).ThenByDescending(e => e.EndTime ?? e.CreatedAt)
+                .Select(e => new { e.ConclusionType, e.ConclusionNote, e.HospitalizationDiagnosisCode, e.HospitalizationDiagnosisName, e.MainIcdCode, e.MainDiagnosis })
+                .FirstOrDefaultAsync();
+            if (opd != null)
+            {
+                if (string.IsNullOrWhiteSpace(dto.DiagnosisOnAdmission))
+                {
+                    var code = !string.IsNullOrWhiteSpace(opd.HospitalizationDiagnosisCode) ? opd.HospitalizationDiagnosisCode : opd.MainIcdCode;
+                    var name = !string.IsNullOrWhiteSpace(opd.HospitalizationDiagnosisCode) ? opd.HospitalizationDiagnosisName : opd.MainDiagnosis;
+                    if (!string.IsNullOrWhiteSpace(code)) dto.DiagnosisOnAdmission = $"{code} - {name}".Trim(' ', '-');
+                }
+                if (string.IsNullOrWhiteSpace(dto.ReasonForAdmission) && opd.ConclusionType == 3 && !string.IsNullOrWhiteSpace(opd.ConclusionNote))
+                    dto.ReasonForAdmission = opd.ConclusionNote;
+            }
+        }
+
         // Update medical record to IPD type
         medicalRecord.TreatmentType = 2; // Inpatient
         medicalRecord.DepartmentId = dto.DepartmentId;

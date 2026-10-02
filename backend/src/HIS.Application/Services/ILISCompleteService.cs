@@ -245,7 +245,7 @@ namespace HIS.Application.Services
         /// <summary>
         /// 7.3.11 Xử lý giá trị nguy hiểm (Critical Value)
         /// </summary>
-        Task<bool> ProcessCriticalValueAsync(ProcessCriticalValueDto dto);
+        Task<bool> ProcessCriticalValueAsync(ProcessCriticalValueDto dto, Guid? userId = null);
 
         /// <summary>
         /// Lấy danh sách cảnh báo giá trị nguy hiểm
@@ -255,7 +255,7 @@ namespace HIS.Application.Services
         /// <summary>
         /// Xác nhận đã thông báo giá trị nguy hiểm
         /// </summary>
-        Task<bool> AcknowledgeCriticalValueAsync(Guid alertId, AcknowledgeCriticalValueDto dto);
+        Task<bool> AcknowledgeCriticalValueAsync(Guid alertId, AcknowledgeCriticalValueDto dto, Guid? acknowledgedByUserId = null);
 
         /// <summary>
         /// Lấy lịch sử kết quả xét nghiệm của bệnh nhân

@@ -169,7 +169,15 @@ public partial class LISCompleteService {
             .Where(a => a.LabResultId == detailId && !a.IsAcknowledged && !a.IsDeleted
                         && (testCode == null || a.TestCode == testCode))
             .ToListAsync();
-        if (openAlerts.Count > 0) db.LabCriticalValueAlerts.RemoveRange(openAlerts);
+        // QA-R14: soft-delete instead of a hard DELETE — re-entering a normal value used to erase every trace that a
+        // critical value had been raised (and never acknowledged) for this patient.
+        foreach (var a in openAlerts)
+        {
+            a.IsDeleted = true;
+            a.Status = 3; // Resolved (superseded by re-entry)
+            a.Notes = string.IsNullOrWhiteSpace(a.Notes) ? "Thay thế do nhập lại kết quả" : a.Notes + " | Thay thế do nhập lại kết quả";
+            a.UpdatedAt = DateTime.Now;
+        }
     }
 
     /// <summary>Queues a critical-value alert when the evaluated flag is LL/HH (no-op otherwise).</summary>
@@ -223,6 +231,9 @@ public partial class LISCompleteService {
 
     public async Task<bool> ApproveLabResultAsync(ApproveLabResultDtoService dto)
     {
+        // QA-R14: two approvers at once both saw "not reviewed" and both approved (11/15 runs) — serialize per order.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{dto.OrderId:N}", "Phiếu xét nghiệm đang được duyệt ở nơi khác, vui lòng thử lại.");
         var selfApproval = await CheckSeparateApproverAsync(dto.OrderId, dto.ItemIds, dto.ApprovedByUserId); // QA-R12
         IQueryable<ServiceRequestDetail> detailQuery;
 
@@ -259,6 +270,7 @@ public partial class LISCompleteService {
         await AppendSelfApprovalNoteAsync(toApprove[0].ServiceRequestId, selfApproval);
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         _ = _notificationService.NotifyLabResultAsync(dto.OrderId, "Bác sĩ duyệt");
         return true;
@@ -314,6 +326,9 @@ public partial class LISCompleteService {
 
     public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote, Guid? approvedByUserId = null)
     {
+        // QA-R14: two approvers at once both saw "not reviewed" and both approved (11/15 runs) — serialize per order.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{orderId:N}", "Phiếu xét nghiệm đang được duyệt ở nơi khác, vui lòng thử lại.");
         var selfApproval = await CheckSeparateApproverAsync(orderId, null, approvedByUserId); // QA-R12
         var details = await _context.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
@@ -347,6 +362,7 @@ public partial class LISCompleteService {
         await AppendSelfApprovalNoteAsync(orderId, selfApproval);
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         _ = _notificationService.NotifyLabResultAsync(orderId, "Bác sĩ duyệt");
         return true;
@@ -354,6 +370,9 @@ public partial class LISCompleteService {
 
     public async Task<bool> CancelApprovalAsync(Guid orderId, string reason)
     {
+        // QA-R14: two approvers at once both saw "not reviewed" and both approved (11/15 runs) — serialize per order.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.ServiceRequest.{orderId:N}", "Phiếu xét nghiệm đang được duyệt ở nơi khác, vui lòng thử lại.");
         // QA-R4: same rules as the cancel chain — a reason is mandatory (audit trail), an unknown order is 404 and
         // an order with nothing approved is refused instead of a silent 200 that only appended a note.
         if (string.IsNullOrWhiteSpace(reason))
@@ -384,6 +403,7 @@ public partial class LISCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -475,12 +495,13 @@ public partial class LISCompleteService {
         }
     }
 
-    public async Task<bool> ProcessCriticalValueAsync(ProcessCriticalValueDto dto)
+    public async Task<bool> ProcessCriticalValueAsync(ProcessCriticalValueDto dto, Guid? userId = null)
     {
         try
         {
             var alert = await _context.Set<LabCriticalValueAlert>().FindAsync(dto.AlertId);
             if (alert == null) return false;
+            if (dto.Action == "Acknowledge") MarkCriticalAcknowledged(alert, userId); // QA-R14: who + no re-ack
 
             // QA-R4: who was notified / how / note used to be dropped — the only audit trail of a critical call
             if (!string.IsNullOrWhiteSpace(dto.NotifiedPerson)) alert.NotifiedPerson = dto.NotifiedPerson.Trim();
@@ -489,10 +510,8 @@ public partial class LISCompleteService {
             switch (dto.Action)
             {
                 case "Acknowledge":
-                    alert.IsAcknowledged = true;
-                    alert.AcknowledgedAt = DateTime.Now;
-                    alert.Status = 1;
-                    break;
+                    break; // handled above
+
                 case "Notify":
                     alert.NotificationTime ??= DateTime.Now;
                     break;
@@ -551,16 +570,32 @@ public partial class LISCompleteService {
         }
     }
 
-    public async Task<bool> AcknowledgeCriticalValueAsync(Guid alertId, AcknowledgeCriticalValueDto dto)
+    /// <summary>QA-R14 (critical-value audit, ISO 15189 / his-biz-laboratory R4): WHO acknowledged was never stored
+    /// (AcknowledgedBy / AcknowledgedByUserId always NULL → list showed no name), and a second acknowledge by another
+    /// user silently rewrote the first one's time and notes.</summary>
+    private void MarkCriticalAcknowledged(LabCriticalValueAlert alert, Guid? userId)
+    {
+        if (alert.IsAcknowledged)
+            throw new InvalidOperationException(
+                $"Cảnh báo giá trị nguy hiểm đã được xác nhận lúc {alert.AcknowledgedAt:dd/MM/yyyy HH:mm} — không xác nhận lại.");
+        alert.IsAcknowledged = true;
+        alert.AcknowledgedAt = DateTime.Now;
+        alert.Status = 1;
+        if (userId is Guid uid && uid != Guid.Empty)
+        {
+            alert.AcknowledgedBy = uid;
+            _context.Entry(alert).Property("AcknowledgedByUserId").CurrentValue = uid; // FK read by the alert list
+        }
+    }
+
+    public async Task<bool> AcknowledgeCriticalValueAsync(Guid alertId, AcknowledgeCriticalValueDto dto, Guid? acknowledgedByUserId = null)
     {
         try
         {
             var alert = await _context.Set<LabCriticalValueAlert>().FindAsync(alertId);
             if (alert == null) return false;
 
-            alert.IsAcknowledged = true;
-            alert.AcknowledgedAt = DateTime.Now;
-            alert.Status = 1;
+            MarkCriticalAcknowledged(alert, acknowledgedByUserId);
             // QA-R4: the acknowledgement body (who was told, how, when, note) was ignored entirely
             if (dto != null)
             {
