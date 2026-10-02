@@ -173,6 +173,9 @@ public partial class ReceptionCompleteService {
         }
 
         await _unitOfWork.SaveChangesAsync();
+        // QA-R14: BHYT split of the visit (as the exam screen's orders) — reception orders stayed 100% patient-paid on a BHYT
+        // record, so the cashier collected the fund's share too. No-op for fee records.
+        if (results.Count > 0) await ExamFeeAutoOrder.SplitAsync(_context, ctx.MedicalRecordId);
         return results;
     }
 
@@ -335,6 +338,9 @@ public partial class ReceptionCompleteService {
         }
 
         await _unitOfWork.SaveChangesAsync();
+        // QA-R14: BHYT split of the visit (as the exam screen's orders) — reception orders stayed 100% patient-paid on a BHYT
+        // record, so the cashier collected the fund's share too. No-op for fee records.
+        if (results.Count > 0) await ExamFeeAutoOrder.SplitAsync(_context, ctx.MedicalRecordId);
         return results;
     }
 

@@ -131,6 +131,7 @@ public class ReassignObjectService : IReassignObjectService
             r.PatientAmount = r.Details.Sum(d => d.PatientAmount);
             r.UpdatedAt = DateTime.UtcNow;
         }
+        await ResplitBhytAsync(items.Select(i => i.ServiceRequest.MedicalRecordId)); // QA-R14
 
         result.UpdatedCount = items.Count;
         result.NewTotal = items.Sum(i => i.PatientAmount);
@@ -420,6 +421,19 @@ public class ReassignObjectService : IReassignObjectService
         }).ToList();
     }
 
+    /// <summary>
+    /// QA-R14: the per-line rate above is Amount × card level — it ignores the BHYT price, TY_LE_TT, route and the visit's
+    /// 15%-of-lương-cơ-sở threshold, so the cashier billed a split the claim never carries (and the fund paid above the
+    /// BHYT price). Re-split the touched BHYT records like every order writer does (no-op for fee records, paid lines
+    /// never re-split). Staged on the tracked lines — the caller saves.
+    /// </summary>
+    private async Task ResplitBhytAsync(IEnumerable<Guid> medicalRecordIds)
+    {
+        var pricing = new BhytVisitPricing(_db);
+        foreach (var id in medicalRecordIds.Distinct().ToList())
+            await pricing.RecalculateAsync(id);
+    }
+
     private async Task ReassignMedicinesAsync(
         ReassignObjectRequestDto dto,
         List<Guid> recordIds,
@@ -486,6 +500,9 @@ public class ReassignObjectService : IReassignObjectService
             p.PatientAmount = p.Details.Sum(d => d.PatientAmount);
             p.UpdatedAt = DateTime.UtcNow;
         }
+        // QA-R14: the F3.4 full-coverage (thuốc đặc trị 100%) override is kept as set above.
+        if (!isFullCoverage)
+            await ResplitBhytAsync(items.Select(i => i.Prescription.MedicalRecordId));
 
         result.UpdatedCount = items.Count;
         result.NewTotal = items.Sum(i => i.PatientAmount);

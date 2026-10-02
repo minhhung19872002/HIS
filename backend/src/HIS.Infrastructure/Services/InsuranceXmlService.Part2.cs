@@ -31,6 +31,10 @@ public partial class InsuranceXmlService
             var bedCost = details.Where(d => d.ItemType == 4).Sum(d => d.Amount);
             var totalBhyt = details.Sum(d => d.InsuranceAmount);
             var totalCopay = details.Sum(d => d.PatientAmount);
+            // QA-R14: a claim built by BhytClaimBuilder carries its own split (TotalAmount = BHYT + co-pay + XML4). A legit 0
+            // (100% card, no price difference) fell back to Σ line PatientAmount, which includes the out-of-list medicines
+            // already in T_NGUOI_BENH → T_TONGCHI counted them twice. Fall back only for legacy claims without totals.
+            var hasTotals = c.TotalAmount > 0;
 
             // Treatment days = discharge date − admission date + 1, by CALENDAR day (TT 22/2023/TT-BYT,
             // previously TT 39/2018). Was the truncated hour difference: admitted 20/02 08:00,
@@ -62,8 +66,8 @@ public partial class InsuranceXmlService
                 MaPhong = c.Department?.DepartmentCode ?? "", // Room code from exam room if available
                 TienKham = Math.Round(examCost, 2),
                 TienGiuong = Math.Round(bedCost, 2),
-                TienBhyt = Math.Round(c.InsuranceAmount > 0 ? c.InsuranceAmount : totalBhyt, 2),
-                TienBnCct = Math.Round(c.PatientAmount > 0 ? c.PatientAmount : totalCopay, 2),
+                TienBhyt = Math.Round(hasTotals ? c.InsuranceAmount : totalBhyt, 2),
+                TienBnCct = Math.Round(hasTotals ? c.PatientAmount : totalCopay, 2),
                 TienNguoibenh = Math.Round(c.OutOfPocketAmount, 2),
                 TienTuphitru = 0,
                 TienNgoaitruth = 0,
@@ -111,7 +115,8 @@ public partial class InsuranceXmlService
                     TienBhyt = Math.Round(detail.InsuranceAmount, 2),
                     TienBnCct = Math.Round(detail.PatientAmount, 2),
                     TienNguoiBenh = 0,
-                    MucHuong = claim.InsurancePaymentRate > 0 ? (int)claim.InsurancePaymentRate : 80
+                    // QA-R14: a built claim's rate may legitimately be 0 (trái tuyến ngoại trú) — 80 only for legacy claims.
+                    MucHuong = claim.InsurancePaymentRate > 0 || claim.TotalAmount > 0 ? (int)claim.InsurancePaymentRate : 80
                 });
             }
         }
@@ -156,7 +161,8 @@ public partial class InsuranceXmlService
                     TienBhyt = Math.Round(detail.InsuranceAmount, 2),
                     TienBnCct = Math.Round(detail.PatientAmount, 2),
                     TienNguoiBenh = 0,
-                    MucHuong = claim.InsurancePaymentRate > 0 ? (int)claim.InsurancePaymentRate : 80
+                    // QA-R14: a built claim's rate may legitimately be 0 (trái tuyến ngoại trú) — 80 only for legacy claims.
+                    MucHuong = claim.InsurancePaymentRate > 0 || claim.TotalAmount > 0 ? (int)claim.InsurancePaymentRate : 80
                 });
             }
         }

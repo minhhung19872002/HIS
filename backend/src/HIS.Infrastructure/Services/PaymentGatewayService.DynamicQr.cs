@@ -55,8 +55,9 @@ public partial class PaymentGatewayService
                     throw new InvalidOperationException("Phiếu chỉ định đã thanh toán");
                 if (sr.Status == 4)
                     throw new InvalidOperationException("Phiếu chỉ định đã hủy");
-                amount = sr.PatientAmount > 0 ? sr.PatientAmount
-                    : (sr.TotalAmount > 0 ? sr.TotalAmount : sr.TotalPrice);
+                // QA-R14: a BHYT order covered 100% (PatientAmount 0, InsuranceAmount > 0) fell back to the full price — the
+                // patient paid what the fund pays. Same patient-share rule as the invoice ledger.
+                amount = InvoiceLedger.PatientShare(sr.TotalAmount > 0 ? sr.TotalAmount : sr.TotalPrice, sr.InsuranceAmount, sr.PatientAmount);
                 if (amount <= 0)
                     throw new InvalidOperationException("Phiếu chỉ định không có khoản bệnh nhân phải trả");
                 patientId = sr.MedicalRecord.PatientId;
@@ -74,7 +75,7 @@ public partial class PaymentGatewayService
                 if (p.Status == 4)
                     throw new InvalidOperationException("Đơn thuốc đã hủy");
                 await EnsureNoPaidTxnAsync(refType, dto.ReferenceId, "Đơn thuốc đã có giao dịch QR thanh toán thành công");
-                amount = p.PatientAmount > 0 ? p.PatientAmount : p.TotalAmount;
+                amount = InvoiceLedger.PatientShare(p.TotalAmount, p.InsuranceAmount, p.PatientAmount); // QA-R14: see above
                 if (amount <= 0)
                     throw new InvalidOperationException("Đơn thuốc không có khoản bệnh nhân phải trả");
                 patientId = p.MedicalRecord.PatientId;

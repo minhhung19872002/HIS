@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Common;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
@@ -112,20 +113,27 @@ public static class InvoiceLedger
     /// <summary>Off (default): bed nights after the BHYT card expired stay BHYT-covered, the cashier sees the amount.
     /// On: BhytVisitPricing splits the bed line at the card expiry date.</summary>
     public const string SplitBedDaysAtCardExpiryKey = "Billing.SplitBedDaysAtCardExpiry";
+    /// <summary>QA-R14: Off (default, also when the row is missing) = BHYT service/medicine lines are billed with the split
+    /// stored on the order (InsuranceAmount/PatientAmount) + a cashier warning when it differs from the claim. On: UNPAID
+    /// lines of an insured BHYT record are billed with the split the claim will carry (<see cref="BhytVisitPricing"/>: card
+    /// level × route for the whole visit, 15% lương cơ sở threshold, BHYT price, TY_LE_TT). Paid lines are never re-priced.</summary>
+    public const string LedgerUsesVisitPricingKey = "Billing.LedgerUsesVisitPricing";
 
-    public sealed record BillingSwitches(bool BillDispensedQuantity, bool BillCabinetIssues, bool SplitBedDaysAtCardExpiry);
+    public sealed record BillingSwitches(bool BillDispensedQuantity, bool BillCabinetIssues, bool SplitBedDaysAtCardExpiry,
+        bool LedgerUsesVisitPricing = false);
 
     /// <summary>Reads the QA-R12 switches in one query. On = "On"/"true"/"1", Off = "Off"/"false"/"0", else the default.</summary>
     public static async Task<BillingSwitches> SwitchesAsync(HISDbContext db)
     {
         var rows = await db.SystemConfigs.AsNoTracking()
             .Where(c => (c.ConfigKey == BillDispensedQuantityKey || c.ConfigKey == BillCabinetIssuesKey
-                         || c.ConfigKey == SplitBedDaysAtCardExpiryKey) && c.IsActive && !c.IsDeleted)
+                         || c.ConfigKey == SplitBedDaysAtCardExpiryKey || c.ConfigKey == LedgerUsesVisitPricingKey)
+                        && c.IsActive && !c.IsDeleted)
             .Select(c => new { c.ConfigKey, c.ConfigValue })
             .ToListAsync();
         bool Read(string key, bool whenMissing) => ParseSwitch(rows.FirstOrDefault(r => r.ConfigKey == key)?.ConfigValue, whenMissing);
         return new BillingSwitches(Read(BillDispensedQuantityKey, false), Read(BillCabinetIssuesKey, false),
-            Read(SplitBedDaysAtCardExpiryKey, false));
+            Read(SplitBedDaysAtCardExpiryKey, false), Read(LedgerUsesVisitPricingKey, false));
     }
 
     /// <summary>"On"/"true"/"1"/"yes" → true, "Off"/"false"/"0"/"no" → false, anything else → <paramref name="whenMissing"/>.</summary>
@@ -135,6 +143,43 @@ public static class InvoiceLedger
         "off" or "false" or "0" or "no" => false,
         _ => whenMissing,
     };
+
+    /// <summary>
+    /// QA-R14: split of one service/medicine line. <paramref name="priced"/> = the claim's split of the same line
+    /// (<see cref="BhytVisitPricing"/>); it is used only when <paramref name="usePriced"/> (switch On, line unpaid) —
+    /// capped at the ledger amount. Otherwise the split stored on the order.
+    /// </summary>
+    public static (decimal Insurance, decimal Patient, decimal Rate) LineSplit(decimal amount, decimal storedInsurance,
+        decimal storedPatient, decimal storedRate, BhytLineResult? priced, bool usePriced)
+    {
+        if (!usePriced || priced == null)
+            return (storedInsurance, PatientShare(amount, storedInsurance, storedPatient), storedRate);
+        var insurance = Math.Clamp(priced.InsuranceAmount, 0, Math.Max(0, amount));
+        return (insurance, amount - insurance, priced.AppliedPercent);
+    }
+
+    /// <summary>
+    /// QA-R14: cashier warnings when the patient share billed on BHYT lines differs from the claim (BhytVisitPricing).
+    /// <paramref name="lines"/> = (patient share billed, patient share per claim, line already paid). Empty when they agree.
+    /// </summary>
+    public static List<string> ClaimDifferenceWarnings(IEnumerable<(decimal Billed, decimal Claim, bool Paid)> lines, int effectivePercent)
+    {
+        var list = lines.ToList();
+        var result = new List<string>();
+        var unpaidBilled = list.Where(l => !l.Paid).Sum(l => l.Billed);
+        var unpaidClaim = list.Where(l => !l.Paid).Sum(l => l.Claim);
+        if (Math.Abs(unpaidBilled - unpaidClaim) >= 1)
+            result.Add($"Phần người bệnh trả các dòng BHYT chưa thu đang tính theo tỷ lệ lúc chỉ định: {Money(unpaidBilled)} — theo hồ sơ "
+                       + $"giám định BHYT (mức hưởng {effectivePercent}% cả lượt khám, ngưỡng 15% lương cơ sở, giá BHYT) là {Money(unpaidClaim)} "
+                       + $"(chênh {Money(unpaidBilled - unpaidClaim)}). Bật cấu hình {LedgerUsesVisitPricingKey} để thu theo hồ sơ giám định.");
+        var paidBilled = list.Where(l => l.Paid).Sum(l => l.Billed);
+        var paidClaim = list.Where(l => l.Paid).Sum(l => l.Claim);
+        if (Math.Abs(paidBilled - paidClaim) >= 1)
+            result.Add($"Các dòng BHYT đã thu: người bệnh đã trả {Money(paidBilled)}, hồ sơ giám định BHYT tính phần người bệnh "
+                       + $"{Money(paidClaim)} (chênh {Money(paidBilled - paidClaim)}) — quỹ BHYT thanh toán theo hồ sơ giám định, "
+                       + "phần chênh không tự thu thêm / hoàn lại.");
+        return result;
+    }
 
     /// <summary>
     /// QA-R12: quantity of a medicine line the patient is billed for. Before the line is issued from stock the
@@ -237,6 +282,35 @@ public static class InvoiceLedger
             .Select(m => new { m.PatientId, m.PatientType, m.TreatmentType })
             .FirstOrDefaultAsync();
 
+        // QA-R14: the split the BHYT claim will carry for each line (BhytVisitPricing, same as BhytClaimBuilder) — compared
+        // with the stored split for a cashier warning and, with Billing.LedgerUsesVisitPricing = On, billed on unpaid lines.
+        BhytPricedVisit? bhytVisit = null;
+        if (record?.PatientType == 1)
+        {
+            try { bhytVisit = await new BhytVisitPricing(db).PriceAsync(medicalRecordId, includeBeds: true); }
+            catch (Exception) when (!sw.LedgerUsesVisitPricing)
+            {
+                // Switch Off = comparison/warning only: a pricing fault must not take the cashier ledger down.
+                bhytVisit = null;
+            }
+        }
+        var claimSplit = new Dictionary<Guid, BhytLineResult>();
+        if (bhytVisit is { IsInsured: true })
+            foreach (var pl in bhytVisit.Lines)
+            {
+                var key = pl.Srd?.Id ?? pl.Pd?.Id ?? pl.Sr?.Id; // detail / prescription line / header-only request
+                if (key != null && pl.Result != null) claimSplit[key.Value] = pl.Result;
+            }
+        var claimCompare = new List<(decimal Billed, decimal Claim, bool Paid)>();
+        (decimal Insurance, decimal Patient, decimal Rate) Split(Guid lineId, decimal amount, decimal ins, decimal pat, decimal rate, bool paid)
+        {
+            claimSplit.TryGetValue(lineId, out var priced);
+            var split = LineSplit(amount, ins, pat, rate, priced, sw.LedgerUsesVisitPricing && !paid);
+            if (priced != null)
+                claimCompare.Add((split.Patient, amount - Math.Clamp(priced.InsuranceAmount, 0, Math.Max(0, amount)), paid));
+            return split;
+        }
+
         var allocated = await db.ReceiptDetails.AsNoTracking()
             .Where(rd => !rd.IsDeleted && rd.Receipt.Status == 1 && !rd.Receipt.IsDeleted
                          && rd.Receipt.ReceiptType == 2 && rd.Receipt.MedicalRecordId == medicalRecordId)
@@ -274,14 +348,15 @@ public static class InvoiceLedger
                     var paidHere = paidSrd.Contains(d.Id);
                     if (r.IsPaid && !paidHere) continue; // paid outside the ledger (QR/kiosk)
                     var amount = d.Amount != 0 ? d.Amount : d.Quantity * d.UnitPrice;
+                    var split = Split(d.Id, amount, d.InsuranceAmount, d.PatientAmount, d.InsurancePaymentRate, paidHere); // QA-R14
                     set.Services.Add(new ChargeLine
                     {
                         ItemType = ItemService, Id = d.Id, ParentId = r.Id, ItemRefId = d.ServiceId,
                         Code = d.Service?.ServiceCode ?? string.Empty, Name = d.Service?.ServiceName ?? string.Empty,
                         Quantity = d.Quantity, UnitPrice = d.UnitPrice, Amount = amount,
-                        InsuranceAmount = d.InsuranceAmount,
-                        PatientAmount = PatientShare(amount, d.InsuranceAmount, d.PatientAmount),
-                        InsuranceRate = d.InsurancePaymentRate, PaymentObject = d.PatientType,
+                        InsuranceAmount = split.Insurance,
+                        PatientAmount = split.Patient,
+                        InsuranceRate = split.Rate, PaymentObject = d.PatientType,
                         IsPaid = paidHere,
                         OrderDepartmentId = r.DepartmentId, OrderDepartmentName = r.Department?.DepartmentName,
                         ExecuteDepartmentId = r.ExecuteDepartmentId, ExecuteDepartmentName = r.ExecuteDepartment?.DepartmentName,
@@ -294,13 +369,15 @@ public static class InvoiceLedger
                 var paidHere = paidHeader.Contains(r.Id);
                 if (r.IsPaid && !paidHere) continue;
                 var amount = r.TotalAmount != 0 ? r.TotalAmount : (r.TotalPrice != 0 ? r.TotalPrice : r.Quantity * r.UnitPrice);
+                var split = Split(r.Id, amount, r.InsuranceAmount, r.PatientAmount, 0, paidHere); // QA-R14
                 set.Services.Add(new ChargeLine
                 {
                     ItemType = ItemService, Id = r.Id, ParentId = r.Id, IsHeaderOnly = true, ItemRefId = r.ServiceId ?? Guid.Empty,
                     Code = r.Service?.ServiceCode ?? string.Empty, Name = r.Service?.ServiceName ?? string.Empty,
                     Quantity = r.Quantity, UnitPrice = r.UnitPrice, Amount = amount,
-                    InsuranceAmount = r.InsuranceAmount,
-                    PatientAmount = PatientShare(amount, r.InsuranceAmount, r.PatientAmount),
+                    InsuranceAmount = split.Insurance,
+                    PatientAmount = split.Patient,
+                    InsuranceRate = split.Rate,
                     IsPaid = paidHere,
                     OrderDepartmentId = r.DepartmentId, OrderDepartmentName = r.Department?.DepartmentName,
                     ExecuteDepartmentId = r.ExecuteDepartmentId, ExecuteDepartmentName = r.ExecuteDepartment?.DepartmentName,
@@ -337,15 +414,16 @@ public static class InvoiceLedger
                 var paidHere = paidPd.Contains(d.Id);
                 if (p.IsPaid && !paidHere) continue; // paid outside the ledger (prescription QR)
                 var amount = d.Amount != 0 ? d.Amount : d.Quantity * d.UnitPrice;
+                var split = Split(d.Id, amount, d.InsuranceAmount, d.PatientAmount, d.InsurancePaymentRate, paidHere); // QA-R14
                 var line = new ChargeLine
                 {
                     ItemType = ItemMedicine, Id = d.Id, ParentId = p.Id, ItemRefId = d.MedicineId,
                     Code = d.Medicine?.MedicineCode ?? string.Empty, Name = d.Medicine?.MedicineName ?? string.Empty,
                     ActiveIngredient = d.Medicine?.ActiveIngredient, Unit = d.Unit ?? d.Medicine?.Unit,
                     Quantity = d.Quantity, UnitPrice = d.UnitPrice, Amount = amount,
-                    InsuranceAmount = d.InsuranceAmount,
-                    PatientAmount = PatientShare(amount, d.InsuranceAmount, d.PatientAmount),
-                    InsuranceRate = d.InsurancePaymentRate, PaymentObject = d.PatientType,
+                    InsuranceAmount = split.Insurance,
+                    PatientAmount = split.Patient,
+                    InsuranceRate = split.Rate, PaymentObject = d.PatientType,
                     IsPaid = paidHere,
                     OrderDepartmentId = p.DepartmentId,
                     OrderedAt = p.PrescriptionDate, ExecutedAt = p.DispensedAt,
@@ -382,6 +460,8 @@ public static class InvoiceLedger
                 set.Medicines.Add(line);
             }
         }
+        if (bhytVisit is { IsInsured: true }) // QA-R14
+            set.Warnings.AddRange(ClaimDifferenceWarnings(claimCompare, bhytVisit.Result.EffectivePercent));
 
         // ── Ward-cabinet issues (ExportType 12) — QA-R12 ────────────────────────────
         var cabinet = await db.ExportReceiptDetails.AsNoTracking()
@@ -509,7 +589,7 @@ public static class InvoiceLedger
             if (set.Beds.Count > 0
                 && await db.MedicalRecords.AnyAsync(m => m.Id == medicalRecordId && m.PatientType == 1))
             {
-                var visit = await new BhytVisitPricing(db).PriceAsync(medicalRecordId, includeBeds: true);
+                var visit = bhytVisit ?? await new BhytVisitPricing(db).PriceAsync(medicalRecordId, includeBeds: true);
                 var bhytBeds = visit?.Lines.Where(l => l.ItemType == ItemBed && l.Result != null).ToList() ?? new();
                 var expiry = visit?.CardExpireDate?.Date;
                 decimal lateInsurance = 0; var lateNights = 0;
@@ -755,6 +835,10 @@ public static class InvoiceLedger
     /// </summary>
     public static async Task<ChargeSet> RefreshAsync(HISDbContext db, InvoiceSummary invoice, Guid? excludeReceiptId = null)
     {
+        // QA-R14 (Billing.LedgerUsesVisitPricing = On): store on the unpaid order lines the split the ledger now bills, so
+        // receipts, refunds and the stored lines agree. Staged on tracked entities — the caller saves with the invoice.
+        if (invoice.Status != 2 && (await SwitchesAsync(db)).LedgerUsesVisitPricing)
+            await new BhytVisitPricing(db).RecalculateAsync(invoice.MedicalRecordId, includeBeds: true);
         var set = await LoadAsync(db, invoice.MedicalRecordId);
         if (invoice.Status == 2) return set;
 
