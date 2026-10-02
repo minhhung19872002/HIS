@@ -184,39 +184,34 @@ public partial class PaymentGatewayService : IPaymentGatewayService
             var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == txn.PatientId);
             if (patient == null) return;
 
-            // Sinh mã HĐĐT chuẩn theo pattern nhà cung cấp (VNInvoice/Misa)
-            var year = DateTime.Now.Year.ToString("yy");
-            var lastInvoice = await _db.ElectronicInvoices
-                .Where(i => i.InvoiceSeries.StartsWith(year))
-                .OrderByDescending(i => i.InvoiceNumber)
-                .FirstOrDefaultAsync();
-            var nextNo = 1;
-            if (lastInvoice != null && int.TryParse(lastInvoice.InvoiceNumber, out var n)) nextNo = n + 1;
+            // QA-R13: this used to write an ISSUED (Status 1) e-invoice with a made-up provider id / lookup code
+            // ("AUTO-<txnRef>"), 8% VAT carved out of a VAT-exempt medical payment (35.000đ → 32.407 + 2.593 VAT) and
+            // series "yyHIS" (int.ToString("yy") is the literal "yy"). Round 11 rule: no fake numbers, medical services
+            // are VAT-exempt, real issuance goes through Export with a configured provider. Write a DRAFT instead,
+            // numbered like BillingCompleteService, and never a second live one for the same bảng kê.
+            if (txn.InvoiceSummaryId.HasValue && await _db.ElectronicInvoices.AnyAsync(e =>
+                    e.InvoiceSummaryId == txn.InvoiceSummaryId && !e.IsDeleted && e.Status != 3 && e.Status != 4))
+                return;
+            await SqlAppLock.AcquireAsync(_db, "einvoice-number", "Đang phát hành hóa đơn khác, vui lòng thử lại.");
+            var today = DateTime.Now.Date;
+            var countToday = await _db.ElectronicInvoices
+                .CountAsync(e => e.InvoiceDate >= today && e.InvoiceDate < today.AddDays(1));
+            countToday += _db.ChangeTracker.Entries<ElectronicInvoice>().Count(e => e.State == EntityState.Added);
 
-            // Items JSON: 1 dòng tổng hợp (có thể bổ sung chi tiết từ InvoiceSummary sau)
             var itemsJson = System.Text.Json.JsonSerializer.Serialize(new[]
             {
-                new
-                {
-                    name = txn.OrderInfo,
-                    unit = "Lượt",
-                    qty = 1,
-                    price = (double)(txn.Amount / 1.08m),
-                    amount = (double)(txn.Amount / 1.08m),
-                    vatRate = 8,
-                    vatAmount = (double)(txn.Amount - txn.Amount / 1.08m),
-                }
+                new { name = txn.OrderInfo ?? "Dịch vụ y tế", unit = "Lượt", qty = 1, price = txn.Amount, amount = txn.Amount }
             });
 
-            var vatRate = 8m;
-            var subTotal = Math.Round(txn.Amount / (1 + vatRate / 100), 0);
-            var vatAmount = txn.Amount - subTotal;
+            var vatRate = 0m;
+            var subTotal = txn.Amount;
+            var vatAmount = 0m;
 
             var eInvoice = new ElectronicInvoice
             {
                 Id = Guid.NewGuid(),
-                InvoiceSeries = $"{year}HIS",
-                InvoiceNumber = nextNo.ToString("D7"),
+                InvoiceSeries = $"1C{DateTime.Now:yy}TAA",
+                InvoiceNumber = $"HDDT-{today:yyyyMMdd}-{countToday + 1:D4}",
                 InvoiceDate = DateTime.Now,
                 InvoiceSummaryId = txn.InvoiceSummaryId,
                 PatientId = txn.PatientId,
@@ -231,16 +226,13 @@ public partial class PaymentGatewayService : IPaymentGatewayService
                 TotalAmount = txn.Amount,
                 DiscountAmount = 0,
                 ItemsJson = itemsJson,
-                Status = 1, // Issued
-                ProviderName = "HIS-Auto",
-                ProviderInvoiceId = $"AUTO-{txn.TxnRef}",
-                LookupCode = txn.TxnRef[^8..].ToUpper(),
-                LookupUrl = $"/tra-cuu-hddt/{txn.TxnRef}",
+                Status = 0, // Draft — issued for real only by Export through a configured provider
+                ProviderName = "VNInvoice",
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = txn.CreatedBy
             };
             _db.ElectronicInvoices.Add(eInvoice);
-            _logger.LogInformation("Auto-issued e-invoice {Series}-{No} for txn {TxnRef}",
+            _logger.LogInformation("Auto-drafted e-invoice {Series}-{No} for txn {TxnRef}",
                 eInvoice.InvoiceSeries, eInvoice.InvoiceNumber, txn.TxnRef);
         }
         catch (Exception ex)

@@ -86,6 +86,9 @@ public partial class PaymentGatewayService
 
     public async Task<PaymentTransactionDto> RefundAsync(PaymentRefundDto dto, Guid userId)
     {
+        await using var tx = await SqlAppLock.BeginAsync(_db);
+        await SqlAppLock.AcquireAsync(_db, $"HIS.Payment.Confirm.{dto.TransactionId:N}",
+            "Giao dịch này đang được xử lý ở quầy khác, vui lòng tải lại.");
         var txn = await _db.PaymentTransactions.FirstOrDefaultAsync(t => t.Id == dto.TransactionId);
         if (txn == null) throw new KeyNotFoundException("Giao dịch không tồn tại");
         if (txn.Status != 1) throw new InvalidOperationException("Chỉ có thể hoàn tiền giao dịch đã thành công");
@@ -105,7 +108,51 @@ public partial class PaymentGatewayService
         if (txn.RefundedAmount >= txn.Amount)
             txn.Status = 3;
 
+        // QA-R13: the refund only touched the transaction — its payment receipt stayed collected, so the cashier
+        // report, daily revenue, dashboard and the invoice still counted the money (measured: 35.000đ QR refunded,
+        // still in today's 91.400đ net revenue). Book the money going out as a paid-out refund slip of that receipt
+        // (same shape as BillingComplete refunds: ReceiptType 3, RefundStatus.Paid, OriginalPaymentId).
+        if (txn.ReceiptId.HasValue)
+        {
+            var original = await _db.Receipts.AsNoTracking().FirstOrDefaultAsync(r => r.Id == txn.ReceiptId.Value);
+            if (original != null)
+            {
+                var now = DateTime.Now;
+                _db.Receipts.Add(new Receipt
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptCode = $"HT{now:yyyyMMddHHmmssfff}{txn.TxnRef[^3..]}",
+                    ReceiptDate = now,
+                    PatientId = original.PatientId,
+                    MedicalRecordId = original.MedicalRecordId,
+                    ReceiptType = 3,
+                    PaymentMethod = original.PaymentMethod,
+                    Amount = refundAmount,
+                    Discount = 0,
+                    FinalAmount = refundAmount,
+                    Status = HIS.Core.Constants.RefundStatus.Paid,
+                    CashierId = userId,
+                    OriginalPaymentId = original.Id,
+                    RefundApprovedBy = userId,
+                    RefundApprovedAt = now,
+                    Note = $"Hoàn tiền giao dịch {txn.Provider.ToUpper()} {txn.TxnRef}: {dto.Reason}",
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString(),
+                });
+                // Whole payment returned → the lines it paid are unpaid again; the record's invoice is recomputed.
+                if (txn.Status == 3)
+                    await InvoiceLedger.ReverseReceiptItemsAsync(_db, original.Id);
+                await _db.SaveChangesAsync();
+                if (txn.InvoiceSummaryId.HasValue)
+                {
+                    var invoice = await _db.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == txn.InvoiceSummaryId.Value && !i.IsDeleted);
+                    if (invoice != null) await InvoiceLedger.RefreshAsync(_db, invoice);
+                }
+            }
+        }
+
         await _db.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return MapToDto(txn);
     }
 

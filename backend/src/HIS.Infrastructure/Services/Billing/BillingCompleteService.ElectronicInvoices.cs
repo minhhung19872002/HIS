@@ -186,6 +186,11 @@ public partial class BillingCompleteService {
 
     public async Task<bool> CancelElectronicInvoiceAsync(Guid eInvoiceId, string reason, Guid userId)
     {
+        // QA-R13: a blank reason was accepted, and 3 concurrent cancels all succeeded (read-then-write, no lock).
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Vui lòng nhập lý do hủy hóa đơn.", nameof(reason));
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"einvoice-cancel-{eInvoiceId}", "Hóa đơn đang được xử lý, vui lòng thử lại.");
         var eInvoice = await _context.ElectronicInvoices.FindAsync(eInvoiceId);
         if (eInvoice == null)
             throw new KeyNotFoundException("Không tìm thấy hóa đơn điện tử");
@@ -194,11 +199,12 @@ public partial class BillingCompleteService {
             throw new InvalidOperationException("Hóa đơn đã bị hủy trước đó");
 
         eInvoice.Status = 3; // Cancelled
-        eInvoice.CancelReason = reason;
+        eInvoice.CancelReason = reason.Trim();
         eInvoice.CancelledAt = DateTime.Now;
         eInvoice.UpdatedBy = userId.ToString();
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -313,6 +319,20 @@ public partial class BillingCompleteService {
 
         if (eInvoice.Status == 3)
             throw new InvalidOperationException("Không thể xuất hóa đơn đã hủy");
+
+        // QA-R13: the draft froze the bảng kê amount at "Phát hành" time. A receipt cancelled or a refund paid out
+        // afterwards left the draft at the old total (measured: draft 155.400đ, money held 55.400đ) and Export would
+        // send that stale amount to the tax authority. Compared with the money held NOW (ledger, not the stored
+        // PaidAmount) and only when the draft is HIGHER — a draft for one partial QR payment stays exportable.
+        if (eInvoice.InvoiceSummary != null && eInvoice.Status == 0)
+        {
+            var (paidNow, refundedNow) = await InvoiceLedger.PaidOnRecordAsync(_context, eInvoice.InvoiceSummary.MedicalRecordId);
+            var heldNow = Math.Max(0m, paidNow - refundedNow);
+            if (Math.Round(eInvoice.TotalAmount, 0) > Math.Round(heldNow, 0))
+                throw new InvalidOperationException(
+                    $"Hóa đơn nháp {eInvoice.InvoiceNumber} ghi {eInvoice.TotalAmount:N0}đ nhưng hiện chỉ còn thu "
+                    + $"{heldNow:N0}đ (có phiếu thu bị hủy / hoàn tiền sau khi lập nháp) — hủy nháp và lập lại.");
+        }
 
         // Phát hành HĐĐT qua nhà cung cấp THẬT (cắm-thay-được qua IElectronicInvoiceProvider).
         // - Provider đã cấu hình ("EInvoice:Enabled"=true + đủ thông tin) → gọi REST API NCC,

@@ -373,8 +373,14 @@ public partial class BillingCompleteService {
             var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal + surgMatInsurance + surgMatPatient;
             var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount) + rxInsurance + surgMatInsurance;
             var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient + surgMatPatient;
-            var paidAmount = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
-                           - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+            // QA-R13: refund slips use RefundStatus (1 = approved, 4 = paid out), so `Status == 1` subtracted approved-but-
+            // unpaid refunds and ignored every paid-out one (measured: 100.000đ refunded, still "đã thu 155.400 / còn 0"
+            // while the invoice owed 100.000đ). Money leaves only at Paid; deposit refunds are not payment money.
+            var refundedOnRecord = await _context.Receipts
+                .Where(r => r.MedicalRecordId == medicalRecordId && r.ReceiptType == 3 && !r.IsDeleted
+                            && r.Status == HIS.Core.Constants.RefundStatus.Paid && r.OriginalPaymentId != null)
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+            var paidAmount = receipts.Where(r => r.ReceiptType != 3 && !r.IsDeleted).Sum(r => r.FinalAmount) - refundedOnRecord;
             var depositBalance = deposits.Sum(d => d.RemainingAmount);
             var remaining = patientAmount - paidAmount;
 

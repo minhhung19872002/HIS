@@ -384,6 +384,11 @@ public partial class BillingCompleteService {
 
         // #218/T3: trước đây gán thẳng, nên phiếu đã TỪ CHỐI / đã CHI / đã HỦY vẫn duyệt lại được.
         var target = dto.IsApproved ? RefundStatus.Approved : RefundStatus.Rejected;
+        // QA-R13: CanTransition accepts from == to, so a second "Duyệt" answered 200 and overwrote the recorded
+        // approver/time (RefundApprovedBy/At) and appended another "Duyệt:" to the note — history rewritten.
+        if (receipt.Status == target)
+            throw new InvalidOperationException(
+                $"Phiếu hoàn tiền đã ở trạng thái \"{RefundStatus.GetName(target)}\" — không duyệt lại.");
         RefundStatus.EnsureCanTransition(receipt.Status, target);
 
         // QA-R7: the cashier who created the refund could approve it too (no second pair of eyes on money out).
