@@ -139,12 +139,12 @@ public class PatientService : IPatientService
             var matched = candidates
                 .Where(p =>
                     ContainsIgnoreCase(p.IdentityNumber, dto.IdentityNumber)
-                    && ContainsIgnoreCase(p.PhoneNumber, dto.PhoneNumber)
+                    && (string.IsNullOrWhiteSpace(dto.PhoneNumber) || HIS.Core.Common.PhoneNumberKey.SearchMatches(p.PhoneNumber, dto.PhoneNumber)) // QA-R15: +84 / spaces
                     && ContainsIgnoreCase(p.InsuranceNumber, dto.InsuranceNumber)
                     && (string.IsNullOrWhiteSpace(dto.Keyword)
                         || ContainsIgnoreCase(p.FullName, dto.Keyword)
                         || ContainsIgnoreCase(p.PatientCode, dto.Keyword)
-                        || ContainsIgnoreCase(p.PhoneNumber, dto.Keyword)))
+                        || HIS.Core.Common.PhoneNumberKey.SearchMatches(p.PhoneNumber, dto.Keyword)))
                 .OrderByDescending(p => p.CreatedAt)
                 .ToList();
             totalCount = matched.Count;
@@ -181,11 +181,16 @@ public class PatientService : IPatientService
         var patient = _mapper.Map<Patient>(dto);
         patient.PatientCode = await GeneratePatientCodeAsync();
         WarnOnSuspiciousFormats(dto, null, patient.PatientCode);
+        // QA-R15: same normalized name + birth date (+ gender) as an existing patient → warning, never a block.
+        var duplicateWarnings = await PatientDuplicateCheck.FindWarningsAsync(_context, dto.FullName, dto.DateOfBirth,
+            dto.YearOfBirth, dto.Gender);
 
         _context.Patients.Add(patient);
         await _context.SaveChangesAsync();
 
-        return _mapper.Map<PatientDto>(patient);
+        var created = _mapper.Map<PatientDto>(patient);
+        if (duplicateWarnings.Count > 0) created.Warnings = duplicateWarnings;
+        return created;
     }
 
     public async Task<PatientDto> UpdateAsync(UpdatePatientDto dto)

@@ -219,10 +219,12 @@ public class TelemedicineServiceImpl : ITelemedicineService
         return new TeleConsultationRecordDto { Id = entity.Id, SessionId = entity.SessionId, ChiefComplaint = entity.Symptoms ?? "", PrimaryDiagnosis = entity.Diagnosis ?? "", PrimaryDiagnosisICD = entity.IcdCode ?? "", Plan = entity.TreatmentPlan ?? "", FollowUpDate = entity.FollowUpDate };
     }
 
-    public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note)
+    public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note, string? overrideReason = null)
     {
-        if (!await _context.TeleSessions.AnyAsync(s => s.Id == sessionId))
-            throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
+        var session = await _context.TeleSessions.AsNoTracking().Where(s => s.Id == sessionId)
+            .Select(s => new { s.Id, PatientId = s.Appointment != null ? s.Appointment.PatientId : Guid.Empty })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
         if (items == null || items.Count == 0)
             throw new ArgumentException("Đơn thuốc phải có ít nhất 1 thuốc", nameof(items));
         if (items.Any(i => i.Quantity <= 0))
@@ -231,7 +233,8 @@ public class TelemedicineServiceImpl : ITelemedicineService
         var drugIds = items.Select(i => i.DrugId).Distinct().ToList();
         if (drugIds.Contains(Guid.Empty))
             throw new ArgumentException("Mỗi dòng thuốc phải chọn thuốc trong danh mục (drugId).", nameof(items));
-        var known = await _context.Medicines.Where(m => drugIds.Contains(m.Id)).Select(m => m.Id).ToListAsync();
+        var known = await _context.Medicines.Where(m => drugIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.MedicineName, m.ActiveIngredient }).ToListAsync();
         if (known.Count != drugIds.Count)
             throw new KeyNotFoundException("Có thuốc không tồn tại trong danh mục.");
         var entity = new TelePrescription
@@ -239,6 +242,32 @@ public class TelemedicineServiceImpl : ITelemedicineService
             Id = Guid.NewGuid(), SessionId = sessionId, PrescriptionCode = CodeGenerator.Timestamp("RX"),
             Status = "Draft", Note = note, PrescriptionDate = DateTime.Now, CreatedAt = DateTime.Now
         };
+
+        // QA-R15: tele prescriptions skipped every safety check the OPD save runs (allergy incl. drug class / free-text
+        // history, severe interaction, duplicate ingredient) — same PrescriptionSafetyGuard now. Clinical.TelemedicineRxSafetyMode:
+        // Warn (default, also when the row is missing) = save + return the findings; Block = 400 unless an override reason.
+        var warnings = new List<string>();
+        if (session.PatientId != Guid.Empty)
+        {
+            var blocks = await PrescriptionSafetyGuard.FindBlockingIssuesAsync(_context, session.PatientId, drugIds);
+            if (blocks.Count > 0)
+            {
+                var modeValue = await _context.SystemConfigs.AsNoTracking()
+                    .Where(c => c.ConfigKey == RxSafetyModeKey && c.IsActive && !c.IsDeleted)
+                    .Select(c => c.ConfigValue).FirstOrDefaultAsync();
+                if (ControlledDrugRxRule.ParseMode(modeValue) == ControlledDrugRxRule.Mode.Block)
+                    await PrescriptionSafetyGuard.EnsureSafeAsync(_context, session.PatientId, drugIds, overrideReason); // throws → 400
+                warnings.AddRange(blocks);
+            }
+            warnings.AddRange(await PrescriptionSafetyGuard.FindDuplicateIngredientWarningsAsync(_context, session.PatientId,
+                entity.Id, null, items.Select(i =>
+                {
+                    var m = known.First(k => k.Id == i.DrugId);
+                    return (i.DrugId, m.MedicineName, m.ActiveIngredient);
+                }).ToList()));
+        }
+        if (!string.IsNullOrWhiteSpace(overrideReason))
+            entity.Note = $"{entity.Note} [BS bỏ qua cảnh báo an toàn: {overrideReason.Trim()}]".Trim();
         _context.TelePrescriptions.Add(entity);
         // F8: persist chi tiết đơn (trước đây items bị bỏ → không có gì để chuyển sang quầy phát).
         foreach (var it in items ?? new List<TelePrescriptionItemDto>())
@@ -254,8 +283,12 @@ public class TelemedicineServiceImpl : ITelemedicineService
             });
         }
         await _context.SaveChangesAsync();
-        return new TelePrescriptionDto { Id = entity.Id, PrescriptionCode = entity.PrescriptionCode, Status = entity.Status, Items = items };
+        return new TelePrescriptionDto { Id = entity.Id, PrescriptionCode = entity.PrescriptionCode, Status = entity.Status, Items = items,
+            Warnings = warnings.Distinct().ToList() };
     }
+
+    /// <summary>QA-R15: "Warn" (default, also when the row is missing) / "Block" — see CreatePrescriptionAsync.</summary>
+    public const string RxSafetyModeKey = "Clinical.TelemedicineRxSafetyMode";
 
     public async Task<TelePrescriptionDto> SignPrescriptionAsync(Guid prescriptionId)
     {

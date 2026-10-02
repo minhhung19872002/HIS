@@ -293,6 +293,9 @@ public partial class ReceptionCompleteService {
             .FirstOrDefaultAsync();
     }
 
+    /// <summary>QA-R15 switch — see OrderServicesByGroupAsync.</summary>
+    public const string GroupOrdersUseVisitObjectKey = "Reception.GroupOrdersUseVisitObject";
+
     public async Task<List<ServiceOrderResultDto>> OrderServicesByGroupAsync(Guid medicalRecordId, Guid groupId, Guid userId)
     {
         // Get service group template with items
@@ -307,6 +310,20 @@ public partial class ReceptionCompleteService {
         var ctx = await LoadOrderContextAsync(medicalRecordId, userId);
         var results = new List<ServiceOrderResultDto>();
 
+        // QA-R15: group orders were always PatientType 2 (self-pay), so a BHYT patient paid 100% of a group order that the
+        // single-order path would split with the fund. Reception.GroupOrdersUseVisitObject: Off (default, also when the row
+        // is missing) = old behaviour; On = the visit's object (MedicalRecord.PatientType), split by BhytVisitPricing below.
+        var paymentType = 2;
+        var useVisitObject = InvoiceLedger.ParseSwitch(await _context.SystemConfigs.AsNoTracking()
+            .Where(c => c.ConfigKey == GroupOrdersUseVisitObjectKey && c.IsActive && !c.IsDeleted)
+            .Select(c => c.ConfigValue).FirstOrDefaultAsync(), false);
+        if (useVisitObject)
+        {
+            var visitObject = await _context.MedicalRecords.AsNoTracking()
+                .Where(m => m.Id == medicalRecordId).Select(m => m.PatientType).FirstOrDefaultAsync();
+            if (visitObject is >= 1 and <= 4) paymentType = visitObject;
+        }
+
         // #195: nhớ phòng theo loại dịch vụ (xem ghi chú ở OrderServicesAtReceptionAsync).
         var roomByServiceType = new Dictionary<int, Guid?>();
 
@@ -320,7 +337,7 @@ public partial class ReceptionCompleteService {
                 roomId = await PickExecutionRoomAsync(service.ServiceType);
                 roomByServiceType[service.ServiceType] = roomId;
             }
-            var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, 2, item.Notes);
+            var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, paymentType, item.Notes);
             await _context.ServiceRequests.AddAsync(serviceRequest);
 
             results.Add(new ServiceOrderResultDto

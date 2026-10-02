@@ -587,8 +587,12 @@ public partial class ReceptionCompleteService {
         }
 
         // BN chưa có trong hệ thống (đăng ký BHYT lần đầu) → tạo mới từ NewPatient
+        List<string>? duplicateWarnings = null;
         if (patient == null && dto.NewPatient != null)
         {
+            // QA-R15: possible duplicate (same normalized name + birth + gender) → warning in the response, never a block.
+            duplicateWarnings = await PatientDuplicateCheck.FindWarningsAsync(_context, dto.NewPatient.FullName,
+                dto.NewPatient.DateOfBirth, dto.NewPatient.YearOfBirth, dto.NewPatient.Gender);
             patient = new Patient
             {
                 Id = Guid.NewGuid(),
@@ -700,7 +704,9 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
         if (examFeeAdded) await ExamFeeAutoOrder.SplitAsync(_context, medicalRecord.Id);
 
-        return MapToAdmissionDto(medicalRecord, patient, room, queueTicket);
+        var result = MapToAdmissionDto(medicalRecord, patient, room, queueTicket);
+        if (duplicateWarnings is { Count: > 0 }) result.Warnings = duplicateWarnings;
+        return result;
     }
 
     public async Task<AdmissionDto> QuickRegisterByPatientCodeAsync(string patientCode, Guid roomId, Guid userId)

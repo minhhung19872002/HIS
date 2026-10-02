@@ -151,6 +151,8 @@ namespace HIS.Application.DTOs.Telemedicine
         public string Status { get; set; } // Draft, Signed, SentToPharmacy, Dispensed
         public Guid? LinkedPharmacyId { get; set; }
         public string LinkedPharmacyName { get; set; }
+        /// <summary>QA-R15: safety findings (allergy / interaction / duplicate ingredient) — the order was saved.</summary>
+        public List<string>? Warnings { get; set; }
     }
 
     public class TelePrescriptionItemDto

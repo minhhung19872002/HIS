@@ -209,6 +209,8 @@ export const NewVisitModal: React.FC<{
   const submit = async () => {
     if (!data.dept && !visitType?.emergency) { message.warning('Chọn khoa / phòng'); return; }
     setSubmitting(true);
+    // QA-R15: non-blocking notices from the server (possible duplicate patient record) — shown after save.
+    let warnings: string[] = [];
     try {
       // data.age can be 0 (infant) — a truthiness check dropped the birth year for every newborn.
       const yearOfBirth = data.age != null ? new Date().getFullYear() - data.age : undefined;
@@ -229,7 +231,7 @@ export const NewVisitModal: React.FC<{
           severity: data.priority === 'crit' ? 1 : data.priority === 'high' ? 2 : 3,
         });
       } else if (visitType?.bhyt && data.bhytNo.trim()) {
-        await receptionApi.registerInsurancePatient({
+        const insResp = await receptionApi.registerInsurancePatient({
           sourceQueueTicketId: sourceTicket?.ticketId,
           insuranceNumber: data.bhytNo.trim(), roomId: data.dept, chiefComplaint,
           identityNumber: data.cccd.trim() || undefined, isPriority,
@@ -243,6 +245,7 @@ export const NewVisitModal: React.FC<{
             identityNumber: data.cccd.trim() || undefined,
           },
         });
+        warnings = insResp.data?.warnings ?? [];
       } else {
         const feeResp = await receptionApi.registerFeePatient({
           sourceQueueTicketId: sourceTicket?.ticketId,
@@ -257,6 +260,7 @@ export const NewVisitModal: React.FC<{
           serviceType: visitType?.serviceType ?? 3,
           roomId: data.dept, isPriority, chiefComplaint,
         });
+        warnings = feeResp.data?.warnings ?? [];
         // Đa chuyên khoa: đăng ký BN vào các phòng khám thêm (chỉ thu phí/dịch vụ).
         const createdPatientId = feeResp.data?.patientId;
         if (data.extraRooms.length > 0 && createdPatientId) {
@@ -271,6 +275,7 @@ export const NewVisitModal: React.FC<{
       const extraMsg = visitType?.emergency ? ' · chuyển phòng cấp cứu'
         : (!visitType?.bhyt && data.extraRooms.length > 0) ? ` · +${data.extraRooms.length} phòng thêm` : '';
       message.success(`Đã đăng ký · ${data.patientName.trim()}${extraMsg}`);
+      warnings.forEach((w) => message.warning({ content: w, duration: 10 }));
       onDone();
     } catch (err) {
       message.error(extractApiError(err, 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.'));

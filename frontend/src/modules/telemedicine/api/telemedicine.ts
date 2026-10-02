@@ -246,6 +246,8 @@ export interface TelePrescriptionDto {
   prescriptionCode?: string;
   status?: string;
   items?: TelePrescriptionItemInput[];
+  /** QA-R15: allergy / interaction / duplicate-ingredient findings — the order was saved. */
+  warnings?: string[];
 }
 
 // #endregion
@@ -493,8 +495,8 @@ export const getPatientConsultationHistory = (patientId: string, page?: number, 
 // #region E-Prescriptions (F8 — 3 endpoint BE thật; các fn cũ trỏ endpoint không tồn tại đã gỡ)
 
 /** Kê đơn từ buổi tele (persist TelePrescription + items). */
-export const createEPrescription = (sessionId: string, items: TelePrescriptionItemInput[], note?: string) =>
-  apiClient.post<TelePrescriptionDto>(`${BASE_URL}/prescriptions`, { sessionId, items, note });
+export const createEPrescription = (sessionId: string, items: TelePrescriptionItemInput[], note?: string, overrideReason?: string) =>
+  apiClient.post<TelePrescriptionDto>(`${BASE_URL}/prescriptions`, { sessionId, items, note, overrideReason });
 
 /** BS ký đơn (Draft → Signed). */
 export const signEPrescription = (id: string) =>

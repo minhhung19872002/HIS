@@ -22,6 +22,8 @@ namespace HIS.API.Dtos.ExtendedWorkflow;
         public Guid SessionId { get; set; }
         public List<TelePrescriptionItemDto>? Items { get; set; }
         public string? Note { get; set; }
+        /// <summary>QA-R15: optional reason the doctor overrides an allergy/interaction finding (Clinical.TelemedicineRxSafetyMode).</summary>
+        public string? OverrideReason { get; set; }
     }
 
     public class GenerateMealPlanRequest { public DateTime Date { get; set; } public string? MealType { get; set; } public Guid? DepartmentId { get; set; } }

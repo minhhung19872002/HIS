@@ -475,6 +475,21 @@ public class AppointmentBookingService : IAppointmentBookingService
             return new BookingResultDto { Success = false, Message = "Hệ thống chỉ nhận đặt lịch online cho bệnh nhân đã có hồ sơ. Vui lòng đến trực tiếp bệnh viện để đăng ký lần đầu." };
         }
 
+        // QA-R15: an anonymous booking typing a CCCD that already belongs to ANOTHER patient wrote that CCCD onto the new
+        // record (two patients, one CCCD — the reception CCCD lookup then opens the wrong one). Keep the CCCD off the new
+        // record and leave a note for the counter; the public response says nothing about the other patient.
+        string? cccdConflictNote = null;
+        var bookingCccd = dto.IdentityNumber?.Trim();
+        if (existingPatient == null && !string.IsNullOrEmpty(bookingCccd))
+        {
+            var owner = await _context.Patients.Where(p => !p.IsDeleted).FindByIdentityNumberDecryptedAsync(bookingCccd);
+            if (owner != null)
+            {
+                cccdConflictNote = $"CCCD trùng BN {owner.PatientCode} — quầy đối chiếu";
+                bookingCccd = null;
+            }
+        }
+
         // Tìm hoặc tạo bệnh nhân
         var patient = existingPatient ?? new Patient
         {
@@ -485,7 +500,7 @@ public class AppointmentBookingService : IAppointmentBookingService
             Email = dto.Email?.Trim(),
             DateOfBirth = dto.DateOfBirth,
             Gender = dto.Gender ?? 1,
-            IdentityNumber = dto.IdentityNumber?.Trim(),
+            IdentityNumber = bookingCccd,
             Address = dto.Address?.Trim(),
             CreatedAt = DateTime.UtcNow
         };
@@ -556,7 +571,7 @@ public class AppointmentBookingService : IAppointmentBookingService
             DoctorId = dto.DoctorId,
             AppointmentType = dto.AppointmentType,
             Reason = dto.Reason?.Trim(),
-            Notes = dto.Notes?.Trim(),
+            Notes = BookingNotes(cccdConflictNote, dto.Notes),
             Status = 0, // Chờ xác nhận
             CreatedAt = DateTime.UtcNow
         };
@@ -1015,6 +1030,14 @@ public class AppointmentBookingService : IAppointmentBookingService
         }
 
         return slots;
+    }
+
+    /// <summary>Counter note first (QA-R15 CCCD conflict), then the patient's note; capped at the column size (1000).</summary>
+    private static string? BookingNotes(string? counterNote, string? patientNote)
+    {
+        var text = string.Join("\n", new[] { counterNote, patientNote?.Trim() }.Where(x => !string.IsNullOrEmpty(x)));
+        if (text.Length == 0) return null;
+        return text.Length > 1000 ? text[..1000] : text;
     }
 
     private static BookingStatusDto MapToBookingStatus(Appointment a)

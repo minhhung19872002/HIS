@@ -151,6 +151,11 @@ public class Discharge : BaseEntity
 
     public string? TransferNumber { get; set; } // Số công văn chuyển tuyến
     public DateTime? TransferNumberAssignedAt { get; set; }
+
+    /// <summary>QA-R15 (migration 226): nơi chuyển đến / lý do chuyển của loại ra viện "Chuyển viện" — the form sent them
+    /// but nothing stored them. NULL on older rows.</summary>
+    public string? TransferToHospital { get; set; } // nvarchar(500)
+    public string? TransferReason { get; set; }     // nvarchar(1000)
 }
 
 /// <summary>

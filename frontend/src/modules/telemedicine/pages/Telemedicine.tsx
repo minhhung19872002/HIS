@@ -500,13 +500,14 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
   const { message } = AntdApp.useApp();
   const [rows, setRows] = useState<RxRowDraft[]>([emptyRxRow(1)]);
   const [note, setNote] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
   const [options, setOptions] = useState<MedicineDto[]>([]);
   const [created, setCreated] = useState<TelePrescriptionDto | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!appt) return;
-    setRows([emptyRxRow(1)]); setNote(''); setCreated(null); setOptions([]);
+    setRows([emptyRxRow(1)]); setNote(''); setOverrideReason(''); setCreated(null); setOptions([]);
   }, [appt]);
 
   const onSearchMedicine = (kw: string) => {
@@ -535,10 +536,15 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
     if (!items.length) { message.warning('Chọn ít nhất 1 thuốc'); return; }
     setBusy(true);
     try {
-      const r = await createEPrescription(appt.sessionId, items, note.trim() || undefined);
+      const r = await createEPrescription(appt.sessionId, items, note.trim() || undefined, overrideReason.trim() || undefined);
       setCreated(r.data);
       message.success(`Đã tạo đơn ${r.data?.prescriptionCode ?? ''}`);
-    } catch { message.error('Tạo đơn thất bại'); }
+      // QA-R15: safety findings (allergy / interaction / duplicate ingredient) come back as warnings.
+      (r.data?.warnings ?? []).forEach((w) => message.warning({ content: w, duration: 8 }));
+    } catch (e) {
+      const raw = (e as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+      message.error(typeof raw === 'string' && raw ? raw : 'Tạo đơn thất bại');
+    }
     finally { setBusy(false); }
   };
 
@@ -669,6 +675,10 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
           <div style={{ marginTop: 'var(--space-6)' }}>
             <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú đơn</div>
             <Input.TextArea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Lời dặn của bác sĩ…" />
+          </div>
+          <div style={{ marginTop: 'var(--space-6)' }}>
+            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Lý do bỏ qua cảnh báo an toàn (nếu có)</div>
+            <Input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Chỉ nhập khi vẫn kê dù có cảnh báo dị ứng/tương tác" />
           </div>
         </>
       )}

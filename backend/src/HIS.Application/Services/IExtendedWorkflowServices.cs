@@ -41,7 +41,7 @@ namespace HIS.Application.Services
         Task<TeleConsultationRecordDto> SaveConsultationRecordAsync(SaveTeleConsultationDto dto);
 
         // E-Prescriptions
-        Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note);
+        Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note, string? overrideReason = null);
         Task<TelePrescriptionDto> SignPrescriptionAsync(Guid prescriptionId);
         Task<bool> SendPrescriptionToPharmacyAsync(SendPrescriptionToPharmacyDto dto);
 

@@ -236,6 +236,8 @@ namespace HIS.Application.DTOs
         public string Notes { get; set; }
         /// <summary>ExaminationId của lượt khám hôm nay — dùng để in phiếu khám (pdf/emr/{id}).</summary>
         public Guid? ExaminationId { get; set; }
+        /// <summary>QA-R15: non-blocking notices for the counter (e.g. possible duplicate patient record).</summary>
+        public List<string>? Warnings { get; set; }
     }
 
     public class AdmissionSearchDto

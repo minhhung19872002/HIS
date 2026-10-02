@@ -97,9 +97,13 @@ public partial class ReceptionCompleteService {
             }
         }
 
+        List<string>? duplicateWarnings = null;
         if (patient == null && useNewPatient && dto.NewPatient != null)
         {
             ValidatePatientFormats(dto.NewPatient);
+            // QA-R15: possible duplicate (same normalized name + birth + gender) → warning in the response, never a block.
+            duplicateWarnings = await PatientDuplicateCheck.FindWarningsAsync(_context, dto.NewPatient.FullName,
+                dto.NewPatient.DateOfBirth, dto.NewPatient.YearOfBirth, dto.NewPatient.Gender);
             patient = new Patient
             {
                 Id = Guid.NewGuid(),
@@ -214,7 +218,9 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
         if (examFeeAdded) await ExamFeeAutoOrder.SplitAsync(_context, medicalRecord.Id);
 
-        return MapToAdmissionDto(medicalRecord, patient, room, queueTicket);
+        var result = MapToAdmissionDto(medicalRecord, patient, room, queueTicket);
+        if (duplicateWarnings is { Count: > 0 }) result.Warnings = duplicateWarnings;
+        return result;
     }
 
     public async Task<AdmissionDto> QuickRegisterByPhoneAsync(string phoneNumber, Guid roomId, int serviceType, Guid userId)

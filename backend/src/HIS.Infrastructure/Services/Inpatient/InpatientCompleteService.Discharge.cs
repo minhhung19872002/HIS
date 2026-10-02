@@ -246,6 +246,10 @@ public partial class InpatientCompleteService {
         discharge.DischargeInstructions = dto.DischargeInstructions;
         discharge.FollowUpDate = dto.FollowUpDate;
         discharge.DischargedBy = userId;
+        // QA-R15: destination/reason of a "Chuyển viện" discharge were dropped (the v2 form sends them). Cleared for other
+        // types so a reused cancelled row keeps no stale destination. Truncated to the column sizes (500 / 1000).
+        discharge.TransferToHospital = dto.DischargeType == 2 ? Clip(dto.TransferToHospital, 500) : null;
+        discharge.TransferReason = dto.DischargeType == 2 ? Clip(dto.TransferReason, 1000) : null;
 
         // Update admission status
         admission.Status = dto.DischargeType switch
@@ -303,6 +307,7 @@ public partial class InpatientCompleteService {
                 dischargeType = dto.DischargeType,
                 dischargeDate = dto.DischargeDate,
                 dischargeCondition = dto.DischargeCondition,
+                transferToHospital = discharge.TransferToHospital,
             }),
             CreatedAt = DateTime.UtcNow,
         });
@@ -333,6 +338,13 @@ public partial class InpatientCompleteService {
             FollowUpDate = dto.FollowUpDate?.ToString("dd/MM/yyyy"),
             DischargedBy = userId.ToString()
         };
+    }
+
+    /// <summary>Trimmed, empty → null, cut to <paramref name="max"/> characters (column size).</summary>
+    private static string? Clip(string? value, int max)
+    {
+        var v = value?.Trim();
+        return string.IsNullOrEmpty(v) ? null : v.Length > max ? v[..max] : v;
     }
 
     public async Task<bool> CancelDischargeAsync(Guid admissionId, string reason, Guid userId)
@@ -475,15 +487,19 @@ public partial class InpatientCompleteService {
         var discharge = await _context.Set<Discharge>()
             .FirstOrDefaultAsync(d => d.AdmissionId == admissionId);
 
+        // QA-R15: the condition slot received DischargeType (a "Chuyển viện" printed "Đỡ, giảm", "Tử vong" printed "Nặng hơn")
+        // and the treatment-summary slot the condition number ("1"). Pass the real outcome + the transfer destination.
         var html = GetDischargeLetter(
             patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
             patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
             medRecord.MedicalRecordCode, dept?.DepartmentName,
             admission.AdmissionDate, discharge?.DischargeDate ?? DateTime.Now,
             admission.DiagnosisOnAdmission, discharge?.DischargeDiagnosis ?? medRecord.MainDiagnosis,
-            discharge?.DischargeCondition.ToString(), discharge?.DischargeType ?? 1,
+            null, discharge?.DischargeCondition ?? 0,
             discharge?.DischargeInstructions, discharge?.FollowUpDate,
-            doctor?.FullName, null);
+            doctor?.FullName, null,
+            discharge?.DischargeType == 2 ? discharge.TransferToHospital : null,
+            discharge?.DischargeType == 2 ? discharge.TransferReason : null);
 
         return Encoding.UTF8.GetBytes(html);
     }
@@ -540,7 +556,8 @@ public partial class InpatientCompleteService {
         var details = await _context.ServiceRequestDetails
             .Include(d => d.Service)
             .Include(d => d.ServiceRequest)
-            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted
+                && d.ServiceRequest.Status != 4 && d.Status != 3) // QA-R15: cancelled orders were printed and summed
             .OrderBy(d => d.ServiceRequest.RequestDate)
             .ToListAsync();
 
@@ -562,7 +579,7 @@ public partial class InpatientCompleteService {
 
         var html = BuildTableReport(
             "BẢNG CÔNG KHAI DỊCH VỤ",
-            $"BN: {Esc(patient.FullName)} - Mã BN: {Esc(patient.PatientCode)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            $"BN: {patient.FullName} - Mã BN: {patient.PatientCode} - Mã HS: {medRecord.MedicalRecordCode} - Khoa: {dept?.DepartmentName}",
             null,
             headers, rows);
 
@@ -606,7 +623,7 @@ public partial class InpatientCompleteService {
 
         var html = BuildTableReport(
             "BẢNG CÔNG KHAI THUỐC",
-            $"BN: {Esc(patient.FullName)} - Mã BN: {Esc(patient.PatientCode)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            $"BN: {patient.FullName} - Mã BN: {patient.PatientCode} - Mã HS: {medRecord.MedicalRecordCode} - Khoa: {dept?.DepartmentName}",
             null,
             headers, rows);
 
@@ -756,14 +773,16 @@ public partial class InpatientCompleteService {
         var serviceDetails = await _context.ServiceRequestDetails
             .Include(d => d.Service)
             .Include(d => d.ServiceRequest)
-            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted
+                && d.ServiceRequest.Status != 4 && d.Status != 3) // QA-R15: cancelled orders were printed and summed
             .ToListAsync();
 
         // Gather medicines
         var rxDetails = await _context.PrescriptionDetails
             .Include(d => d.Medicine)
             .Include(d => d.Prescription)
-            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2
+                && HIS.Infrastructure.Services.InvoiceLedger.BillableRxStatuses.Contains(d.Prescription.Status))
             .ToListAsync();
 
         var headers = new[] { "Nội dung", "ĐVT", "SL", "Đơn giá BHYT", "Thành tiền", "Tỷ lệ TT(%)", "Nguồn" };
@@ -798,7 +817,7 @@ public partial class InpatientCompleteService {
 
         var html = BuildTableReport(
             "BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH",
-            $"(Mẫu 6556 - TT 09/2024/TT-BYT) | BN: {Esc(patient.FullName)} - {Esc(patient.PatientCode)} | HS: {Esc(medRecord.MedicalRecordCode)} | Khoa: {Esc(dept?.DepartmentName)} | Vào: {admission.AdmissionDate:dd/MM/yyyy} | Ra: {discharge?.DischargeDate.ToString("dd/MM/yyyy") ?? "---"} | Số ngày: {daysOfStay}",
+            $"(Mẫu 6556 - TT 09/2024/TT-BYT) | BN: {patient.FullName} - {patient.PatientCode} | HS: {medRecord.MedicalRecordCode} | Khoa: {dept?.DepartmentName} | Vào: {admission.AdmissionDate:dd/MM/yyyy} | Ra: {discharge?.DischargeDate.ToString("dd/MM/yyyy") ?? "---"} | Số ngày: {daysOfStay}",
             null,
             headers, rows);
 

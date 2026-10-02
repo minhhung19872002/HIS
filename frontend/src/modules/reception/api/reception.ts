@@ -170,6 +170,8 @@ export interface AdmissionDto {
   createdBy?: string;
   /** ExaminationId của lượt khám hôm nay — dùng để in phiếu khám pdf.printEmrForm */
   examinationId?: string;
+  /** QA-R15: cảnh báo không chặn (vd. có thể trùng hồ sơ người bệnh đã có). */
+  warnings?: string[];
 }
 
 export interface DocumentHoldDto {

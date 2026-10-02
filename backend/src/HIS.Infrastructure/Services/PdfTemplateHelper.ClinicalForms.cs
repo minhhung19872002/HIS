@@ -403,7 +403,8 @@ public static partial class PdfTemplateHelper
         string? admissionDiagnosis, string? dischargeDiagnosis,
         string? treatmentSummary, int dischargeCondition,
         string? instructions, DateTime? followUpDate,
-        string? doctorName, string? departmentHeadName)
+        string? doctorName, string? departmentHeadName,
+        string? transferToHospital = null, string? transferReason = null)
     {
         var conditionText = dischargeCondition switch
         {
@@ -465,6 +466,20 @@ public static partial class PdfTemplateHelper
 <div class=""field"">
     <span class=""field-label"">Tình trạng ra viện:</span>
     <span class=""field-value"">{conditionText}</span>
+</div>");
+
+        // QA-R15: "Chuyển viện" discharge — destination and reason (Discharges.TransferToHospital / TransferReason).
+        if (!string.IsNullOrWhiteSpace(transferToHospital))
+            body.AppendLine($@"
+<div class=""field"">
+    <span class=""field-label"">Chuyển đến:</span>
+    <span class=""field-value"">{EscapeHtml(transferToHospital)}</span>
+</div>");
+        if (!string.IsNullOrWhiteSpace(transferReason))
+            body.AppendLine($@"
+<div class=""field"">
+    <span class=""field-label"">Lý do chuyển viện:</span>
+    <span class=""field-value"">{EscapeHtml(transferReason)}</span>
 </div>");
 
         if (!string.IsNullOrEmpty(instructions))

@@ -112,7 +112,7 @@ namespace HIS.API.Controllers
         // F8 (audit FLOW-FINAL): wire kê đơn tele + gửi sang quầy phát (trước đây method service không có endpoint).
         [HttpPost("prescriptions")]
         public async Task<ActionResult<TelePrescriptionDto>> CreatePrescription([FromBody] CreateTelePrescriptionRequest req)
-            => Ok(await _service.CreatePrescriptionAsync(req.SessionId, req.Items ?? new List<TelePrescriptionItemDto>(), req.Note ?? ""));
+            => Ok(await _service.CreatePrescriptionAsync(req.SessionId, req.Items ?? new List<TelePrescriptionItemDto>(), req.Note ?? "", req.OverrideReason));
 
         [HttpPost("prescriptions/{id}/sign")]
         public async Task<ActionResult<TelePrescriptionDto>> SignPrescription(Guid id)

@@ -373,7 +373,9 @@ public partial class PdfGenerationService : IPdfGenerationService
             admission.DiagnosisOnAdmission, discharge?.DischargeDiagnosis ?? mr?.MainDiagnosis,
             null, discharge?.DischargeCondition ?? 2,
             discharge?.DischargeInstructions, discharge?.FollowUpDate,
-            dischargeDocName ?? admission.AdmittingDoctor?.FullName, null);
+            dischargeDocName ?? admission.AdmittingDoctor?.FullName, null,
+            discharge?.DischargeType == 2 ? discharge.TransferToHospital : null, // QA-R15
+            discharge?.DischargeType == 2 ? discharge.TransferReason : null);
 
         return Encoding.UTF8.GetBytes(html);
     }

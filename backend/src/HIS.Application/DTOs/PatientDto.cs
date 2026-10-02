@@ -22,6 +22,8 @@ public class PatientDto
     public string? BloodType { get; set; }
     public string? RhFactor { get; set; }
     public string? PhotoPath { get; set; }
+    /// <summary>QA-R15: non-blocking notices returned by create (e.g. possible duplicate patient record).</summary>
+    public List<string>? Warnings { get; set; }
 }
 
 public class CreatePatientDto

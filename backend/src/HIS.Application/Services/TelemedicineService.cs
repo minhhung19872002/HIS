@@ -140,7 +140,7 @@ namespace HIS.Application.Services
         }
 
         // E-Prescriptions
-        public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note)
+        public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note, string? overrideReason = null)
         {
             _logger.LogInformation("Creating e-prescription for session {SessionId}", sessionId);
             return new TelePrescriptionDto
