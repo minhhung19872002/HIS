@@ -76,4 +76,16 @@ public static class RoleNames
     /// </summary>
     public const string PatientAppService = "PatientAppService";
     public const string PatientAppServiceCode = "PATIENT_APP_SERVICE";
+
+    /// <summary>
+    /// Tài khoản dịch vụ của cổng hợp đồng / mua sắm BlueContract. Sinh từ RoleCode
+    /// <see cref="BlueContractServiceCode"/> (migration 227). Không có permission nào, chỉ được gọi
+    /// <c>/api/integration/bluecontract/*</c> (<c>ExternalActorScopeMiddleware</c>).
+    /// </summary>
+    public const string BlueContractService = "BlueContractService";
+    public const string BlueContractServiceCode = "BLUECONTRACT_SERVICE";
+
+    /// <summary>RoleCode của tài khoản máy (không có người ngồi đổi mật khẩu → miễn hạn mật khẩu).</summary>
+    public static readonly IReadOnlySet<string> ServiceAccountCodes =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PatientAppServiceCode, BlueContractServiceCode };
 }

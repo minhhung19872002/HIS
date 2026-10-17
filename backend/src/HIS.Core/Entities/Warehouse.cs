@@ -94,6 +94,8 @@ public class ImportReceipt : BaseEntity
     public string? SupplierName { get; set; }
     public string? InvoiceNumber { get; set; } // Số hóa đơn
     public DateTime? InvoiceDate { get; set; }
+    public string? ContractNumber { get; set; } // Số hợp đồng cung ứng (migration 227)
+    public string? BidDecisionNumber { get; set; } // Số QĐ phê duyệt kết quả lựa chọn nhà thầu (migration 227)
 
     public decimal TotalAmount { get; set; }
     public decimal Discount { get; set; }

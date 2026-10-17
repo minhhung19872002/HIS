@@ -32,6 +32,7 @@ public class StockReceiptDto
     public string? InvoiceNumber { get; set; }
     public DateTime? InvoiceDate { get; set; }
     public string? ContractNumber { get; set; }
+    public string? BidDecisionNumber { get; set; }
 
     // Kho nguồn (nếu nhập chuyển kho)
     public Guid? SourceWarehouseId { get; set; }
@@ -113,6 +114,7 @@ public class CreateStockReceiptDto
     public string? InvoiceNumber { get; set; }
     public DateTime? InvoiceDate { get; set; }
     public string? ContractNumber { get; set; }
+    public string? BidDecisionNumber { get; set; }
 
     public Guid? SourceWarehouseId { get; set; }
     public Guid? SourceReceiptId { get; set; }

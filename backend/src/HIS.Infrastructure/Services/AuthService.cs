@@ -370,6 +370,7 @@ public class AuthService : IAuthService
         { "CASHIER", new[] { "Cashier", "Accountant" } },
         { "IMAGING_TECH", new[] { "ImagingTech", "Technician" } },
         { RoleNames.PatientAppServiceCode, new[] { RoleNames.PatientAppService } },
+        { RoleNames.BlueContractServiceCode, new[] { RoleNames.BlueContractService } },
     };
 
     /// <summary>
@@ -382,10 +383,10 @@ public class AuthService : IAuthService
     {
         var dto = _mapper.Map<UserDto>(user);
         var maxAge = int.TryParse(_configuration["Auth:PasswordMaxAgeDays"], out var d) ? d : 0;
-        // Tài khoản dịch vụ của BFF app người bệnh không có người ngồi đổi mật khẩu: áp hạn 90 ngày
-        // thì tới hạn middleware chặn mọi lời gọi và app người bệnh chết im lặng. Khoá của nó xoay
-        // chủ động theo quy trình vận hành (docs/features/patient-app/deploy-runbook.md).
-        if (user.UserRoles.Any(ur => string.Equals(ur.Role?.RoleCode, RoleNames.PatientAppServiceCode, StringComparison.OrdinalIgnoreCase)))
+        // Tài khoản dịch vụ (BFF app người bệnh, BlueContract) không có người ngồi đổi mật khẩu: áp hạn
+        // 90 ngày thì tới hạn middleware chặn mọi lời gọi và hệ thống gọi tới chết im lặng. Khoá của
+        // chúng xoay chủ động theo quy trình vận hành (docs/features/patient-app/deploy-runbook.md).
+        if (user.UserRoles.Any(ur => ur.Role?.RoleCode is { } code && RoleNames.ServiceAccountCodes.Contains(code)))
             maxAge = 0;
         var reason = PasswordPolicy.MustChange(user.MustChangePassword, user.PasswordChangedAt, maxAge, DateTime.UtcNow);
         dto.MustChangePassword = reason != null;

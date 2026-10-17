@@ -50,6 +50,9 @@ public sealed class ExternalActorScopeMiddleware
             "/api/reception/queue/ticket/",
             "/health",
         }),
+
+        // Tài khoản dịch vụ của cổng BlueContract: chỉ đọc tồn kho / phiếu nhập qua controller tích hợp riêng.
+        (RoleNames.BlueContractService, new[] { "/api/integration/bluecontract/", "/health" }),
     };
 
     public ExternalActorScopeMiddleware(RequestDelegate next, ILogger<ExternalActorScopeMiddleware> logger)

@@ -73,6 +73,13 @@ public static class DependencyInjection
 
         // Phân hệ 5: Kho Dược (Warehouse/Pharmacy)
         services.AddScoped<IWarehouseCompleteService, WarehouseCompleteService>();
+        // BlueContract (cổng hợp đồng): API đọc kho + đẩy phiếu nhập NCC khi duyệt (env BlueContract__*).
+        services.AddScoped<IBlueContractIntegrationService, HIS.Infrastructure.Services.Integration.BlueContractIntegrationService>();
+        services.AddHttpClient(HIS.Infrastructure.Services.Integration.BlueContractReceiptPusher.HttpClientName,
+            c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddSingleton<HIS.Infrastructure.Services.Integration.BlueContractReceiptPusher>();
+        services.AddSingleton<IBlueContractReceiptPushQueue>(sp => sp.GetRequiredService<HIS.Infrastructure.Services.Integration.BlueContractReceiptPusher>());
+        services.AddHostedService(sp => sp.GetRequiredService<HIS.Infrastructure.Services.Integration.BlueContractReceiptPusher>());
 
         // Phân hệ 10: Thu ngân (Billing)
         services.AddScoped<IBillingCompleteService, BillingCompleteService>();

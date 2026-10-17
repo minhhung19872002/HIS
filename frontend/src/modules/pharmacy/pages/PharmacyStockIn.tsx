@@ -510,6 +510,8 @@ const PharmacyStockIn: React.FC = () => {
       supplierId: (values.supplierId as string) || undefined,
       invoiceNumber: (values.invoiceNumber as string) || undefined,
       invoiceDate: values.invoiceDate ? (values.invoiceDate as ReturnType<typeof dayjs>).format('YYYY-MM-DD') : undefined,
+      contractNumber: (values.contractNumber as string)?.trim() || undefined,
+      bidDecisionNumber: (values.bidDecisionNumber as string)?.trim() || undefined,
       notes: (values.notes as string) || undefined,
       items: validItems.map((l): CreateStockReceiptItemDto => ({
         itemId: l.itemId,
@@ -734,6 +736,8 @@ const PharmacyStockIn: React.FC = () => {
                   <DrField lbl="Nhà cung cấp">{detail.supplierName || '—'}</DrField>
                   <DrField lbl="Số hóa đơn">{detail.invoiceNumber || '—'}</DrField>
                   <DrField lbl="Ngày hóa đơn">{fmtDate(detail.invoiceDate)}</DrField>
+                  <DrField lbl="Số hợp đồng">{detail.contractNumber || '—'}</DrField>
+                  <DrField lbl="Số QĐ trúng thầu">{detail.bidDecisionNumber || '—'}</DrField>
                   {detail.notes && <DrField lbl="Ghi chú">{detail.notes}</DrField>}
                 </DrSec>
 
@@ -822,6 +826,15 @@ const PharmacyStockIn: React.FC = () => {
 
             <Form.Item name="invoiceDate" label="Ngày hóa đơn">
               <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+            </Form.Item>
+
+            {/* Cổng BlueContract ghép phiếu với hợp đồng theo Số QĐ + MST NCC; Số HĐ khi NCC có nhiều hợp đồng. */}
+            <Form.Item name="contractNumber" label="Số hợp đồng" rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}>
+              <Input placeholder="VD: 16/2026/HĐ-BVĐK" />
+            </Form.Item>
+
+            <Form.Item name="bidDecisionNumber" label="Số QĐ trúng thầu" rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}>
+              <Input placeholder="VD: 126/QĐ-BVĐK" />
             </Form.Item>
 
             <Form.Item name="receiptDate" label="Ngày nhập kho" rules={[{ required: true, message: 'Chọn ngày nhập' }]} initialValue={dayjs()}>

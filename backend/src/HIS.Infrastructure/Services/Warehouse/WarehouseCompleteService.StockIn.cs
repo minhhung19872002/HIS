@@ -65,6 +65,16 @@ public partial class WarehouseCompleteService {
             throw new KeyNotFoundException("Nhà cung cấp không tồn tại");
     }
 
+    /// <summary>Số HĐ / Số QĐ thầu của phiếu NCC (cột nvarchar(100), migration 227): trim, rỗng → null.</summary>
+    private static string? ReceiptReference(string? value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        if (trimmed.Length > 100)
+            throw new InvalidOperationException($"{label} tối đa 100 ký tự.");
+        return trimmed;
+    }
+
     private static void EnsureValidReceiptRates(CreateStockReceiptDto dto)
     {
         foreach (var item in dto.Items)
@@ -107,6 +117,8 @@ public partial class WarehouseCompleteService {
             SupplierCode = dto.SupplierId?.ToString(),
             InvoiceNumber = dto.InvoiceNumber,
             InvoiceDate = dto.InvoiceDate,
+            ContractNumber = ReceiptReference(dto.ContractNumber, "Số hợp đồng"),
+            BidDecisionNumber = ReceiptReference(dto.BidDecisionNumber, "Số QĐ trúng thầu"),
             TotalAmount = 0,
             Discount = 0,
             Vat = 0,
@@ -201,6 +213,8 @@ public partial class WarehouseCompleteService {
             ReceiptType = 1,
             InvoiceNumber = dto.InvoiceNumber,
             InvoiceDate = dto.InvoiceDate,
+            ContractNumber = importReceipt.ContractNumber,
+            BidDecisionNumber = importReceipt.BidDecisionNumber,
             Items = items,
             TotalAmount = totalAmount,
             VatAmount = vatTotal,
@@ -258,6 +272,8 @@ public partial class WarehouseCompleteService {
         receipt.SupplierCode = dto.SupplierId?.ToString();
         receipt.InvoiceNumber = dto.InvoiceNumber;
         receipt.InvoiceDate = dto.InvoiceDate;
+        receipt.ContractNumber = ReceiptReference(dto.ContractNumber, "Số hợp đồng");
+        receipt.BidDecisionNumber = ReceiptReference(dto.BidDecisionNumber, "Số QĐ trúng thầu");
         receipt.Note = dto.Notes;
 
         // Remove old details
@@ -758,6 +774,8 @@ public partial class WarehouseCompleteService {
             SupplierName = supplierName,
             InvoiceNumber = r.InvoiceNumber,
             InvoiceDate = r.InvoiceDate,
+            ContractNumber = r.ContractNumber,
+            BidDecisionNumber = r.BidDecisionNumber,
             TotalAmount = r.TotalAmount,
             VatAmount = r.Vat,
             DiscountAmount = r.Discount,

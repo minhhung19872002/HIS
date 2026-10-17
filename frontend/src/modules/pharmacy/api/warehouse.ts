@@ -22,6 +22,7 @@ export interface StockReceiptDto {
   invoiceNumber?: string;
   invoiceDate?: string;
   contractNumber?: string;
+  bidDecisionNumber?: string;
   sourceWarehouseId?: string;
   sourceWarehouseName?: string;
   sourceReceiptId?: string;
@@ -73,6 +74,7 @@ export interface CreateStockReceiptDto {
   invoiceNumber?: string;
   invoiceDate?: string;
   contractNumber?: string;
+  bidDecisionNumber?: string;
   sourceWarehouseId?: string;
   sourceReceiptId?: string;
   departmentId?: string;

@@ -20,13 +20,16 @@ namespace HIS.API.Controllers;
 public class WarehouseCompleteController : ControllerBase
 {
     private readonly IWarehouseCompleteService _warehouseService;
+    private readonly IBlueContractReceiptPushQueue _blueContractPush;
     private readonly ILogger<WarehouseCompleteController> _logger;
 
     public WarehouseCompleteController(
         IWarehouseCompleteService warehouseService,
+        IBlueContractReceiptPushQueue blueContractPush,
         ILogger<WarehouseCompleteController> logger)
     {
         _warehouseService = warehouseService;
+        _blueContractPush = blueContractPush;
         _logger = logger;
     }
 
@@ -109,6 +112,9 @@ public class WarehouseCompleteController : ControllerBase
     public async Task<ActionResult<StockReceiptDto>> ApproveStockReceipt(Guid id)
     {
         var result = await _warehouseService.ApproveStockReceiptAsync(id, GetCurrentUserId());
+        // Phiếu NCC đã duyệt → cổng BlueContract lập phiếu nhập điện tử + luồng ký (không chặn việc duyệt).
+        if (result.ReceiptType == 1)
+            _blueContractPush.Enqueue(id);
         return Ok(result);
     }
 
